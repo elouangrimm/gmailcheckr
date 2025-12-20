@@ -1,0 +1,3 @@
+if (window.top !== window) {
+    (function () {"use strict"; let cookie = document.cookie; Object.defineProperty(document, "cookie", { "get": function () { if (cookie.indexOf("WML=") === -1) { var muid = (location.pathname.split("/mp/")[1] || "").split("/")[0]; cookie += "; WML=" + Date.now() + "#" + window.USER_EMAIL + ":" + muid + ":" + "0" } if (!cookie.startsWith("SID=") && cookie.indexOf(" SID=") === -1) { cookie += "; SID=1" }; if (cookie.indexOf("GMAIL_AT") === -1) { cookie += "; GMAIL_AT=" + location.search.split("mui=")[1].split("&")[0] }; return cookie }, "set": function () {} })})()
+}

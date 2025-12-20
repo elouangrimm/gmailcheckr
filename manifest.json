@@ -1,0 +1,142 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+	"name": "Gmail Checkr",
+	"description": "__MSG_description__",
+	"version": "34.0.1",
+	"background": {
+		"service_worker": "js/background.js"
+	},
+	"action": {
+		"default_icon": {
+			"19": "images/browserButtons/default/not_logged_in.png",
+			"38": "images/browserButtons/default/not_logged_in_retina.png"
+		},
+		"default_title": "Gmail Checkr",
+		"default_popup": "popup.html?source=toolbar&setVia=manifest"
+	},
+	"icons": {
+		"16": "images/icons/icon_16.png",
+		"32": "images/icons/icon_32.png",
+		"48": "images/icons/icon_48.png",
+		"64": "images/icons/icon_64.png",
+		"128": "images/icons/icon_128.png"
+	},
+	"options_page": "options.html",
+	"commands": {
+		"compose": {
+			"description": "__MSG_compose__"
+		},
+		"quickComposeEmail": {
+			"description": "__MSG_quickComposeEmail__"
+		},
+		"refresh": {
+			"description": "__MSG_refresh__"
+		},
+		"markAsReadInNotificationWindow": {
+			"description": "__MSG_markAsReadInNotificationWindow__"
+		},
+		"markAllAsRead": {
+			"description": "__MSG_markAllAsRead__"
+		},
+		"openEmailDisplayedInNotificationWindow": {
+			"description": "__MSG_openEmailDisplayedInNotificationWindow__"
+		},
+		"dnd": {
+			"description": "__MSG_doNotDisturb__"
+		}
+	},
+	"content_scripts": [
+		{
+			"all_frames": true,
+			"js": [
+				"js/tabletView.js"
+			],
+			"matches": [
+				"https://mail.google.com/mail/mu/mp/*"
+			],
+			"include_globs": [
+				"https://mail.google.com/mail/mu/*mui=checkerPlusForGmail*"
+			],
+			"run_at": "document_start"
+		},
+		{
+			"all_frames": true,
+			"js": [
+				"js/tabletViewScript.js"
+			],
+			"matches": [
+				"https://mail.google.com/mail/mu/mp/*"
+			],
+			"include_globs": [
+				"https://mail.google.com/mail/mu/*mui=checkerPlusForGmail*"
+			],
+			"run_at": "document_start",
+			"world": "MAIN"
+		}
+	],
+	"default_locale": "en",
+	"side_panel": {
+		"default_path": "popup.html?source=sidepanel"
+	},
+	"permissions": [
+		"gcm",
+		"alarms",
+		"activeTab",
+		"tts",
+		"idle",
+		"notifications",
+		"storage",
+		"contextMenus",
+		"identity",
+		"system.display",
+		"cookies",
+		"declarativeNetRequestWithHostAccess",
+		"offscreen",
+		"scripting",
+		"sidePanel"
+	],
+	"optional_permissions": [
+		"background",
+		"webRequest"
+	],
+	"host_permissions": [
+		"https://mail.google.com/",
+		"https://jaogjaacnemkkjdbjpljjdjeahfiaeic.chromiumapp.org/*"
+	],
+	"optional_host_permissions": [
+		"https://*.googleusercontent.com/"
+	],
+	"storage": {
+		"managed_schema": "schema.json"
+	},
+	"oauth2": {
+		"client_id": "450788627700-b4u9la88b9jii904fet8l7p20c0iotv5.apps.googleusercontent.com",
+		"scopes": [
+			"https://www.googleapis.com/auth/gmail.modify"
+		]
+	},
+	"manifest_version": 3,
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"options.html",
+				"contribute.html"
+			],
+			"matches": [
+				"https://jasonsavard.com/*",
+				"https://checkout.stripe.com/*",
+				"https://www.paypal.com/*",
+				"https://commerce.coinbase.com/*"
+			]
+		},
+		{
+			"resources": [
+				"css/tabletView.css"
+			],
+			"matches": [
+				"https://mail.google.com/*"
+			]
+		}
+	]
+}

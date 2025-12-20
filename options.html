@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gmail Checkr - Options</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <link rel="stylesheet" href="css/jdom.css">
+
+    <style>
+        :root {
+            --header-bg-color: #d23f31;
+            --gap: 30px;
+        }
+
+        body {
+            font-size: 16px;
+            overflow-y: scroll;
+        }
+
+        fieldset {
+            margin-block: 15px;
+        }
+
+        select,
+        .defaultSoundOptionWrapper {
+            /* .defaultSoundOptionWrapper only there to fix FOUC  */
+            width: 200px;
+        }
+
+        .col-gap {
+            column-gap: 15px;
+        }
+
+        j-button[icon="help"]:not(.raised) {
+            opacity: 0.3;
+        }
+
+        label:has(input[type="checkbox"])+*>j-button[icon="help"] {
+            --icon-only-padding: 0;
+            margin-inline-start: 10px;
+        }
+
+        .hide {
+            display: none
+        }
+
+        @keyframes blink {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
+        @-webkit-keyframes blink {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
+        #buttonPage .pin-extension {
+            margin-bottom: 15px;
+        }
+
+        body.hide-pin .pin-extension {
+            display: none;
+        }
+
+        .sliders {
+            color: gray;
+            font-size: 0.8em;
+        }
+
+        .quote {
+            color: gray
+        }
+
+        #generalPage label:has(select) {
+            margin-block: 15px;
+        }
+
+        /*
+        .testButton {
+            background-color: #F7F7F7;
+            border-radius: 50%;
+            transition: background-color 0.1s ease-in
+        }
+
+        .testButton:hover {
+            background-color: #eee
+        }
+        */
+
+        #notificationVoice label {
+            transition: none
+        }
+
+        #middle {
+            padding: 30px 10px
+        }
+
+        #badgeIcon j-icon {
+            --icon-padding: 5px 0;
+        }
+
+        .defaultSoundOptionWrapper .label-text {
+            display: none;
+        }
+
+        [mustDonate] {
+            opacity: 0.4;
+            transition: opacity 0.1s ease-in
+        }
+
+        [mustDonate]:hover {
+            opacity: 1
+        }
+
+        .highlight {
+            outline: 4px solid red;
+            border-radius: 5px;
+            transition: outline 0.5s ease-in-out;
+        }
+
+        #setPositionAndSizeOptions {
+            margin-inline: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+        }
+
+        #setPositionAndSizeOptions j-input {
+            max-width: 150px;
+        }
+
+        #accountsAndLabels {
+            margin: 30px 0
+        }
+
+        .autoDetect .signature {
+            display: none !important
+        }
+
+        .autoDetect .conversationView {
+            display: none !important
+        }
+
+        .autoDetect #addAccountWrapper {
+            display: none
+        }
+
+        .accountError {
+            color: red !important;
+        }
+
+        #accountsList j-item.has-error {
+            .account-options {
+                display: none;
+            }
+        }
+
+        #accountsList j-item.over {
+            /* outline: 3px dotted #666; */
+            opacity: 0;
+        }
+
+        #accountsList j-item.dragging {
+            opacity: 0.3;
+            transform: scale(0.98);
+        }
+
+        #accountsList [ignore] .email {
+            text-decoration: line-through;
+            opacity: 0.4
+        }
+
+        #accountsList [ignore] .conversationView {
+            display: none
+        }
+
+        .labelIcon {
+            opacity: 0.5
+        }
+
+        .disabledLine .labelIcon {
+            opacity: 0.1
+        }
+
+        .monitorLabelLine {
+            padding: 0 20px
+        }
+
+        /*
+        .monitorLabelLine:hover {
+            background: #f9f9f9
+        }
+
+        .monitorLabelLine.disabledLine .label {
+            opacity: 0.8
+        }
+        */
+
+        .monitorLabelLine.disabledLine .sound,
+        .monitorLabelLine.disabledLine .notification,
+        .monitorLabelLine.disabledLine .voice {
+            visibility: hidden;
+        }
+
+        /*
+        .disabledLine .notification {
+            opacity: 0 !important
+        }
+        */
+
+        .toggleIcon:not([enabled]) {
+            opacity: 0.3
+        }
+
+        .toggleIcon:hover {
+            opacity: 0.1
+        }
+
+        .toggleIcon:hover:not([enabled]) {
+            opacity: 0.3
+        }
+
+        .toggleIcon:hover[enabled] {
+            opacity: 1
+        }
+
+        .openLabel {
+            width: 110px
+        }
+
+        .soundOptionsWrapper,
+        .voiceOptionsWrapper {
+            width: 220px
+        }
+
+        body.disabledSound .soundOptionsWrapper,
+        body.disabledVoice .voiceOptionsWrapper,
+        body.disabledNotification .notification {
+            display: none
+        }
+
+        body:not(.browserButtonAction_gmailInbox) .tab {
+            display: none
+        }
+
+        #dndScheduleDialog .row {
+            white-space: nowrap;
+
+            & input[type='checkbox'] {
+                margin-inline: 7px;
+            }
+        }
+
+        .allWeek {
+            margin-top: -9px;
+        }
+
+        #dndScheduleDialog .time {
+            display: inline-block;
+            width: 70px;
+            margin-right: 5px;
+            text-align: right
+        }
+
+        #dndScheduleDialog .day {
+            width: 31px;
+            text-align: center
+        }
+
+        #dndScheduleDialog .allWeek,
+        #dndScheduleDialog .allDay {
+            height: 30px
+        }
+
+        .allDay,
+        .allWeek {
+            --icon-padding: 0;
+            /* --icon-size: 14px; */
+        }
+
+        #monitorLabels {
+            border-top: 1px solid var(--border-color);
+            padding-block-start: 13px;
+        }
+
+        #monitorLabels .label {
+            width: 200px;
+            cursor: pointer;
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 20px
+        }
+
+        .monitorLabelLine .sound:focus {
+            background: #eee
+        }
+
+        .importantInInbox .tab {
+            opacity: 0
+        }
+
+        .move-icon {
+            opacity: 0.4;
+        }
+
+        .only-one-account .move-icon {
+            display: none;
+        }
+
+        #customButtonDialog {
+            overflow-y: hidden
+        }
+
+        .keys {
+            border-collapse: collapse;
+            margin-top: 8px;
+            margin-right: 10px
+        }
+
+        .keys td {
+            margin: 0;
+            padding: 5px;
+            border: 1px solid #ddd
+        }
+
+        .keys td:first-child {
+            font-weight: bold
+        }
+
+        .keysCheckbox {
+            margin-top: 16px !important;
+            vertical-align: top
+        }
+
+        #dnd-accounts {
+            margin: 20px 0;
+            padding: 10px;
+            min-width: 300px;
+        }
+
+        .accountsLabelsHeader {
+            font-weight: bold;
+            padding: 10px 20px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .page {
+            display: none;
+            opacity: 1;
+            transition-behavior: allow-discrete;
+            transition: opacity 0.18s cubic-bezier(.4, 0, .2, 1);
+
+            &.selected {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                /* row-gap: var(--gap); */
+
+                @starting-style {
+                    opacity: 0;
+                }
+            }
+        }
+
+        #welcomePage {
+            row-gap: 20px;
+            align-items: center;
+
+            j-button {
+                min-width: 300px;
+            }
+        }
+
+        #search {
+            --input-padding: 6px;
+            /* padding: 2px;
+            font-size: 1em; */
+        }
+
+        /*
+        #search:focus {
+            outline: none;
+        }
+        */
+
+        .search-result {
+            outline: 4px solid green;
+            border-radius: 8px;
+        }
+
+        .secondary-nav li.search-result {
+            outline: none;
+            background-color: #0080008c;
+        }
+
+        #skinsAndThemesPage th {
+            text-align: left;
+        }
+
+        #skinsAndThemesPage .name {
+            max-width: 300px;
+            overflow: hidden;
+            padding-right: 10px
+        }
+
+        xx#skinsAndThemesPage .author a {
+            color: black
+        }
+
+        #skinsAndThemesPage .author a[href] {
+            color: #03a9f4;
+            text-decoration: none
+        }
+
+        #skinsAndThemesPage .skinImageWrapper {
+            width: 200px;
+            text-align: center
+        }
+
+        #skinsAndThemesPage .skinImage {
+            width: 40px;
+            transition: width 0.2s ease-in
+        }
+
+        #skinsAndThemesPage .addSkin {
+            opacity: 0
+        }
+
+        #skinsAndThemesPage .skinLine:hover .addSkin {
+            opacity: 1
+        }
+    </style>
+
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/jdom.js"></script>
+    <script src="js/icons.js"></script>
+
+    <script defer src="js/checkerPlusForGmail.js"></script>
+    <script defer src="js/account.js"></script>
+    <script defer src="js/mail.js"></script>
+    <script defer src="js/options.js"></script>
+
+</head>
+
+<body>
+
+    <header class="site-header" sticky>
+        <div class="header-and-secondary-nav">
+            <div class="header-content">
+                <div class="header-start">
+                    <j-button class="side-rail-button" icon="menu" aria-label="Open menu"></j-button>
+                    <div id="logo-and-title">
+                        <img id="logo" src="images/icons/icon_48_white.png" />
+                        <a main-title href="https://jasonsavard.com?ref=GmailOptionsTitle">Gmail Checkr</a>
+                    </div>
+                </div>
+
+                <nav class="primary-nav" aria-label="Main Navigation"></nav>
+
+                <div class="utility-items">
+                    <j-input id="search" type="search" msgLabel="search"></j-input>
+                    <a id="version" class="ripple" href="#"><span id="version-text">v.00.0.0</span></a>
+                    <a id="changelog" class="ripple"
+                        href="https://jasonsavard.com/wiki/Checker_Plus_for_Gmail_changelog?ref=GmailOptions"><span
+                            msg="changelog">Changelog</span></a>
+
+                    <a href="https://jasonsavard.com/forum2/t/checker-plus-for-gmail" class="ripple"><span
+                            msg="help">Help</span></a>
+                </div>
+            </div>
+
+            <nav class="secondary-nav" aria-label="Secondary Navigation">
+                <ul>
+                    <li value="welcome"><a href="#" msg="welcome">Welcome</a></li>
+                    <li value="notifications"><a href="#" msg="notifications">Notifications</a></li>
+                    <li value="button"><a href="#" msg="button">Button</a></li>
+                    <li value="accounts"><a href="#" msg="accountsAndLabels">Accounts / Labels</a></li>
+                    <li value="dnd"><a href="#" msg="doNotDisturb">Do Not Disturb</a></li>
+                    <li value="general"><a href="#" msg="general">General</a></li>
+                    <li value="skinsAndThemes"><a href="#" msg="addSkinsOrThemes">Skins & Themes</a></li>
+                    <li value="keys"><a href="#" msg="keys">Keys</a></li>
+                    <li value="voiceInput"><a href="#" msg="voiceInput">Voice Input</a></li>
+                    <li value="admin"><a href="#" msg="admin">Admin</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="site-main">
+        <template id="welcomePageTemplate">
+            <div id="welcomePage" class="page" value="welcome">
+                <label style="margin-block: 15px">
+                    <span class="label-text" msg="language"></span>
+                    <select id="lang" indexdb-storage="language">
+                        <option value="ar">العربية</option>
+                        <option value="bg">български</option>
+                        <option value="ca">català</option>
+                        <option value="cs">čeština</option>
+                        <option value="da">dansk</option>
+                        <option value="de">Deutsch</option>
+                        <option value="en">English</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="es">español</option>
+                        <!--option value='es-419'>
+                            <option-body two-line>
+                                <div>español</div>
+                                <div secondary>América latina</div>
+                            </option-body>
+                        </option-->
+                        <option value="et">eesti</option>
+                        <option value="fa">فارسی</option>
+                        <option value="fr">français</option>
+                        <option value="fr-CA">français (Canada)</option>
+                        <option value="el">Ελληνικά</option>
+                        <option value="he">עברית</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="hr">Hrvatski</option>
+                        <option value="hu">magyar</option>
+                        <option value="it">italiano</option>
+                        <option value="lv">latviešu</option>
+                        <option value="lt">lietuvių</option>
+                        <option value="nl">Nederlands</option>
+                        <option value="no">Norsk</option>
+                        <option value="pl">polski</option>
+                        <option value='pt-BR'>
+                            <div two-line>
+                                <div>português</div>
+                                <div secondary>Brasil</div>
+                            </div>
+                        </option>
+                        <option value='pt-PT'>
+                            <div two-line>
+                                <div>português</div>
+                                <div secondary>Portugal</div>
+                            </div>
+                        </option>
+                        <option value="ro">Română</option>
+                        <option value="fi">Suomi</option>
+                        <option value="ru">pусский</option>
+                        <option value="sr">Српски</option>
+                        <option value="sk">Slovenčina</option>
+                        <option value="sl">Slovenščina</option>
+                        <option value="sv">svenska</option>
+                        <option value="th">Thai</option>
+                        <option value="tr">Türkçe</option>
+                        <option value="uk">Українська</option>
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="ko">한국어</option>
+                    </select>
+                </label>
+                <div class="layout vertical" style="align-items: stretch; gap: 18px;">
+                    <j-button class="pin-extension colored" icon="pin" msg="pinExtensionToToolbar"></j-button>
+                    <j-button id="notificationsGuide" class="colored" icon="notifications"
+                        msg="customizeNotifications"></j-button>
+                    <j-tooltip for="notificationsGuide" animation-delay="0" position="start"><span
+                            msg="notificationsGuideToolTip">Sounds, Voices, Desktop notifications</span></j-tooltip>
+                    <j-button id="openCheckerPlusSidePanelGuide" class="colored" icon="chrome-reader-mode"
+                        hide-from-firefox msg="openCheckerPlusSidePanel"></j-button>
+                    <j-button id="makeButtonOpenGmailGuide" class="colored" icon="mail"
+                        xsrc="images/browserButtons/default/no_new_retina.png" msg="makeButtonOpenGmail"></j-button>
+                    <j-tooltip for="makeButtonOpenGmailGuide" animation-delay="0" position="start"><span
+                            msg="makeButtonOpenGmailGuideToolTip">Not recommended because it will replace the popup
+                            window</span></j-tooltip>
+                    <j-button id="guideForPrimaryCategory" class="colored" icon="inbox"
+                        msg="guideForPrimaryCategory"></j-button>
+                    <j-tooltip for="guideForPrimaryCategory" animation-delay="0" position="start"><span
+                            msg="guideForPrimaryCategoryToolTip">Not recommended because it will replace the popup
+                            window</span></j-tooltip>
+                    <a style="display: contents"
+                        href="https://jasonsavard.com/wiki/Too_many_unread_emails?ref=welcomeTab" target="_blank">
+                        <j-button id="guideForTooManyUnreadEmails" class="colored" icon="markunread-mailbox"
+                            msg="guideForTooManyUnreadEmails"></j-button>
+                    </a>
+                </div>
+            </div>
+        </template>
+
+        <template id="notificationsPageTemplate">
+            <div id="notificationsPage" class="page" value="notifications">
+                <fieldset class="layout horizontal center col-gap">
+                    <legend msg="notificationSound"></legend>
+                    <div class="defaultSoundOptionWrapper"></div>
+                    <div id="soundOptions" class="layout horizontal center" style="gap: var(--gap);">
+                        <j-button id="playNotificationSound" icon="play-arrow" class="testButton raised"></j-button>
+                        <div class="layout horizontal center col-gap">
+                            <span class="sliders" msg="volume">Volume</span>
+                            <input id="notificationSoundVolume" indexdb-storage="notificationSoundVolume"
+                                type="range" />
+                            <a href="https://jasonsavard.com/wiki/Notifications_for_emails?ref=GmailOptions"
+                                target="_blank"><j-button icon="help"></j-button></a>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layout horizontal center col-gap" hide-from-firefox>
+                    <legend msg="notificationTextToSpeech"></legend>
+                    <label>
+                        <span class="label-text" msg="notificationTextToSpeech" hidden></span>
+                        <select id="notificationVoice" class="sound">
+                            <option value='' msg="off">Off</option>
+                            <hr>
+                            <option value='native'>
+                                <div two-line>
+                                    <div msg="native">native</div>
+                                    <div secondary>No language detection</div>
+                                </div>
+                            </option>
+                            <hr>
+                            <optgroup id="ttsVoices" label="Voices"></optgroup>
+                            <hr>
+                            <option value='addVoice'><span msg="addSpeechEngines">Add voice</span>...</option>
+                        </select>
+                    </label>
+
+                    <div id="voiceOptions" style="display: flex; align-items: center; gap: var(--gap)">
+                        <j-button id="playVoice" icon="play-arrow" class="testButton raised"></j-button>
+                        <div class="layout vertical start" style="gap: 20px">
+                            <div class="layout horizontal center">
+                                <div class="layout horizontal center sliders col-gap">
+                                    <span msg="volume">Volume</span> <input id="voiceSoundVolume"
+                                        indexdb-storage="voiceSoundVolume" type="range" /> <span
+                                        msg="pitch">Pitch</span> <input id="pitch" indexdb-storage="pitch" min="0.1"
+                                        max="2" step="0.1" type="range" /> <span msg="rate">Rate</span> <input id="rate"
+                                        indexdb-storage="rate" min="0.1" max="2" step="0.1" type="range" />
+                                </div>
+                                <j-icon icon="format-quote" class="quote" style="transform:scaleX(-1)"></j-icon><j-input
+                                    id="voiceTestText" no-label-float msgValue="voiceTest"
+                                    style="width:140px"></j-input><j-icon icon="format-quote" class="quote"></j-icon>
+                                <a href="https://jasonsavard.com/wiki/Voice_Notifications" target="_blank"><j-button
+                                        icon="help"></j-button></a>
+                            </div>
+                            <div class="layout horizontal center-center col-gap">
+                                <div class="defaultVoiceOptionWrapper"></div>
+
+                                <label>
+                                    <span class="label-text" msg="spokenWordsLimit"></span>
+                                    <select indexdb-storage="spokenWordsLimit">
+                                        <option value="summary" msg="summary">summary</option>
+                                        <option value="paragraph" msg="paragraph">paragraph</option>
+                                        <option value="wholeEmail" msg="wholeEmail">wholeEmail</option>
+                                    </select>
+                                </label>
+
+                                <label>
+                                    <span class="label-text" msg="voiceNotificationOnlyIfIdle"></span>
+                                    <select indexdb-storage="voiceNotificationOnlyIfIdleInterval">
+                                        <option value="" msg="alwaysSpeak">Always speak</option>
+                                        <option value="15" msg="Xseconds" msgArg1="15">15 seconds</option>
+                                        <option value="30" msg="Xseconds" msgArg1="30">30 seconds</option>
+                                        <option value="60" msg="Xminute" msgArg1="1">1 minute</option>
+                                        <option value="120" msg="Xminutes" msgArg1="2">2 minutes</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layout horizontal center col-gap">
+                    <legend msg="showDesktopNotifications"></legend>
+                    <label>
+                        <span class="label-text" msg="showDesktopNotifications" hidden></span>
+                        <select id="desktopNotification" indexdb-storage="desktopNotification">
+                            <option value="" msg="off">off</option>
+                            <option id="textNotification" value="text" msg="textNotification">textNotification</option>
+                            <option id="richNotification" value="rich" msg="richNotification">richNotification</option>
+                        </select>
+                    </label>
+
+                    <j-tooltip for="textNotification" position="start" animation-delay="0"><span
+                            msg="textNotificationToolTip"></span></j-tooltip>
+                    <j-tooltip for="richNotification" position="start" animation-delay="0"><span
+                            msg="richNotificationToolTip"></span></j-tooltip>
+                    <div>
+                        <j-button id="testNotification" icon="notifications" class="testButton raised"></j-button>
+                        <j-tooltip for="testNotification" animation-delay="0"><span msg="testIt"></span></j-tooltip>
+                    </div>
+                    <a href="https://jasonsavard.com/wiki/Desktop_notifications" target="_blank"><j-button
+                            icon="help"></j-button></a>
+                </fieldset>
+
+                <div id="desktopNotificationOptions" class="layout vertical start">
+
+                    <div id="textNotificationOptions">
+                        <label>
+                            <span class="label-text" msg="closeAfterX"></span>
+                            <select id="showNotificationDuration_text" indexdb-storage="showNotificationDuration">
+                                <option value="3" msg="Xseconds" msgArg1="3">3</option>
+                                <option value="4" msg="Xseconds" msgArg1="4">4</option>
+                                <option value="5" msg="Xseconds" msgArg1="5">5</option>
+                                <option value="7" msg="Xseconds" msgArg1="7">7</option>
+                                <option value="15" msg="Xseconds" msgArg1="15" hide-from-mac>15</option>
+                                <option value="30" msg="Xseconds" msgArg1="30" hide-from-mac>30</option>
+                                <option value="infinite" msg="never">never hide</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="richNotificationOptions">
+
+                        <fieldset id="notificationButtons" class="layout horizontal center col-gap">
+
+                            <label>
+                                <span class="label-text" msg="clickingAnywhereOnNotification"></span>
+                                <select indexdb-storage="notificationClickAnywhere">
+                                    <option value="markAsRead" msg="readLink">mark as read</option>
+                                    <option value="archive" msg="archive">archive</option>
+                                    <option value="open" msg="open">open</option>
+                                    <option value="openInNewTab" msg="openInNewTab">Open in new tab</option>
+                                    <option value="openInPopup" msg="openInPopup">Open in popup</option>
+                                    <option value='reply'>
+                                        <div two-line>
+                                            <div msg="reply">reply</div>
+                                            <div secondary>same rules as General > Compose & Reply Button</div>
+                                        </div>
+                                    </option>
+                                    <option value="replyInPopup" msg="replyInPopup">Reply in popup</option>
+                                    <option value="star" msg="starLinkTitle">star</option>
+                                    <option value="starAndArchive" msg="starAndArchive">star+archive</option>
+                                    <hr>
+                                    <option value="dismiss" msg="dismiss">dismiss</option>
+                                </select>
+                            </label>
+
+                            <label hide-from-firefox>
+                                <span class="label-text" msg="notificationButton1"></span>
+                                <select indexdb-storage="notificationButton1">
+                                    <option value="" style="color:gray" msg="hideButton">Hide button</option>
+                                    <hr>
+                                    <option value="markAsRead" msg="readLink">mark as read</option>
+                                    <option value="delete" msg="delete">delete</option>
+                                    <option value="archive" msg="archive">archive</option>
+                                    <option value="open" msg="open">open</option>
+                                    <option value="openInNewTab" msg="openInNewTab">Open in new tab</option>
+                                    <option value="openInPopup" msg="openInPopup">Open in popup</option>
+                                    <option value='reply'>
+                                        <div two-line>
+                                            <div msg="reply">reply</div>
+                                            <div secondary>same rules as General > Compose & Reply Button</div>
+                                        </div>
+                                    </option>
+                                    <option value="replyInPopup" msg="replyInPopup">Reply in popup</option>
+                                    <option value="star" msg="starLinkTitle">star</option>
+                                    <option value="starAndArchive" msg="starAndArchive">star+archive</option>
+                                    <option value="spam" msg="reportSpam">spam</option>
+                                    <hr>
+                                    <option value="dismiss" msg="dismiss">dismiss</option>
+                                </select>
+                            </label>
+
+                            <label hide-from-firefox>
+                                <span class="label-text" msg="notificationButton2"></span>
+                                <select indexdb-storage="notificationButton2">
+                                    <option value="" style="color:gray" msg="hideButton">Hide button</option>
+                                    <hr>
+                                    <option value="markAsRead" msg="readLink">mark as read</option>
+                                    <option value="delete" msg="delete">delete</option>
+                                    <option value="archive" msg="archive">archive</option>
+                                    <option value="open" msg="open">open</option>
+                                    <option value="openInNewTab" msg="openInNewTab">Open in new tab</option>
+                                    <option value="openInPopup" msg="openInPopup">Open in popup</option>
+                                    <option value='reply'>
+                                        <div two-line>
+                                            <div msg="reply">reply</div>
+                                            <div secondary>same rules as General > Compose & Reply Button</div>
+                                        </div>
+                                    </option>
+                                    <option value="replyInPopup" msg="replyInPopup">Reply in popup</option>
+                                    <option value="star" msg="starLinkTitle">star</option>
+                                    <option value="starAndArchive" msg="starAndArchive">star+archive</option>
+                                    <option value="spam" msg="reportSpam">spam</option>
+                                    <hr>
+                                    <option value="dismiss" msg="dismiss">dismiss</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span class="label-text" msg="buttonIcon"></span>
+                                <select indexdb-storage="notificationButtonIcon">
+                                    <option value="" msg="none">none</option>
+                                    <option value="white" msg="white">white</option>
+                                    <option value="gray" msg="gray">gray</option>
+                                </select>
+                            </label>
+
+                        </fieldset>
+
+                        <label style="margin-block: 15px">
+                            <span class="label-text" msg="closeAfterX"></span>
+                            <select id="showNotificationDuration_rich" indexdb-storage="showNotificationDuration">
+                                <option value="3" msg="Xseconds" msgArg1="3">3</option>
+                                <option value="4" msg="Xseconds" msgArg1="4">4</option>
+                                <option value="5" msg="Xseconds" msgArg1="5">5</option>
+                                <option value="7" msg="Xseconds" msgArg1="7">7</option>
+                                <option value="15" msg="Xseconds" msgArg1="15" hide-from-mac>15</option>
+                                <option value="30" msg="Xseconds" msgArg1="30" hide-from-mac>30</option>
+                                <option value="infinite" msg="never">never hide</option>
+                            </select>
+                        </label>
+
+                        <label id="recycleNotification" style="display:none"><input type="checkbox"
+                                indexdb-storage="recycleNotification"> <span
+                                msg="recycleNotification">recycleNotification</span></label>
+                        <label><input id="moveIntoActionCenter" windows-only hide-from-firefox type="checkbox"
+                                indexdb-storage="moveIntoActionCenter"> <span
+                                msg="moveIntoActionCenter">moveIntoActionCenter</span></label>
+                        <label><input id="notificationWakesUpScreenTemporarily" windows-only hide-from-firefox
+                                type="checkbox" indexdb-storage="notificationWakesUpScreenTemporarily"> <span
+                                msg="notificationWakesUpScreenTemporarily">notificationWakesUpScreenTemporarily</span></label>
+                        <div class="layout horizontal">
+                            <label hide-from-firefox><input id="showNotificationEmailImagePreview" type="checkbox"
+                                    indexdb-storage="showNotificationEmailImagePreview"> <span
+                                    msg="showNotificationEmailImagePreview">showNotificationEmailImagePreview</span></label>
+                            <a href="https://jasonsavard.com/wiki/Show_preview_of_first_image_inside_email"
+                                target="_blank"><j-button icon="help"></j-button></a>
+                        </div>
+                        <j-button id="showContactPhotos" class="raised" style="margin-block: 12px;"
+                            msg="showContactPhotos">show contact photos</j-button>
+
+                    </div>
+
+                    <fieldset class="layout horizontal center col-gap">
+                        <label>
+                            <span class="label-text" msg="display"></span>
+                            <select id="notificationDisplay" indexdb-storage="notificationDisplay">
+                                <option value="newEmail" msg="newemail">newemail</option>
+                                <option value="from" msg="email_from">email_from</option>
+                                <option value="from|subject"><span msg="email_from"></span>,&nbsp;<span
+                                        msg="email_subject"></span></option>
+                                <option value="from|subject|message"><span msg="email_from"></span>,&nbsp;<span
+                                        msg="email_subject"></span>,&nbsp;<span msg="email_message"></span></option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span class="label-text" msg="displaySenders_1"></span>
+                            <select id="notificationDisplayName" indexdb-storage="notificationDisplayName">
+                                <option value="firstNameOnly" msg="firstNameOnly">firstNameOnly</option>
+                                <option value="firstAndLastName" msg="firstAndLastName">firstAndLastName</option>
+                            </select>
+                        </label>
+
+                        <a href="https://jasonsavard.com/wiki/Desktop_notifications?ref=GmailOptions#Notification_display_options"
+                            target="_blank"><j-button icon="help"></j-button></a>
+                    </fieldset>
+
+                    <div class="layout horizontal center col-gap" style="margin-block: 15px">
+                        <label>
+                            <span class="label-text" msg="repeatNotification"></span>
+                            <select id="repeatNotification" indexdb-storage="repeatNotification">
+                                <option value="" msg="off">off</option>
+                                <option value="1" msg="Xminute" msgArg1="1">1 minute</option>
+                                <option value="2" msg="Xminutes" msgArg1="2">2 minutes</option>
+                                <option value="5" msg="Xminutes" msgArg1="5">5</option>
+                                <option value="10" msg="Xminutes" msgArg1="10">10</option>
+                                <option value="30" msg="Xminutes" msgArg1="30">30</option>
+                            </select>
+                        </label>
+                        <a href="https://jasonsavard.com/wiki/Repeat_Notifications?ref=GmailOptions"
+                            target="_blank"><j-button icon="help"></j-button></a>
+                    </div>
+
+                    <label><input type="checkbox" indexdb-storage="displayAccountReceivingEmail"> <span
+                            msg="displayAccountReceivingEmail">displayAccountReceivingEmail</span></label>
+                    <label><input type="checkbox" indexdb-storage="showNotificationsOnStartup"> <span
+                            msg="showNotificationsOnStartup">showNotificationsOnStartup</span></label>
+                    <label><input type="checkbox" indexdb-storage="showNotificationsMissedWhileIdling"> <span
+                            msg="showNotificationsMissedWhileIdling">showNotificationsMissedWhileIdling</span></label>
+                    <div class="layout horizontal">
+                        <label><input type="checkbox" id="showSnoozedNotifications"> <span
+                                msg="showSnoozedNotifications">showSnoozedNotifications</span></label> <a
+                            href="https://jasonsavard.com/wiki/Gmail_Snooze?ref=GmailOptions" target="_blank"><j-button
+                                icon="help"></j-button></a>
+                    </div>
+                    <label id="showNotificationsForOlderDateEmails"><input type="checkbox"
+                            indexdb-storage="showNotificationsForOlderDateEmails"> <span
+                            msg="showNotificationsForOlderDateEmails">showNotificationsForOlderDateEmails</span></label>
+                    <j-tooltip position="start" for="showNotificationsForOlderDateEmails"><span
+                            msg="showNotificationsForOlderDateEmailsToolTip"></span></j-tooltip>
+                    <label><input type="checkbox" indexdb-storage="doNotShowNotificationIfGmailTabOpen"> <span
+                            msg="doNotShowNotificationIfGmailTabOpen">doNotShowNotificationIfGmailTabOpen</span></label>
+
+                </div>
+
+                <div chromium-only class="layout horizontal center">
+                    <label id="runInBackgroundAnchor"><input type="checkbox" id="runInBackground"
+                            permissions="background"><span msg="runInBackground"></span></label> <a
+                        href="https://jasonsavard.com/wiki/Run_in_background?ref=GmailOptions" target="_blank"><j-button
+                            icon="help"></j-button></a>
+                    <j-tooltip position="start" for="runInBackgroundAnchor"><span
+                            msg="runInBackgroundToolTip"></span></j-tooltip>
+                </div>
+            </div>
+        </template>
+
+        <template id="buttonPageTemplate">
+            <div id="buttonPage" class="page" value="button">
+
+                <j-button class="pin-extension colored" icon="pin" msg="pinExtensionToToolbar"></j-button>
+
+                <div class="layout horizontal center">
+                    <j-icon id="currentBadgeIcon" src="images/browserButtons/default/new.png"></j-icon>
+
+                    <label>
+                        <span class="label-text" msg="buttonIcon"></span>
+                        <select id="badgeIcon" indexdb-storage="icon_set">
+                            <option value="default">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/default/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/default/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/default/new.png"></j-icon>
+                                </div>
+                                <span msg="default"></span>
+                            </option>
+                            <option value="blue">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/blue/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/blue/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/blue/new.png"></j-icon>
+                                </div>
+                                <span msg="blue"></span>
+                            </option>
+                            <option value="green">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/green/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/green/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/green/new.png"></j-icon>
+                                </div>
+                                <span msg="green"></span>
+                            </option>
+                            <option value="yellow">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/yellow/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/yellow/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/yellow/new.png"></j-icon>
+                                </div>
+                                <span msg="yellow"></span>
+                            </option>
+                            <option value="native">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/native/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/native/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/native/new.png"></j-icon>
+                                </div>
+                                <span msg="native"></span>
+                            </option>
+                            <option value="mini">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/mini/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/mini/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/mini/new.png"></j-icon>
+                                </div>
+                                <span msg="mini"></span>
+                            </option>
+                            <option value="osx">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/osx/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/osx/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/osx/new.png"></j-icon>
+                                </div>
+                                <span>OS X</span>
+                            </option>
+                            <option value="bubbly">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/bubbly/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/bubbly/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/bubbly/new.png"></j-icon>
+                                </div>
+                                <span msg="bubbly"></span>
+                            </option>
+                            <hr>
+                            <option value="custom">
+                                <div secondary>
+                                    <j-icon id="customButtonIconSignedOut"></j-icon>
+                                    <j-icon id="customButtonIconNoUnread"></j-icon>
+                                    <j-icon id="customButtonIconUnread"></j-icon>
+                                </div>
+                                <span msg="custom"></span>
+                            </option>
+                        </select>
+                    </label>
+                </div>
+
+                <fieldset id="all-browser-button-dropdowns" class="layout horizontal center col-gap">
+                    <label id="browserButtonAction">
+                        <span class="label-text" msg="buttonClickAction"></span>
+                        <select indexdb-storage="browserButtonAction">
+                            <option id="browserButtonAction_checkerPlus" value="checkerPlus">
+                                <div two-line>
+                                    <div msg="openPopupPreview">openPopupPreview</div>
+                                    <div secondary msg="recommended">recommended</div>
+                                </div>
+                            </option>
+                            <option value="sidePanel" msg="openCheckerPlusSidePanel" hide-from-firefox hide-from-opera>
+                                openCheckerPlusSidePanel</option>
+                            <option id="browserButtonAction_checkerPlusPopout" value='checkerPlusPopout'>
+                                <div two-line>
+                                    <div msg="openCheckerPlusDetached">openCheckerPlusDetached</div>
+                                    <div secondary msg="detachedPopupWindow">Detached popup window</div>
+                                </div>
+                            </option>
+                            <option id="browserButtonAction_gmailInbox" value="gmailInbox" msg="openGmailPopupWindow">
+                                openGmailPopupWindow</option>
+                            <option id="browserButtonAction_gmailInboxSidePanel" value="gmailInboxSidePanel"
+                                msg="openGmailSidePanel" hide-from-firefox hide-from-opera>openGmailSidePanel</option>
+                            <option id="browserButtonAction_gmailInboxPopout" value='gmailInboxPopout'>
+                                <div two-line>
+                                    <div msg="openGmailPopupWindow">openGmailPopupWindow</div>
+                                    <div secondary msg="detachedPopupWindow">Detached popup window</div>
+                                </div>
+                            </option>
+                            <option id="browserButtonAction_gmailTab" value='gmailTab'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                </div>
+                            </option>
+                            <option id="browserButtonAction_gmailInNewTab" value='gmailInNewTab'>
+                                <div two-line>
+                                    <div msg="openGmailInNewTab">openGmailInNewTab</div>
+                                </div>
+                            </option>
+                            <option id="browserButtonAction_gmailDetached" value='gmailDetached'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                    <div secondary msg="detachedPopupWindow">Detached popup window</div>
+                                </div>
+                            </option>
+                            <option id="browserButtonAction_compose" value="compose" msg="composeLinkTitle">
+                                composeLinkTitle</option>
+                        </select>
+                    </label>
+
+                    <j-tooltip id="browserButtonActionToolTip" for="browserButtonAction" position="start"
+                        msg="tryCheckerPlusWindowFirst" animation-delay="0"></j-tooltip>
+                    <j-tooltip for="browserButtonAction_checkerPlus" position="start" animation-delay="0"><span
+                            msg="openPopupPreviewToolTip"></span></j-tooltip>
+                    <j-tooltip for="browserButtonAction_gmailInbox" position="start" animation-delay="0"><span
+                            msg="openGmailPopupWindowToolTip"></span></j-tooltip>
+                    <j-tooltip for="browserButtonAction_gmailTab" position="start" animation-delay="0"><span
+                            msg="openGmailTabToolTip"></span></j-tooltip>
+
+                    <label id="checkerPlusBrowserButtonActionIfNoEmail">
+                        <span class="label-text" msg="ifNoUnreadMail"></span>
+                        <select indexdb-storage="checkerPlusBrowserButtonActionIfNoEmail">
+                            <option value="checkerPlus">
+                                <div two-line>
+                                    <div msg="openPopupPreview">openPopupPreview</div>
+                                </div>
+                            </option>
+                            <option value="sidePanel" msg="openCheckerPlusSidePanel" hide-from-opera>
+                                openCheckerPlusSidePanel</option>
+                            <option value="gmailInbox" msg="openGmailPopupWindow" not-firefox>openGmailPopupWindow
+                            </option>
+                            <option value="gmailInboxSidePanel" msg="openGmailSidePanel">openGmailSidePanel</option>
+                            <option value='gmailTab'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                </div>
+                            </option>
+                            <option value='gmailInNewTab'>
+                                <div two-line>
+                                    <div msg="openGmailInNewTab">openGmailInNewTab</div>
+                                </div>
+                            </option>
+                            <option value='gmailDetached'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                    <div secondary msg="detachedPopupWindow">Detached popup window</div>
+                                </div>
+                            </option>
+                            <option value="compose" msg="composeLinkTitle">composeLinkTitle</option>
+                        </select>
+                    </label>
+
+                    <label id="sidePanelBrowserButtonActionIfNoEmail">
+                        <span class="label-text" msg="ifNoUnreadMail"></span>
+                        <select indexdb-storage="sidePanelBrowserButtonActionIfNoEmail">
+                            <option value="checkerPlus">
+                                <div two-line>
+                                    <div msg="openPopupPreview">openPopupPreview</div>
+                                </div>
+                            </option>
+                            <option value="sidePanel" msg="openCheckerPlusSidePanel" hide-from-opera>
+                                openCheckerPlusSidePanel</option>
+                            <option value="gmailInbox" msg="openGmailPopupWindow" not-firefox>openGmailPopupWindow
+                            </option>
+                            <option value='gmailTab'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                </div>
+                            </option>
+                            <option value='gmailInNewTab'>
+                                <div two-line>
+                                    <div msg="openGmailInNewTab">openGmailInNewTab</div>
+                                </div>
+                            </option>
+                            <option value='gmailDetached'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                    <div secondary msg="detachedPopupWindow">Detached popup window</div>
+                                </div>
+                            </option>
+                            <option value="compose" msg="composeLinkTitle">composeLinkTitle</option>
+                        </select>
+                    </label>
+
+                    <label id="gmailPopupBrowserButtonActionIfNoEmail">
+                        <span class="label-text" msg="ifNoUnreadMail"></span>
+                        <select indexdb-storage="gmailPopupBrowserButtonActionIfNoEmail">
+                            <option value="checkerPlus">
+                                <div two-line>
+                                    <div msg="openPopupPreview">openPopupPreview</div>
+                                </div>
+                            </option>
+                            <option value="gmailInbox" msg="openGmailPopupWindow" not-firefox>openGmailPopupWindow
+                            </option>
+                            <option value="gmailInboxSidePanel" msg="openGmailSidePanel">openGmailSidePanel</option>
+                            <option value='gmailTab'>
+                                <div two-line>
+                                    <div msg="openGmailTab">openGmailTab</div>
+                                </div>
+                            </option>
+                            <option value="compose" msg="composeLinkTitle">composeLinkTitle</option>
+                        </select>
+                    </label>
+
+                    <a href="https://jasonsavard.com/wiki/Popup_window?ref=GmailOptions" target="_blank"><j-button
+                            icon="help"></j-button></a>
+
+                </fieldset>
+
+                <div class="layout vertical start">
+                    <div class="layout horizontal center">
+                        <label><input type="checkbox" id="animateButtonIcon" indexdb-storage="animateButtonIcon"><span
+                                msg="showIconAnimation"></span></label> <j-button id="testButtonIconAnimation"
+                            icon="play-arrow" class="testButton raised"
+                            style="margin-inline: 15px"></j-button><j-tooltip for="testButtonIconAnimation"
+                            animation-delay="0"><span msg="testIt"></span></j-tooltip>
+                    </div>
+                    <label><input type="checkbox" id="showButtonTooltip" indexdb-storage="showButtonTooltip"
+                            style="margin-bottom:6px"><span msg="showButtonTooltip"></span></label>
+                    <label><input type="checkbox" id="hide_count" indexdb-storage="hide_count"><span
+                            msg="hideUnreadCount"></span></label>
+                    <label><input type="checkbox" id="showOnlyRecentUnreadEmails"
+                            indexdb-storage="showOnlyRecentUnreadEmails" mustDonate><span
+                            msg="showOnlyRecentUnreadEmails"></span></label>
+                    <label><input type="checkbox" id="resetEmailUnreadIconWhenButtonClicked"
+                            indexdb-storage="resetEmailUnreadIconWhenButtonClicked" mustDonate><span
+                            msg="resetEmailUnreadIconWhenButtonClicked"></span></label>
+                    <fieldset>
+                        <legend msg="unreadMailCountColor">Unread mail count color</legend>
+                        <span id="sample-unread-count"
+                            style="margin-inline: 10px;border:1px solid #444;font-size:0.7em;color:black;border-width:1px;padding:0 4px;border-radius:3px">2</span>
+                        <j-button id="unread-count-background-color" icon="format-color-fill" class="raised"></j-button>
+                    </fieldset>
+                </div>
+
+                <fieldset id="checkerPlusButtons" class="layout horizontal start col-gap" style="gap: 30px">
+                    <legend msg="selectQuickActionButtons">selectQuickActionButtons</legend>
+                    <div>
+                        <label id="showArchive"><input type="checkbox" indexdb-storage="showArchive" mustDonate><j-icon
+                                icon="archive"></j-icon></input> <span msg="archive"></span></label>
+                        <label id="showSpam"><input type="checkbox" indexdb-storage="showSpam" mustDonate><j-icon
+                                icon="report"></j-icon></input> <span msg="spam"></span></label>
+                        <label id="showDelete"><input type="checkbox" indexdb-storage="showDelete" mustDonate><j-icon
+                                icon="delete"></j-icon></input> <span msg="deleteLink"></span></label>
+                        <label id="showMoveLabel"><input type="checkbox" indexdb-storage="showMoveLabel"
+                                mustDonate><j-icon icon="moveFolderIcon"></j-icon></input> <span
+                                msg="moveLabel"></span></label>
+                        <label id="showReply"><input type="checkbox" indexdb-storage="showReply" mustDonate><j-icon
+                                icon="reply"></j-icon></input> <span msg="replyInGmail"></span></label>
+                        <label id="showOpen"><input type="checkbox" indexdb-storage="showOpen" mustDonate><j-icon
+                                icon="open-in-browser"></j-icon></input> <span msg="openGmailTab"></span></label>
+                        <label id="showMarkAsUnread"><input type="checkbox" indexdb-storage="showMarkAsUnread"
+                                mustDonate><j-icon icon="markunread"></j-icon></input> <span
+                                msg="unreadLinkTitle"></span></label>
+                        <label id="showMarkAsRead"><input type="checkbox" indexdb-storage="showMarkAsRead"
+                                mustDonate><j-icon icon="drafts"></j-icon></input> <span
+                                msg="readLinkTitle"></span></label>
+                    </div>
+                    <div>
+                        <label id="showArchiveAll"><input type="checkbox" indexdb-storage="showArchiveAll"
+                                mustDonate><j-icon icon="archive"></j-icon> <span
+                                msg="archiveAll"></span></input></label>
+                        <label id="showMarkAllAsSpam"><input type="checkbox" indexdb-storage="showMarkAllAsSpam"
+                                mustDonate><j-icon icon="report"></j-icon> <span
+                                msg="markAllAsSpam"></span></input></label>
+                        <label id="showMarkAllAsRead"><input type="checkbox" indexdb-storage="showMarkAllAsRead"
+                                mustDonate><j-icon icon="drafts"></j-icon> <span
+                                msg="markAllAsRead"></span></input></label>
+                        <label id="showAddToCalendar"><input type="checkbox" indexdb-storage="showAddToCalendar"
+                                mustDonate><j-icon icon="event"></j-icon></input> <span
+                                msg="addToGoogleCalendar"></span></label>
+                        <label id="showListenToEmail"><input type="checkbox" indexdb-storage="showListenToEmail"
+                                mustDonate hide-from-firefox><j-icon icon="headset"></j-icon></input> <span
+                                msg="listenToYourEmail"></span></label>
+                    </div>
+                </fieldset>
+            </div>
+        </template>
+
+        <template id="dndPageTemplate">
+            <div id="dndPage" class="page" value="dnd">
+                <div class="layout vertical start">
+                    <div class="layout horizontal">
+                        <label><input type="checkbox" id="dndInFullscreen" indexdb-storage="dndInFullscreen"> <span
+                                msg="dndInFullscreenMode">dndInFullscreenMode</span></label> <a
+                            href="https://jasonsavard.com/wiki/Do_Not_Disturb" target="_blank"><j-button
+                                icon="help"></j-button></a>
+                    </div>
+                    <div>
+                        <label><input type="checkbox" id="dndDuringCalendarEvent"><span
+                                msg="dndDuringCalendarEvent">dndDuringCalendarEvent</span></label>
+                    </div>
+                    <div>
+                        <label><input type="checkbox" id="showGrayIconInDND" indexdb-storage="showGrayIconInDND"><span
+                                msg="showGrayIconInDND">showGrayIconInDND</span></label>
+                    </div>
+                    <div>
+                        <label><input type="checkbox" indexdb-storage="syncDND"><span msg="syncDND"></span></label>
+                    </div>
+                    <div>
+                        <label><input type="checkbox" indexdb-storage="onlyMuteSoundsDuringDND"><span
+                                msg="onlyMuteSounds"></span></label>
+                    </div>
+                    <div class="layout horizontal center" style="margin-top:10px">
+                        <j-button id="dndSchedule" icon="schedule" msg="schedule" class="filled"></j-button>
+                        <a href="https://jasonsavard.com/wiki/Do_Not_Disturb" target="_blank"><j-button
+                                icon="help"></j-button></a>
+                    </div>
+                    <div id="dnd-accounts" class="card"></div>
+                </div>
+            </div>
+        </template>
+
+        <template id="generalPageTemplate">
+            <div id="generalPage" class="page" value="general">
+                <div class="layout vertical start">
+
+                    <div class="layout vertical">
+                        <label><input type="checkbox" id="previewingMarksAsRead"
+                                indexdb-storage="previewing_marks_as_read"> <span
+                                msg="previewingMarksAsRead"></span></label>
+                        <label><input type="checkbox" indexdb-storage="archive_read"> <span
+                                msg="archive_read"></span></label>
+                        <label><input type="checkbox" indexdb-storage="replyingMarksAsRead"> <span
+                                msg="replyingMarksAsRead"></span></label>
+                        <label><input type="checkbox" indexdb-storage="deletingMarksAsRead"> <span
+                                msg="deletingMarksAsRead"></span></label>
+                        <label><input type="checkbox" indexdb-storage="starringMarksAsRead"> <span
+                                msg="starringMarksAsRead"></span></label>
+                        <label><input type="checkbox" indexdb-storage="movingMarksAsRead"> <span
+                                msg="movingMarksAsRead"></span></label>
+                    </div>
+                    <label><input type="checkbox" id="starringAppliesInboxLabel"
+                            indexdb-storage="starringAppliesInboxLabel"> <span
+                            msg="starringAppliesInboxLabel"></span></label>
+                    <label><input type="checkbox" indexdb-storage="24hourMode"> <span msg="24hourMode"></span></label>
+
+                    <div class="layout horizontal start" hide-from-firefox>
+                        <label><input type="checkbox" id="setPositionAndSize" indexdb-storage="setPositionAndSize"
+                                mustDonate> <span msg="setPositionAndSize"></span></label>
+                        <div id="setPositionAndSizeOptions">
+                            <j-input msgLabel="positionFromLeft" indexdb-storage="popupLeft"></j-input>
+                            <j-input msgLabel="width" indexdb-storage="popupWidth"></j-input>
+                            <j-input msgLabel="positionFromTop" indexdb-storage="popupTop"></j-input>
+                            <j-input msgLabel="height" indexdb-storage="popupHeight"></j-input>
+                        </div>
+                        <j-button id="testOutPopupWindow" icon="open-in-new" class="testButton raised"></j-button>
+                        <j-tooltip for="testOutPopupWindow" animation-delay="0" position="start"><span
+                                msg="testIt"></span></j-tooltip>
+                    </div>
+
+                    <div class="layout horizontal">
+                        <label><input type="checkbox" id="showContextMenuItem" indexdb-storage="showContextMenuItem">
+                            <span msg="showContextMenuItem"></span></label> <a
+                            href="https://jasonsavard.com/wiki/Email_page_link?ref=GmailOptions"
+                            target="_blank"><j-button icon="help"></j-button></a>
+                    </div>
+
+                    <label id="emailPreview"><input type="checkbox" indexdb-storage="emailPreview"> <span
+                            msg="emailPreview"></span></label><j-tooltip for="emailPreview" animation-delay="0"
+                        position="start"><span msg="emailPreviewToolTip"></span></j-tooltip>
+
+                    <div id="alwaysDisplayExternalContentWrapper" class="layout horizontal">
+                        <label id="alwaysDisplayExternalContent"><input type="checkbox"
+                                indexdb-storage="alwaysDisplayExternalContent"> <span
+                                msg="alwaysDisplayExternalContent"></span></label> <a
+                            href="https://support.google.com/mail/answer/145919" target="_blank"><j-button
+                                icon="help"></j-button></a>
+                    </div>
+
+                    <label><input type="checkbox" id="showEOM" indexdb-storage="showEOM"> <span
+                            msg="showEOM"></span></label><j-tooltip for="showEOM" animation-delay="0"
+                        position="start"><span msg="showEOMToolTip"></span></j-tooltip>
+                    <label><input type="checkbox" id="hideSentFrom" indexdb-storage="hideSentFrom"> <span
+                            msg="hideSentFrom"></span></label><j-tooltip for="hideSentFrom" animation-delay="0"
+                        position="start"><span msg="hideSentFromToolTip"></span></j-tooltip>
+                    <label><input type="checkbox" id="removeShareLinks" indexdb-storage="removeShareLinks" mustDonate>
+                        <span msg="removeShareLinks"></span></label><j-tooltip for="removeShareLinks"
+                        animation-delay="0" position="start"><span msg="removeShareLinksTooltip"></span></j-tooltip>
+                    <label><input type="checkbox" id="autoCollapseConversations"
+                            indexdb-storage="autoCollapseConversations"> <span
+                            msg="autoCollapseConversations"></span></label>
+                    <label><input type="checkbox" id="progressivelyLoadEmails"
+                            indexdb-storage="progressivelyLoadEmails"> <span
+                            msg="progressivelyLoadEmails"></span></label>
+                    <label><input type="checkbox" id="enableSwiping" indexdb-storage="enableSwiping"> <span
+                            msg="enableSwiping"></span></label>
+                    <label><input type="checkbox" id="deleteAfterOTP" indexdb-storage="deleteAfterOTP"> <span
+                            msg="deleteAfterOTP"></span></label>
+                    <div class="layout horizontal center col-gap">
+                        <label><input type="checkbox" id="openGmailInNewTab" indexdb-storage="openGmailInNewTab"> <span
+                                msg="openGmailInNewTab"></span></label> <span style="color:gray;font-size:small">(For
+                            actions inside popup window)</span>
+                    </div>
+                    <label><input type="checkbox" id="insertSignatureBeforeQuotedText"
+                            indexdb-storage="insertSignatureBeforeQuotedText"> <span
+                            msg="insertSignatureBeforeQuotedText"></span></label>
+
+                    <label>
+                        <span class="label-text" msg="appearance"></span>
+                        <select id="appearance">
+                            <option value="light" msg="light">light</option>
+                            <option value="dark" msg="dark">dark</option>
+                            <option value="system" msg="systemDefault">systemDefault</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span class="label-text" msg="maxEmailsToShowPerAccount"></span>
+                        <select indexdb-storage="maxEmailsToShowPerAccount">
+                            <option value='0'>0</option>
+                            <option value='1'>1</option>
+                            <option value='2'>2</option>
+                            <option value='3'>3</option>
+                            <option value='4'>4</option>
+                            <option value='5'>5</option>
+                            <option value='10'>10</option>
+                            <option value='15'>15</option>
+                            <option value='20'>20</option>
+                        </select>
+                    </label>
+
+                    <div class="layout horizontal wrap end">
+                        <div id="popupWindowOptionsForComposeReply" class="layout vertical">
+                            <label><input type="checkbox" indexdb-storage="showSendAndArchiveButton"> <span
+                                    msg="showSendAndArchiveButton"></span></label>
+                            <label><input type="checkbox" indexdb-storage="showSendAndDeleteButton"> <span
+                                    msg="showSendAndDeleteButton"></span></label>
+
+                            <label>
+                                <span class="label-text" msg="openComposeReplyAction"></span>
+                                <select id="openComposeReplyAction" indexdb-storage="openComposeReplyAction">
+                                    <option value="tab" msg="openComposeReplyActionInTab">openComposeReplyActionInTab
+                                    </option>
+                                    <option value="popupWindow" msg="openComposeReplyActionInPopupWindow">
+                                        openComposeReplyActionInPopupWindow</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="layout horizontal center">
+                            <label>
+                                <span class="label-text" msg="autoAdvanceTo"></span>
+                                <select id="autoAdvance" indexdb-storage="autoAdvance">
+                                    <option value="newer" msg="newer">newer</option>
+                                    <option value="older" msg="older">older</option>
+                                    <option value="conversationList" msg="conversationList">conversationList</option>
+                                </select>
+                            </label>
+                            <a href="https://jasonsavard.com/wiki/Auto-advance_options" target="_blank"><j-button
+                                    icon="help"></j-button></a>
+                        </div>
+
+                        <label>
+                            <span class="label-text" msg="clickingCheckerPlusLogo"></span>
+                            <select id="clickingCheckerPlusLogo" indexdb-storage="clickingCheckerPlusLogo">
+                                <option value="openHelp" msg="openHelp">openHelp</option>
+                                <option value="openGmailTab" msg="openGmailTab">openGmailTab</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="layout horizontal center">
+                        <label>
+                            <span class="label-text" msg="extensionUpdates"></span>
+                            <select id="extensionUpdates" indexdb-storage="extensionUpdates">
+                                <option value="none" msg="noUpdateNotifications">noUpdateNotifications</option>
+                                <option value="interesting" msg="showUpdateNotificationsForInterestingUpdates">
+                                    showUpdateNotificationsForInterestingUpdates</option>
+                                <option value="all" msg="showUpdateNotificationsForEvertyhing">
+                                    showUpdateNotificationsForEvertyhing</option>
+                            </select>
+                        </label>
+                        <a href="https://jasonsavard.com/wiki/Extension_Updates?ref=GmailOptions"
+                            target="_blank"><j-button icon="help"></j-button></a>
+                    </div>
+
+                    <fieldset id="quickComposeWrapper" class="layout horizontal center" style="padding:8px 0">
+                        <legend msg="quickComposeEmail">Quick compose email</span></legend>
+                        <j-input id="quickComposeEmail" no-label-float="true" style="margin:0 20px" type="email"
+                            msgLabel="email" indexdb-storage="quickComposeEmail"></j-input> <j-input
+                            id="quickComposeEmailAlias" no-label-float="true" style="width:200px" msgLabel="nickname"
+                            indexdb-storage="quickComposeEmailAlias"></j-input> <a
+                            href="https://jasonsavard.com/wiki/Quick_Contact?ref=GmailOptions" target="_blank"><j-button
+                                icon="help"></j-button></a>
+                    </fieldset>
+
+                    <a target="_blank" href="https://jasonsavard.com/wiki/Mailto_links?ref=gmailOptions"><j-button
+                            class="filled" msg="mailtoLinks">Open mailto links with Gmail</j-button></a>
+
+                </div>
+            </div>
+        </template>
+
+        <template id="accountsPageTemplate">
+            <div id="accountsPage" class="page" value="accounts">
+                <div class="layout vertical" style="width:807px">
+                    <div class="layout horizontal justified center card" style="padding:20px">
+                        <div id="accountAddingMethodWrapper" class="layout horizontal center">
+                            <div class="layout vertical" style="gap: 10px">
+                                <label><input type="radio" indexdb-storage="accountAddingMethod"
+                                        name="accountAddingMethod" value="autoDetect"> <span
+                                        msg="autoDetectAccountsStaySignedIn">autoDetectAccountsStaySignedIn</span></label>
+                                <label><input type="radio" indexdb-storage="accountAddingMethod"
+                                        name="accountAddingMethod" value="oauth"> <span
+                                        msg="addAccountsStaySignedIn">addAccountsStaySignedIn</span></label>
+                            </div>
+                            <a target="_blank"
+                                href="https://jasonsavard.com/wiki/Account_sign_in_methods?ref=GmailOptions"><j-button
+                                    icon="help"></j-button></a>
+                        </div>
+                        <div class="layout vertical end">
+                            <label>
+                                <span class="label-text" msg="pollingInterval"></span>
+                                <select id="pollingInterval">
+                                    <option hide-from-firefox value="realtime" msg="realtime">realtime</option>
+                                    <option value="30000" msg="Xseconds" msgarg1="30">30</option>
+                                    <option value="60000" msg="Xminute" msgarg1="1">1</option>
+                                    <option value="120000" msg="Xminutes" msgarg1="2">2</option>
+                                    <option value="300000" msg="Xminutes" msgarg1="5">5</option>
+                                    <option value="900000" msg="Xminutes" msgarg1="15">15</option>
+                                    <option value="1800000" msg="Xminutes" msgarg1="30">30</option>
+                                    <option value="3600000" msg="Xhour" msgarg1="1">1</option>
+                                    <option value="7200000" msg="Xhours" msgarg1="2">2</option>
+                                    <option value="18000000" msg="Xhours" msgarg1="5">5</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="accountsAndLabels" class="card">
+                        <div class="layout horizontal center justified" style="padding: 10px 20px; gap: 10px">
+                            <div class="accountsLabelsHeader" style="flex: 1" msg="accounts">accounts</div>
+                            <j-button class="refresh" icon="refresh"></j-button>
+                            <j-button id="grant-host-permission" class="colored" hidden icon="warning"
+                                msg="grantAccess"></j-button>
+                            <div id="accountErrorButtons" class="layout horizontal col-gap" hidden>
+                                <j-button id="signIn" icon="account-circle" class="raised"
+                                    msg="signOutAndIn"></j-button>
+                                <j-button id="signInNotWorking" class="raised" icon="help" msg="help"></j-button>
+                            </div>
+                            <div id="addAccountWrapper" class="layout horizontal center" style="gap: 10px">
+                                <j-button id="syncSignInOrder" icon="sort"></j-button>
+                                <j-tooltip for="syncSignInOrder" msg="syncSignInOrderTooltip"></j-tooltip>
+                                <j-button id="addAccount" raised class="colored" icon="add" msg="addAccount"></j-button>
+                            </div>
+                        </div>
+
+                        <j-listbox id="accountsList">
+                            <template id="accountItemTemplate">
+                                <j-item draggable="true">
+                                    <div class="layout horizontal center flex" style="padding:0 12px">
+                                        <div class="move-icon"><j-icon icon="drag-handle"
+                                                msgTitle="dragToChangeOrder"></j-icon></div>
+                                        <label><input type="checkbox" class='ignoreAccount'></label>
+                                        <div class="flex email">[[item.email]]</div>
+                                        <div class="account-options layout horizontal center col-gap">
+                                            <label>
+                                                <span class="label-text" msg="openLabel"></span>
+                                                <select class="openLabel">
+                                                    <option value="JSYSTEM_INBOX" msg="inbox">inbox</option>
+                                                    <option value="JSYSTEM_UNREAD" msg="unread">unread</option>
+                                                    <option value="JSYSTEM_ALL_MAIL" msg="allMail">all mail</option>
+                                                </select>
+                                            </label>
+                                            <j-tooltip><span msg="openLabelTooltip">openLabelTooltip</span></j-tooltip>
+                                            <j-button class="toggleIcon signature"
+                                                icon='short-text'></j-button><j-tooltip style="white-space:nowrap"
+                                                animation-delay="0"><span msg="signature">Signature</span></j-tooltip>
+                                            <j-button class="toggleIcon conversationView"
+                                                icon='chat'></j-button><j-tooltip animation-delay="0"><span
+                                                    msg="conversationViewToolTip">Sets whether emails of the same topic
+                                                    are grouped together (Recommended default is ON)</span></j-tooltip>
+                                        </div>
+                                    </div>
+                                    <div secondary class="accountError"></div>
+                                </j-item>
+                            </template>
+                        </j-listbox>
+                        <j-tooltip id="accountsListToolTip" for="accountsList" position="start" manual-mode="true"
+                            style="white-space:nowrap"><span msg="selectEmailAccount"></span></j-tooltip>
+                        <div id="monitorLabels"></div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template id="skinsAndThemesPageTemplate">
+            <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
+                <a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab" target="_blank"><j-button
+                        raised class="raised" msg="help">helpp</j-button></a>
+                <br><br>
+                <table id="skinsAndThemesListing">
+                    <tr>
+                        <th>Name</th>
+                        <th style="text-align:center">Image</th>
+                        <th>Author</th>
+                        <th>Installs</th>
+                    </tr>
+                </table>
+            </div>
+        </template>
+
+        <template id="keysPageTemplate">
+            <div id="keysPage" class="page" value="keys">
+                <a class="inherit" target="_blank" href="https://jasonsavard.com/wiki/Keyboard_shortcuts"><j-button
+                        class="raised" msg="keyboardShortcuts">keyboard shortcuts</j-button></a>
+                <br><br>
+                <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R"
+                        value="reply"> <span>R = </span> <span msg="reply">Reply</span></label>
+                <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R"
+                        value="markAsRead"> <span>R = </span> <span msg="readLink">Mark as Read</span></label>
+            </div>
+        </template>
+
+        <template id="voiceInputPageTemplate">
+            <div id="voiceInputPage" class="page" value="voiceInput">
+                <div>
+                    <span msg="voiceInput">Voice Input</span> 1.0 <b>BETA</b> <a
+                        href="https://jasonsavard.com/wiki/Voice_input" target="_blank"><j-button
+                            icon="help"></j-button></a>
+                </div>
+                <label><input type="checkbox" id="voiceInput" chromium-only> <span
+                        msg="voiceInput"></span></label><j-tooltip for="voiceInput"><span
+                        msg="enableVoiceInputToolTip"></span></j-tooltip>
+                <div id="voiceInputOptions" class="hide">
+                    <label><input type="checkbox" id="voiceInputSuggestions" indexdb-storage="voiceInputSuggestions">
+                        <span msg="voiceInputSuggestions"></span></label>
+                    <br>
+                    <select id="voiceInputLanguage"></select>&nbsp;&nbsp; <select id="voiceInputDialect"></select>
+                    <br><br>
+                    <div><a target="_blank" href="https://jasonsavard.com/wiki/Voice_input#Voice_commands"><j-button
+                                class="filled"><span msg="voiceCommands">Voice commands</span></j-button></a></div>
+                </div>
+            </div>
+        </template>
+
+        <template id="adminPageTemplate">
+            <div id="adminPage" class="page" value="admin">
+                <fieldset style="margin-bottom: 20px;">
+                    <legend>Pro Features</legend>
+                    <p>If the pro features are not working, click the button below to unlock them manually.</p>
+                    <j-button id="unlockFeatures" class="colored raised">Unlock Features</j-button>
+                </fieldset>
+                <div class="layout horizontal col-gap">
+                    <fieldset class="options selected">
+                        <legend>via signed in browser user</legend>
+                        <j-button id="saveSyncOptions" class="filled" icon="cloud-upload" msg="saveOptions"></j-button>
+                        <j-button id="loadSyncOptions" class="filled" icon="cloud-download"
+                            msg="loadOptions"></j-button>
+                    </fieldset>
+                    <fieldset class="options selected">
+                        <legend>via local file</legend>
+                        <j-button id="exportToFileOptions" class="filled" icon="file-download"
+                            msg="exportOptions"></j-button>
+                        <input type="file" id="jsonFileInput" accept=".json" hidden>
+                        <j-button id="importFromFileOptions" class="filled" icon="file-upload"
+                            msg="importOptions"></j-button>
+                    </fieldset>
+                </div>
+
+                <div class="layout vertical" style="gap: 10px">
+                    <j-button id="deleteAllCustomSounds" class="filled" icon="queue-music"
+                        msg="deleteCustomSounds"></j-button>
+                    <j-button id="resetTranslationSettings" class="filled" icon="translate"
+                        msg="resetTranslationSettings"></j-button>
+                    <j-button id="revokeAllAccess" class="filled" icon="remove-circle-outline"
+                        msg="revokeAccess"></j-button>
+                    <j-button id="resetSettings" class="filled" icon="settings"><span>Reset Settings to
+                            Defaults</span></j-button>
+                    <j-button id="reload-extension" class="filled" icon="refresh">Reload extension</j-button>
+                </div>
+
+                <fieldset class="options selected">
+                    <legend style="color:red;font-weight:bold;font-size:16px">WARNING: Do not use these settings unless
+                        your developer instructs you!</legend>
+                    <div style="margin:10px 0">
+                        <label>
+                            <span class="label-text">Max unauthorized accounts</span>
+                            <select id="maxUnauthorizedAccount" indexdb-storage="maxUnauthorizedAccount">
+                                <option value='1'>1</option>
+                                <option value='2'>2</option>
+                                <option value='3'>3</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span class="label-text">Restart Interval</span>
+                            <select id="restartInterval" indexdb-storage="restartInterval" style="width: 200px;">
+                                <option value="0"><span msg="never">never</span></option>
+                                <option value="0.5"><span msg="Xdays" msgArg1="0.5"></span></option>
+                                <option value="1"><span msg="Xdays" msgArg1="1"></span></option>
+                                <option value="2"><span msg="Xdays" msgArg1="2"></span></option>
+                                <option value="3"><span msg="Xdays" msgArg1="3"></span></option>
+                            </select>
+                        </label>
+                        <br><br>
+                        <label><input type="checkbox" id="console_messages" indexdb-storage="console_messages"> <span
+                                msg="showConsoleMessages" msgToolTip="showConsoleMessagesTitle">log
+                                messages</span></label>
+                        <label><input type="checkbox" id="highlightDates" indexdb-storage="highlightDates"> Highlight
+                            dates</label>
+                        <label><input type="checkbox" id="doNotSerializeMails" indexdb-storage="doNotSerializeMails"> Do
+                            not cache mail content</label>
+                        <label><input type="checkbox" id="cacheStorage"> Cache storage</label>
+                        <label><input type="checkbox" id="disableOnline" indexdb-storage="disableOnline"> Disable online
+                            check</label>
+                    </div>
+                </fieldset>
+            </div>
+        </template>
+    </div>
+
+    <template id="runInBackgroundDialogTemplate">
+        <ol>
+            <li>You must enable the Chrome > Setting > System (chrome://settings/system) <b>Continue running background
+                    apps when Google Chrome is closed"</b></li>
+            <li>Make sure you are not clearing data that prevents your Google Account from automatically sign in when
+                you restart the browser</li>
+        </ol>
+    </template>
+
+    <input id="notificationSoundInputButton" type="file" accept="audio/*" hidden />
+
+    <template id="soundsDropDown">
+        <label>
+            <span class="label-text">blah</span>
+            <select class="sound">
+                <option value='' msg="off">Off</option>
+                <hr>
+                <option value='system-default'><span msg="systemDefault">systemDefault</span></option>
+                <hr>
+                <option value='bug.mp3'>Bug</option>
+                <option value='cash.mp3'>
+                    <div two-line>
+                        <div>Cash</div>
+                        <div secondary>for orders receipts, PayPal</div>
+                    </div>
+                </option>
+                <option value='chime.mp3' msg="chime"></option>
+                <option value='ding.mp3' msg="ding"></option>
+                <option value='electronicdrops.mp3'>Electronic drops</option>
+                <option value='fallingbeep.mp3'>Falling beep</option>
+                <option value='ios.mp3'>iOS</option>
+                <option value='kiss.mp3'>
+                    <div two-line>
+                        <div>Kiss</div>
+                        <div secondary>for spouse</div>
+                    </div>
+                </option>
+                <option value='ohno.mp3'>
+                    <div two-line>
+                        <div>Oh no</div>
+                        <div secondary>for Mom</div>
+                    </div>
+                </option>
+                <option value='pianohappy.mp3'>Piano Happy</option>
+                <option value='scary.mp3'>
+                    <div two-line>
+                        <div>Scary</div>
+                        <div secondary>for Boss</div>
+                    </div>
+                </option>
+                <option value='tech.mp3'>
+                    <div two-line>
+                        <div>Tech</div>
+                        <div secondary>for Blogs</div>
+                    </div>
+                </option>
+                <option value='Typewriter Bell.mp3'>Typewriter Bell</option>
+                <option value='ultranova.mp3'>Ultranova</option>
+                <option value='whoppii.mp3'>Whoppii</option>
+                <option value='yeahaha.mp3'>Yeahaha</option>
+                <option value='youvegotmail.mp3'>
+                    <div two-line>
+                        <div>You've got mail</div>
+                        <div secondary>from your developer :)</div>
+                    </div>
+                </option>
+            </select>
+        </label>
+    </template>
+
+    <template id="voiceHearOptionsDropDown">
+        <label>
+            <span class="label-text" msg="hearEmail">blah</span>
+            <select>
+                <option value='message' msg="email_message">message</option>
+                <hr>
+                <option value='subject' msg="email_subject">subject</option>
+                <option value='subject|message'><span msg="email_subject"></span>,&nbsp;<span
+                        msg="email_message"></span></option>
+                <hr>
+                <option value='from' msg="email_from"></option>
+                <option value='from|subject'><span msg="email_from"></span>,&nbsp;<span msg="email_subject"></span>
+                </option>
+                <option value='from|subject|message'><span msg="email_from"></span>,&nbsp;<span
+                        msg="email_subject"></span>,&nbsp;<span msg="email_message"></span></option>
+            </select>
+        </label>
+    </template>
+
+    <template id="customButtonDialogTemplate">
+        <div style="display:flex;flex-direction:column;gap:10px;padding:20px">
+            <j-button id="chooseSignedOutIcon" msg="chooseSignedOutIcon" class="filled"></j-button><input
+                id="signedOutButtonIconInput" class="hide" type="file" /> <j-button id="chooseNoUnreadEmail"
+                msg="chooseNoUnreadEmail" class="filled"></j-button><input id="noUnreadButtonIconInput" class="hide"
+                type="file" /> <j-button id="chooseUnreadEmail" msg="chooseUnreadEmail" class="filled"></j-button><input
+                id="unreadButtonIconInput" class="hide" type="file" />
+        </div>
+    </template>
+
+    <template id="recordSoundDialogTemplate">
+        <div class="recordSoundWrapper layout vertical center-center" style="gap: 10px;padding:20px">
+            <j-button id="recordSoundButton" icon="mic" class="filled"></j-button>
+            <div class="audioWrapper" style="margin-top:30px">
+                <audio controls>
+                    <source />Your browser does not support the audio element.
+                </audio>
+            </div>
+            <j-input id="recordedSoundTitle" name="recordedSoundTitle" type="text" label="Title" value="my sound"
+                required></j-input>
+        </div>
+    </template>
+</body>
+
+</html>

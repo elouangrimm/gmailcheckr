@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+   	<title>OTP Code</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <script src="js/common.js"></script>
+    <script defer src="js/checkerPlusForGmail.js"></script>
+    <script defer src="js/otp-code.js"></script>
+
+    <style>
+        .flash {
+            animation: flash-animation 0.6s ease-in;
+        }
+
+        @keyframes flash-animation {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        #otp-code {
+            position: absolute;
+            top: -1000px;
+            left: -1000px;
+            width: 10px;
+        }
+
+        #clipboard-icon {
+            margin-top: -13px;
+            font-size: 80px;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <input id="otp-code" type="text" />
+    <span id="clipboard-icon" hidden>📋</span>
+</body>
+
+</html>

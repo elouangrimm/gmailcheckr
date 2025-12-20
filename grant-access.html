@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title msg="grantAccess">Grant access</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <link rel="stylesheet" href="css/jdom.css">
+
+    <style>
+        :root {
+            --header-bg-color: #db4437;
+            --gap: 30px;
+        }
+
+        body {
+            font-size: large;
+        }
+
+        :link,
+        :visited {
+            color: #03a9f4;
+            outline: 0;
+            text-decoration: none;
+        }
+
+        .help {
+            --icon-color: gray;
+        }
+
+        #email-account {
+            font-weight: bold;
+        }
+
+        .option {
+            padding: 10px 20px 20px 20px;
+            width: 600px;
+            text-align: center;
+        }
+
+        .option-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/jdom.js"></script>
+    <script src="js/icons.js"></script>
+
+    <script defer src="js/checkerPlusForGmail.js"></script>
+
+    <script defer src="js/account.js"></script>
+    <script defer src="js/mail.js"></script>
+
+    <script defer src="js/grant-access.js"></script>
+
+</head>
+
+<body>
+
+    <header class="site-header">
+        <div class="header-and-secondary-nav">
+            <div class="header-content">
+                <div class="header-start">
+                    <j-button class="side-rail-button" icon="menu" aria-label="Open menu" hidden></j-button>
+                    <div id="logo-and-title">
+                        <img id="logo" src="images/icons/icon_48_white.png" />
+                        <a main-title href="https://jasonsavard.com?ref=GmailGrantAccessTitle" msg="nameNoTM">Gmail
+                            Checkr</a>
+                    </div>
+                </div>
+
+                <nav class="primary-nav" aria-label="Main Navigation">
+
+                </nav>
+
+                <div class="utility-items">
+                    <a id="help"
+                        href="https://jasonsavard.com/forum/categories/checker-plus-for-gmail-feedback?ref=grant-access"><j-ripple></j-ripple><span
+                            msg="help">Help</span></a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="site-main layout vertical center">
+        <div style="width:700px">Replying to emails and changing labels require specific permissions to your <span
+                id="email-account">a@b.com</span> account because of a recent <a target="_blank"
+                href="https://jasonsavard.com/forum2/d/7613-gmail-update-affecting-email-actions.">Gmail change</a>.
+        </div>
+        <div class="layout vertical center" style="gap: 40px; margin-top: 50px">
+
+            <div class="card option">
+                <div class="option-header"><span msg="option">option</span> 1</div>
+                Continue using the extension to preview emails, get notifications and see the unread count and more, but
+                without replying and changing labels.
+            </div>
+
+            <div class="card option">
+                <div class="option-header"><span msg="option">option</span> 2</div>
+                <div class="layout horizontal center-center">
+                    <span msg="autoDetectAccountsStaySignedIn">autoDetectAccountsStaySignedIn</span>
+                    <j-icon icon="add" style="--icon-color:gray"></j-icon>
+                    <j-button id="grant-access" class="colored"><span msg="grantAccess">Grant access</span></j-button>
+                    <a class="help" target="_blank"
+                        href="https://jasonsavard.com/wiki/Granting_access?ref=GmailCheckerGrantAccess"><j-icon
+                            icon="help"></j-icon></a>
+                </div>
+            </div>
+
+            <div class="card option">
+                <div class="option-header"><span msg="option">option</span> 3</div>
+                <div class="layout horizontal center-center">
+                    <a href="options.html?highlight=addAccount#accounts"><j-button class="colored"><span
+                                msg="addAccountsStaySignedIn">Add accounts and stay signed in</span></j-button></a> <a
+                        class="help" target="_blank"
+                        href="https://jasonsavard.com/wiki/Account_sign_in_methods?ref=GrantAccess"><j-icon
+                            icon="help"></j-icon></a>
+                </div>
+            </div>
+
+            <a target="_blank"
+                href="https://jasonsavard.com/wiki/Account_sign_in_methods?ref=GrantAccess"><j-button><span
+                        msg="moreInfo">more info</span></j-button></a>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,1275 @@
+:root, .apply-light-theme {
+    interpolate-size: allow-keywords;
+
+    --header-bg-color: rgb(63, 81, 181);
+    --header-color: white;
+
+    --text-color: #333;
+    --bg-color: white;
+    --bg-light-color: rgb(250, 250, 250);
+    --bg-light-color-hover: #eaeaea;
+
+    --border-color: #eaeaea;
+
+    --button: #2282e8;
+    j-button.raised {
+        --button: #ccc;
+    }
+    --button-icon-only-hover: color-mix(in srgb, var(--button-primary), transparent 90%);
+    --button-primary: #2f67a2;
+    --button-text-color: #0b57d0;
+
+    --input-bg-color: white;
+    --focus-visible-color: dodgerblue;
+    --input-focus-color: #2563eb;
+
+    --default-icon-color: #49454f;
+    --light-theme-icon-color: var(--default-icon-color);
+    --dark-theme-icon-color: #ccc;
+
+    --icon-color: var(--light-theme-icon-color);
+
+    --separator-color: #ddd;
+}
+:root[color-scheme='dark'], .apply-dark-theme { /* note that color-scheme in dom cannot be empty for this logic to work */
+    --text-color: #ddd;
+    --bg-color: #2B2B2B;
+    --bg-light-color: #333;
+    --bg-light-color-hover: #444;
+
+    --border-color: #555;
+
+    --button-text-color: #a8c8ff;
+
+    --input-bg-color: #2a2a2a;
+    --input-focus-color: white;
+    --input-focus-shadow: none;
+
+    --default-icon-color: var(--dark-theme-icon-color);
+    --icon-color: var(--dark-theme-icon-color);
+    --icon-invert: invert(1);
+
+    --separator-color: #444;
+
+    dialog {
+        background: var(--bg-light-color);
+        color: var(--text-color);
+        border: 1px solid var(--separator-color);
+    }
+}
+
+::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    border: none;
+    box-shadow: none;
+    background: #dadce0;
+    border-radius: 8px;
+    min-height: 40px;
+}
+:hover::-webkit-scrollbar-thumb {
+    background: #bdc1c6 !important;
+}
+:hover::-webkit-scrollbar-thumb:hover {
+    background: #aaa !important;
+}
+
+header[no-bg-color] {
+    --header-bg-color: transparent;
+    --header-color: var(--text-color);
+    --icon-color: var(--text-color);
+}
+header:not([no-bg-color]) {
+    --icon-color: var(--dark-theme-icon-color);
+    [popover] { /* revert to original theme icon color */
+        --icon-color: var(--default-icon-color);
+    }
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+body, textarea {
+    font-size: medium;
+    font-family: -apple-system, BlinkMacSystemFont, "Roboto Flex", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.widget body {
+    height: 100%;
+    width: 100%;
+}
+
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+[mustDonate] {
+    opacity: 0.4;
+    transition: opacity 0.1s ease-in;
+    &:hover {
+        opacity: 1;
+    }
+}
+
+label:has(input[type="checkbox"][mustDonate]) {
+    opacity: 0.5;
+}
+
+[main-title] {
+    pointer-events: auto;
+    font-size: 20px;
+
+    &:hover {
+        text-decoration: none;
+    }
+}
+
+.separator {
+    background-color: var(--separator-color, #ddd);
+    margin-top: 1px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+#options-menu span {white-space:nowrap}
+
+.dialog-close-button-container {
+    margin-bottom: -19px;
+    margin-inline-end: -14px;
+    transform: translateY(-14px);
+    display: flex;
+    justify-content: end;
+}
+
+#native-dialog-menu {
+    align-items: center;
+}
+
+#permission-dialog #native-dialog-menu {
+    justify-content: center;
+    align-items: normal; /* max both buttons same height or else the one with the google sign in logo would be larger */
+}
+
+.chrome-sign-in-button {
+    --icon-size: auto;
+    &::part(button) {
+        gap: 0;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-inline: 2px 13px;
+    }
+}
+
+.layout.horizontal, .layout.vertical {
+    display: flex;
+}
+
+.layout.inline {
+    display: inline-flex;
+}
+
+.layout.horizontal {
+    flex-direction: row;
+}
+
+.layout.vertical {
+    flex-direction: column;
+}
+
+.layout.wrap {
+    flex-wrap: wrap;
+}
+
+.layout.no-wrap {
+    flex-wrap: nowrap;
+}
+
+.layout.center, .layout.center-center {
+    align-items: center;
+}
+
+.layout.center-justified, .layout.center-center {
+    justify-content: center;
+}
+
+.flex {
+    flex: 1;
+    flex-basis: 0.000000001px;
+}
+
+.flex-auto {
+    flex: 1 1 auto;
+}
+
+.flex-none {
+    flex: none;
+}
+
+.layout.start {
+    align-items: flex-start;
+}
+
+.layout.center, .layout.center-center {
+    align-items: center;
+}
+
+.layout.end {
+    align-items: flex-end;
+}
+
+.layout.baseline {
+    align-items: baseline;
+}
+
+.layout.start-justified {
+    justify-content: flex-start;
+}
+
+.layout.center-justified, .layout.center-center {
+    justify-content: center;
+}
+
+.layout.end-justified {
+    justify-content: flex-end;
+}
+
+.layout.around-justified {
+    justify-content: space-around;
+}
+
+.layout.justified {
+    justify-content: space-between;
+}
+
+.self-start {
+    align-self: flex-start;
+}
+
+.self-center {
+    align-self: center;
+}
+
+.self-end {
+    align-self: flex-end;
+}
+
+.self-stretch {
+    align-self: stretch;
+}
+
+.self-baseline {
+    align-self: baseline;
+}
+
+.layout.start-aligned {
+    align-content: flex-start;
+}
+
+.layout.end-aligned {
+    align-content: flex-end;
+}
+
+.layout.center-aligned {
+    align-content: center;
+}
+
+.layout.between-aligned {
+    align-content: space-between;
+}
+
+.layout.around-aligned {
+    align-content: space-around;
+}
+
+.button-group {
+    display: inline-block;
+    j-button {
+        border-radius: 5px;
+        margin: 0;
+    }
+    j-button:first-of-type {
+        border-start-start-radius: 20px;
+        border-end-start-radius: 20px;
+    }
+    j-button:last-of-type, .last-visible {
+        border-start-end-radius: 20px;
+        border-end-end-radius: 20px;
+    }
+}
+
+form {
+    margin-bottom: 0;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+
+    &:has(select) {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .label-text {
+            margin-inline-start: 3px;
+            font-size: small;
+            opacity: 0.7;
+            xxcolor: var(--text-color); /* commented since moving stuff into [color-scheme] */
+        }
+    }
+}
+
+.j-toast-container {
+    position: fixed;
+    left: 15px;
+    right: 15px;
+    bottom: 15px;
+    z-index: 9999;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    gap: 10px;
+
+    &:has(.j-toast.visible) {
+        pointer-events: auto;
+    }
+
+    &[position="end"] {
+        align-items: end;
+    }
+
+    &[position="top"] {
+        top: 15px;
+        bottom: auto;
+    }
+
+    .j-toast {
+        color: #fff;
+        background-color: #323232;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        padding-inline-start: 18px;
+        padding-inline-end: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        xxmin-width: 160px;
+        font-size: 16px;
+
+        .j-toast-message {
+            flex: 1;
+        }
+
+        .j-toast-action {
+            white-space: nowrap;
+        }
+
+        .j-toast-close {
+            margin-inline-start: 10px;
+            flex: 0;
+            &::part(icon) {
+                --icon-color: #eee;
+            }
+        }
+
+        .j-toast-close:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        &.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+}
+
+select,
+textarea,
+xxinput:not([type]),
+xxinput[type="text"], 
+xxinput[type="email"],
+xxinput[type="number"],
+xxinput[type="password"] {
+    font-size: 16px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    outline: none;
+    transition: border-color 0.2s;
+    color: var(--text-color);
+
+    &:focus-visible:not([no-outline]) {
+        outline: 2px solid var(--focus-visible-color);
+        box-shadow: var(--input-focus-shadow, 0 0 5px rgba(37, 99, 235, 0.5));
+    }
+}
+
+textarea {
+    background-color: var(--input-bg-color, var(--bg-color));
+    border-radius: 8px;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin-inline-end: 8px;
+    cursor: pointer;
+}
+
+input[type="radio"] {
+    margin-bottom: 3px;
+}
+
+input[type="range"] {
+    cursor: pointer;
+}
+
+[color-scheme='dark'] input:is([type="checkbox"], [type="radio"]) {
+    appearance: none;
+    border: 1px solid #666;
+
+    &:checked {
+        border-color: #888;
+        background-color: #2f67a2;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+}
+
+[color-scheme='dark'] input[type="checkbox"] {
+    border-radius: 3px;
+
+    &:checked {
+        background-image: url("data:image/svg+xml;utf8,\
+            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+            <polyline points='20 6 9 17 4 12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>\
+            </svg>");
+    }
+}
+
+[color-scheme='dark'] input[type="radio"] {
+    border-radius: 50%;
+
+    &:checked {
+        background-image: url("data:image/svg+xml;utf8,\
+            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+            <circle cx='12' cy='12' r='6' fill='white'/>\
+            </svg>");
+    }
+}
+
+select.selectedcontent-added {
+    appearance: base-select;
+    background-color: unset;
+}
+
+select {
+    appearance: none;
+    background-color: var(--bg-color); /* commented for gmail options - looks fine within fieldset */
+    padding: 6px 3px;
+    border-radius: 5px 5px 0 0;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+
+    &:hover {
+        border-color: #999;
+    }
+
+    hr {
+        border: none;
+        border-top: 1px solid lightgray;
+        margin: 4px 0;
+    }
+
+    selectedcontent {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        
+        [secondary], j-icon {
+            display: none;
+        }
+    }
+
+    option {
+        padding-block: 6px;
+        padding-inline-end: 15px;
+
+        [secondary] {
+            font-size: small;
+            opacity: 0.7;
+        }
+    }
+}
+
+select:hover {
+    background-color: var(--bg-light-color-hover);
+}
+
+::picker(select) {
+    appearance: base-select;
+    opacity: 0;
+    transition: opacity 0.4s allow-discrete;
+    
+    /* Aligns the picker to the START edge of the select element. 
+     * In RTL (direction: rtl), START is the RIGHT side.
+     */
+    xxinset-inline-start: 200px; 
+    xxinset-inline-end: 0;
+}
+
+::picker(select):popover-open {
+    opacity: 1;
+}
+@starting-style {
+    ::picker(select):popover-open {
+        opacity: 0;
+    }
+}
+
+select::picker-icon {
+    color: #999999;
+    xxtransform-origin: 5px 10px; /* v2 commented cause of base-select v1 patch when inside display flex container ie. .option-group */
+    xxtransition: 0.4s rotate; /* commented cause too flashy */
+}
+
+select:open::picker-icon {
+    rotate: 180deg;
+}
+
+fieldset, .card {
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--bg-light-color), var(--text-color) 10%);
+    background-color: var(--bg-light-color);
+}
+
+fieldset {
+    padding-inline: 10px;
+    padding-block: 10px 15px;
+
+    & .option-group {
+        margin-top: 0;
+    }
+
+legend {
+    opacity: 0.7;
+    border-radius: 5px;
+    padding: 2px 8px;
+        background-color: color-mix(in srgb, var(--bg-light-color), var(--text-color) 1%);
+    }
+}
+
+.non-modal-dialog-wrapper {
+    /* CRITICAL: Fixes it to the viewport */
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw; /* Viewport Width */
+    height: 100vh; /* Viewport Height */
+    
+    /* CRITICAL: Center content */
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    align-items: center; /* Centers vertically */
+    
+    /* Optional: Ensure it's on top and doesn't interfere with interaction */
+    pointer-events: none; /* Allows clicks to pass through the wrapper */
+    z-index: 1000;
+}
+
+dialog {
+    border-radius: 10px;
+    border: 1px solid gray;
+    box-shadow: 0 4px 6px 3px rgba(0, 0, 0, 0.2), 0 1.5px 4px rgba(0, 0, 0, 0.15);
+    overflow-y: hidden;
+    opacity: 0;
+    will-change: opacity, transform;
+    transition: opacity 180ms cubic-bezier(.2,.9,.2,1);
+    min-width: min(213px, 75vw);
+    max-width: min(600px, 86vw);
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    h2 {
+        margin-top: 3px;
+        margin-inline-start: 10px;
+    }
+
+    menu {
+        padding: 0;
+        margin: 0;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    #native-dialog-message-top-border {
+        height: 4px;
+        margin-bottom: 3px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    &.scrolled #native-dialog-message-top-border {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #native-dialog-message {
+        padding-block-start: 12px;
+        padding-inline: 12px;
+        overflow-y: auto;
+        max-height: 55vh;
+        font-size: 16px;
+
+        &:focus-visible {
+            outline: none;
+        }
+    }
+
+    &::backdrop {
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    &:modal {
+        transform: translateY(-8px) scale(0.995);
+        transition: opacity 180ms cubic-bezier(.2,.9,.2,1), transform 180ms cubic-bezier(.2,.9,.2,1);
+        &.opening {
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    &:not(:modal) {
+        xxtop: 25%;
+        /* commented translation because dialog became blurry */
+        xxtransform: translate(0%, -50%) scale(0.995);
+        xxtransition: opacity 180ms cubic-bezier(.2,.9,.2,1), transform 180ms cubic-bezier(.2,.9,.2,1);
+        &.opening {
+            xxtransform: translate(0%, -50%) scale(1);
+        }
+    }
+
+    &.opening {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+.option-group,
+.option-group-center {
+    display: flex;
+    flex-direction: row;
+    flex-flow: wrap;
+    gap: 10px 27px;
+}
+
+.option-group-center {
+    align-items: center;
+}
+
+.site-header {
+    background-color: var(--header-bg-color);
+    --pad-top-bottom: 10px;
+    padding: var(--pad-top-bottom) 30px;
+    top: 0;
+    z-index: 100;
+    opacity: 1;
+    will-change: opacity, padding, transform;
+    transition: opacity 0.2s linear, xxpadding 0.2s linear; /* commented padding creatin issue in popup */
+    animation-name: shrink; /* v2 re-enabled because not using position-area v1 commented because popover tooltips with position-area had y offset issues when container was scrolled */
+    animation-timeline: scroll();
+    animation-duration: 1ms;
+    xxanimation-range: 0px 100px;
+
+    &[sticky] {
+        position: sticky;
+    }
+
+    a {
+        border-radius: 10px;
+        color: var(--header-color);
+        text-decoration: none;
+    }
+
+    j-button {
+        &:hover {
+            background-color: color-mix(in srgb, var(--header-bg-color), var(--text-color) 5%);
+        }
+
+        &:active {
+            background-color: color-mix(in srgb, var(--header-bg-color), var(--text-color) 10%);
+        }
+    }
+}
+
+@keyframes shrink {
+    from {
+        padding-top: var(--pad-top-bottom);
+        padding-bottom: var(--pad-top-bottom);
+        opacity: 1;
+    }
+    to {
+        padding-top: 2px;
+        padding-bottom: 2px;
+        opacity: 0.92;
+    }
+}
+
+.header-and-secondary-nav {
+    display: flex;
+    flex-direction: column;
+    xxjustify-content: space-between;
+    gap: 20px 0;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0 10px;
+}
+
+.header-and-secondary-nav,
+.site-main {
+    max-width: 1366px;
+    margin: 0 auto;
+}
+
+.site-main {
+    padding: 30px 20px 20px;
+}
+
+.header-start {
+    display: flex;
+    gap: 0 10px;
+    align-items: center;
+}
+
+#logo-and-title {
+    display: flex;
+    gap: 0 20px;
+    align-items: center;
+
+    img {
+        max-height: 40px;
+    }
+}
+
+.primary-nav,
+.secondary-nav,
+#side-rail-menu {
+    ul {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+
+        li {
+            list-style: none;
+            white-space: nowrap;
+
+            a {
+                position: relative;
+                text-decoration: none;
+                font-size: larger;
+                font-weight: 500;
+                padding: 16px 7px;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+            }
+
+            &:hover a:not([rel='nofollow']),
+            &.selected a {
+                &::after {
+                    content: "";
+                    position: absolute;
+                    left: 8px;
+                    right: 8px;
+                    bottom: 6px;
+                    height: 3px;
+                    background-color: var(--nav-selected-color, white);
+                }
+            }
+        }
+    }
+
+    .menu-separator {
+        width: 100%;
+        height: 1px;
+        background: #ddd;
+        padding: 0px;
+    }
+}
+
+[popover] {
+    display: none;
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    background-color: var(--bg-light-color);
+    border: none;
+
+    box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                0 1px 5px 0 rgba(0, 0, 0, 0.12),
+                0 3px 1px -2px rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    pointer-events: none;
+    transition-behavior: allow-discrete;
+    transition: opacity 0.18s cubic-bezier(.4,0,.2,1),
+                transform 0.18s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+
+    xxposition-area: block-end span-inline-start;
+    top: anchor(bottom);
+    inset-inline-end: 10px; /* default is to give buffer from edges */
+    xxleft: anchor(start);
+    justify-self: anchor-center;
+
+    &#side-rail-menu {
+        xxposition-area: none;
+        inset-block-start: 0px;
+    }
+
+    &[position="start"] {
+        inset-inline-start: anchor(start);
+    }
+
+    &[position="end"] {
+        xxposition-area: block-end span-inline-end;
+        inset-inline-end: anchor(end);
+    }
+
+    &[position="center"] {
+        xxposition-area: block-end center;
+    }
+
+    position-try: --bottom-to-top-try;
+
+    &:popover-open {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+
+        &:is(j-tooltip) {
+            pointer-events: none; /* avoid flickering on mouseenter/leave */
+        }
+
+        transform: translateY(0) scale(1);
+
+        @starting-style {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.98);
+        }
+    }
+}
+
+j-tooltip[popover] {
+    padding: 4px 8px;
+    background: #5a5a5aff;
+    color: #fff !important;
+    font-size: 13px;
+    max-width: 300px;
+
+    transition-delay: 0.3s;
+    &[animation-delay] {
+        transition-delay: attr(animation-delay ms);
+    }
+
+    xxposition-area: block-end center;
+    &:not([position]) {
+        margin-block-start: 12px; /* so cursor doesn't hover over tooltip */
+    }
+
+    &[position="start"] {
+        xxposition-area: inline-end;
+        top: anchor(top);
+        align-self: anchor-center;
+        inset-inline-start: anchor(end);
+        justify-content: none;
+        margin-inline-start: 10px;
+
+        &:popover-open {
+            transform: translateX(0) scale(1);
+
+            @starting-style {
+                transform: translateX(-10px) scale(0.98);
+            }
+        }
+    }
+
+    &[position="end"] {
+        xxposition-area: inline-start;
+        top: anchor(top);
+        align-self: anchor-center;
+        justify-content: center;
+        inset-inline-end: anchor(start);
+        margin-inline-end: 10px;
+
+        &:popover-open {
+            transform: translateX(0) scale(1);
+
+            @starting-style {
+                transform: translateX(10px) scale(0.98);
+            }
+        }
+    }
+}
+
+.secondary-nav {
+    margin-bottom: 10px;
+    ul {
+        justify-content: space-evenly;
+        gap: 20px 0 !important;
+        li a {
+            padding-inline: 10px !important;
+        }
+    }
+}
+
+@position-try --bottom-to-top-try {
+    xxposition-area: block-start span-inline-start;
+    top: unset;
+    bottom: anchor(top);
+}
+
+.side-rail-button {
+    display: none;
+}
+
+#side-rail-menu {
+    --nav-selected-color: var(--text-color);
+
+    position: fixed;
+    padding: 20px;
+    background-color: var(--bg-color);
+    xxbox-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+
+    max-height: 100vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+
+    ul {
+        flex-direction: column;
+        align-items: start;
+        gap: 17px;
+    }
+
+    li {
+        a {
+            color: var(--text-color);
+        }
+        &.selected a {
+            &::after {
+                content: none;
+            }
+        }
+    }
+
+    &:popover-open {
+        display: block;
+        transform: translateX(0);
+
+        @starting-style {
+            --translate-offset: -100%;
+            html[dir="rtl"] & {
+                --translate-offset: 100%;
+            }
+            transform: translateX(var(--translate-offset));
+        }
+    }
+
+    @-moz-document url-prefix() {
+        /* Fallback for anchor positioning */
+        inset-inline-start: 0;
+    }
+}
+
+.utility-items {
+    display: flex;
+    gap: 12px;
+
+    a {
+        position: relative;
+        text-decoration: none;
+        font-size: larger;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 20px;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+    }
+
+    a:hover {
+        background-color: color-mix(in srgb, var(--header-bg-color), white 5%);
+    }
+}
+
+nav.site-nav {
+    display: flex;
+    gap: 12px;
+
+    & ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    
+    & li {
+        display: inline;
+
+        a {
+            position: relative;
+            text-decoration: none;
+            font-size: larger;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        &:hover a {
+            background-color: color-mix(in srgb, var(--header-bg-color), white 5%);
+        }
+    }
+}
+
+@property --gradPoint {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+.ripple {
+    &:active {
+        background: radial-gradient(circle at center, rgba(0,0,0,0.1) var(--gradPoint), transparent var(--gradPoint));
+        --gradPoint: 100%;
+        transition: --gradPoint 0.15s ease-out;
+    }
+}
+
+body.j-loading dialog {
+    position: relative;
+}
+
+body.j-loading::before,
+body.j-loading dialog::before {
+    content: "";
+    inset: 0;
+    position: fixed;
+    background-color: var(--bg-color);
+    z-index: 200;
+    opacity: 0.7;
+    cursor: progress;
+    pointer-events: none;
+}
+
+body.j-loading.j-loading-modal::before,
+body.j-loading.j-loading-modal dialog::before {
+    pointer-events: auto;
+}
+
+#spinner {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    
+    &.j-spinner-inline {
+        position: absolute;
+    }
+}
+
+.j-progressbar {
+    /* Position at the very top of the screen */
+    position: fixed;
+    top: 0;
+    left: 0;
+    
+    /* Make it span the whole width */
+    width: 100%;
+    height: 4px; /* A thin bar height */
+    
+    /* Background color for the track (optional) */
+    xxbackground-color: var(--bg-light-color); /* commented cause i would see the white bg when using backgound images when opening emails */
+    
+    /* Ensure the moving bar stays inside */
+    overflow: hidden;
+    z-index: 9999; /* Keep it above other content */
+}
+
+.j-progressbar::before {
+    content: "";
+    display: block;
+    height: 100%; /* Same height as the container */
+    width: 40%; /* Only a portion of the screen width */
+    background-color: #4CAF50; /* A noticeable color, like green */
+    
+    /* Start the animation */
+    animation: j-progress-slide 1s infinite cubic-bezier(0.65, 0.815, 0.735, 0.395);
+    
+    /* Initial position off-screen to the left */
+    transform: translateX(-100%);
+}
+
+/* for details/summary */
+::details-content {
+    transition: height 0.5s ease, content-visibility 0.5s ease allow-discrete;
+    height: 0;
+    overflow: clip;
+}
+
+.recordSoundWrapper audio {opacity:0}
+.recordSoundWrapper j-input {
+    display:none;
+    margin-top:10px;
+}
+.recordSoundWrapper.recording #recordSoundButton,
+#recordVideoWrapper.recording #recordVideoButton {
+    --icon-color: red;
+    animation: pulsate 1.2s ease-out;
+    animation-iteration-count: infinite;
+}
+.recordSoundWrapper.recordedSound audio {opacity:1}
+.recordSoundWrapper.recordedSound j-input {display:block}
+
+@-webkit-keyframes pulsate {
+    0% {transform: scale(0.9)}
+    50% {transform: scale(1.1)}
+    100% {transform: scale(0.9)}
+}
+
+/* Browser supports interpolate-size */
+@supports (interpolate-size: allow-keywords) {
+    :root {
+        interpolate-size: allow-keywords;
+    }
+
+    [open]::details-content {
+        height: auto;
+    }
+}
+
+/* Fallback for browsers with no interpolate-size support */
+@supports not (interpolate-size: allow-keywords) {
+    [open]::details-content {
+        height: 150px;
+        overflow-y: scroll; /* In case the contents should be taller than 150px */
+    }
+}
+
+@keyframes j-progress-slide {
+    /* Start fully off-screen to the left */
+    0% {
+        transform: translateX(-100%);
+    }
+    
+    /* Move quickly across the screen */
+    60% {
+        transform: translateX(60%);
+    }
+    
+    /* Hold briefly and then snap back, creating the 'gliding' effect */
+    100% {
+        transform: translateX(150%);
+    }
+}
+
+@media screen and (max-width: 1280px) {
+    .secondary-nav {
+        ul {
+            li a {
+                xxpadding: 8px !important;
+            }
+        }
+    }
+}
+
+@media screen and (max-width: 1220px) {
+    .site-header {
+        padding: 10px;
+    }
+
+    .header-content {
+        justify-content: initial;
+    }
+
+    .header-start {
+        flex: 1;
+    }
+
+    .side-rail-button {
+        display: block;
+    }
+
+    .primary-nav {
+        display: none;
+    }
+
+    .utility-items {
+        gap: 0;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .site-main {
+        padding: 20px 10px 10px;
+    }
+
+    header,
+    [main-title] {
+        font-size: 16px;
+    }
+}
+
+@media screen and (max-width: 280px) {
+    .site-header {
+        padding: 7px;
+    }
+
+    header,
+    [main-title] {
+        font-size: 13px;
+    }
+
+    .header-content {
+        gap: 0px;
+    }
+
+    #logo-and-title {
+        gap: 0 10px;
+    }
+}
