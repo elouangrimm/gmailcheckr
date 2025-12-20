@@ -1202,8 +1202,12 @@ async function initPage(tabName) {
                     $row._skin = skin;
 
                     if (skin.image) {
-                        $skinImage.src = skin.image;
-                        $skinImageLink.href = skin.image;
+                        // Convert local paths to absolute extension URLs
+                        const imageUrl = skin.image.startsWith("skins/") 
+                            ? chrome.runtime.getURL(skin.image) 
+                            : skin.image;
+                        $skinImage.src = imageUrl;
+                        $skinImageLink.href = imageUrl;
                         $skinImageLink.target = "_previewWindow";
                     }
     

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head>
-   	<title>OTP Code</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
+<head>
+    <title>OTP Code</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <script src="js/config.js"></script>
     <script src="js/common.js"></script>
     <script defer src="js/checkerPlusForGmail.js"></script>
     <script defer src="js/otp-code.js"></script>
@@ -14,8 +16,15 @@
         }
 
         @keyframes flash-animation {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 1; }
+
+            0%,
+            100% {
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
         }
 
         body {

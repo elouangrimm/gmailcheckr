@@ -3757,33 +3757,23 @@ function Controller() {
 		return callAjaxController({data:data});
 	}
 	
-	Controller.getSkins = function(ids, timeMin) {
-		const data = {
-            action: "getSkins",
-            extension: "gmail",
-            misc: location.href
-        };
-
-        if (ids) {
-            data.ids = ids;
-        }
-
-		if (timeMin) {
-			data.timeMin = Math.round(new Date().diffInSeconds(timeMin)); // seconds elapsed since now
+	Controller.getSkins = async function(ids, timeMin) {
+		// Load skins from local skins.json file
+		const response = await fetch(chrome.runtime.getURL("skins/skins.json"));
+		const skins = await response.json();
+		
+		// If specific IDs are requested, filter the results
+		if (ids && Array.isArray(ids) && ids.length > 0) {
+			return skins.filter(skin => ids.includes(skin.id));
 		}
 		
-		return callAjaxController({data:data});
+		return skins;
 	}
 
 	Controller.updateSkinInstalls = function(id, offset) {
-		var data = {};
-		data.action = "updateSkinInstalls";
-		data.id = id;
-		data.offset = offset;
-		data.misc = location.href;
-		
-		// had to pass misc as parameter because it didn't seem to be passed with header above
-		return callAjaxController({data:data});
+		// Disabled - skins are now local only
+		console.log("updateSkinInstalls disabled (local skins only)");
+		return Promise.resolve();
 	}
 
 	Controller.processFeatures = async () => {

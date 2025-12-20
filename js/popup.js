@@ -4956,7 +4956,10 @@ function addSkin(skin, id) {
         */
 
 		var resizedImageUrl;
-		if (/blogspot\./.test(skin.image) || /googleusercontent\./.test(skin.image)) {
+		// Check if it's a local path (relative path starting with skins/)
+		if (skin.image.startsWith("skins/")) {
+			resizedImageUrl = chrome.runtime.getURL(skin.image);
+		} else if (/blogspot\./.test(skin.image) || /googleusercontent\./.test(skin.image)) {
 			resizedImageUrl = skin.image.replace(/\/s\d+\//, "\/s" + parseInt($body.clientWidth) + "\/");
         } else if (skin.image.includes("unsplash.com")) {
             resizedImageUrl = setUrlParam(skin.image, "w", parseInt($body.clientWidth));
@@ -5900,8 +5903,8 @@ async function init() {
                     // ignore
                 }
             } else {
-                if (e.key == "Control") {
-                    // ignore
+                if (e.key == "Control" || e.key == "Alt" || e.key == "Shift" || e.key == "Meta") {
+                    // ignore modifier keys
                 } else {
                     console.warn("key not recognized: ", e);
                 }

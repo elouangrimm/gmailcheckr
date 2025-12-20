@@ -329,42 +329,8 @@ if (chrome.alarms) {
                     await getEmailsFromFCMUpdate(account);
                 }
             } else if (alarm.name == Alarms.UPDATE_SKINS) {
-                console.log("updateSkins...");
-                
-                const skinsSettings = await storage.get("skins");
-                const skinsIds = skinsSettings.map(skin => skin.id);
-                const nightModeSkin = await storage.get("nightModeSkin");
-                
-                if (skinsIds.length || nightModeSkin) {
-                    const skins = await Controller.getSkins(skinsIds, await storage.get("_lastUpdateSkins"));
-                    console.log("skins:", skins);
-                    
-                    let foundSkins = false;
-                    skins.forEach(skin => {
-                        skinsSettings.some(skinSetting => {
-                            if (skinSetting.id == skin.id) {
-                                foundSkins = true;
-                                console.log("update skin: " + skin.id);
-                                copyObj(skin, skinSetting);
-                                return true;
-                            }
-                        });
-                    });
-                    
-                    if (foundSkins) {
-                        storage.set("skins", skinsSettings);
-                    }
-
-                    if (nightModeSkin) {
-                        const nightSkinFromDB = skins.find(skin => skin.id == nightModeSkin.id);
-                        if (nightSkinFromDB) {
-                            copyObj(nightSkinFromDB, nightModeSkin);
-                            await storage.set("nightModeSkin", nightModeSkin);
-                        }
-                    }
-                    
-                    storage.setDate("_lastUpdateSkins");
-                }
+                // Disabled - skins are now local only
+                console.log("UPDATE_SKINS alarm disabled (local skins only)");
             } else if (alarm.name == Alarms.UPDATE_UNINSTALL_URL) {
                 // do this every day so that the daysellapsed is updated in the uninstall url
                 //setUninstallUrl(getFirstEmail(accounts)); // Removed setUninstallUrl
