@@ -274,6 +274,10 @@ function Account() {
                 if (!response.ok) {
                     const error = Error(response.statusText);
                     error.errorCode = response.status;
+                    if (error.errorCode == 401 && globalThis.detectSleepMode && await globalThis.detectSleepMode.isWakingFromSleepMode()) {
+                        console.warn("401 error while waking from sleep, treating as network error to prevent auth revocation");
+                        error.errorCode = 0;
+                    }
                     throw error;
                 }
 
