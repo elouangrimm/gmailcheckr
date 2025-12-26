@@ -1535,17 +1535,248 @@
 
         <template id="skinsAndThemesPageTemplate">
             <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
-                <a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab" target="_blank"><j-button
-                        raised class="raised" msg="help">helpp</j-button></a>
-                <br><br>
-                <table id="skinsAndThemesListing">
-                    <tr>
-                        <th>Name</th>
-                        <th style="text-align:center">Image</th>
-                        <th>Author</th>
-                        <th>Installs</th>
-                    </tr>
-                </table>
+                <style>
+                    #skinsPageLayout {
+                        display: flex;
+                        gap: 20px;
+                        height: calc(100vh - 120px);
+                    }
+
+                    /* Preview Panel (Right Side) */
+                    #skinPreviewPanel {
+                        flex: 1;
+                        border: 1px solid var(--border-color);
+                        border-radius: 12px;
+                        overflow: hidden;
+                        background: #f5f5f5;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    #skinPreviewPanel .preview-header {
+                        background: var(--primary-color);
+                        color: white;
+                        padding: 10px 15px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                    }
+
+                    #skinPreviewPanel .preview-header img {
+                        width: 24px;
+                        height: 24px;
+                    }
+
+                    #skinPreviewPanel .preview-header span {
+                        font-weight: 500;
+                    }
+
+                    #skinPreviewContent {
+                        flex: 1;
+                        padding: 0;
+                        overflow: hidden;
+                        position: relative;
+                    }
+
+                    .preview-account {
+                        margin-bottom: 8px;
+                    }
+
+                    .preview-account-header {
+                        display: flex;
+                        align-items: center;
+                        padding: 10px 12px;
+                        background: white;
+                        border-radius: 16px;
+                        margin-bottom: 8px;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                    }
+
+                    .preview-account-photo {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 50%;
+                        margin-right: 10px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    }
+
+                    .preview-account-email {
+                        font-size: 13px;
+                        font-weight: 500;
+                    }
+
+                    .preview-mail {
+                        background: white;
+                        border-radius: 16px;
+                        padding: 12px;
+                        margin-bottom: 8px;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                    }
+
+                    .preview-mail-header {
+                        display: flex;
+                        align-items: flex-start;
+                        gap: 10px;
+                    }
+
+                    .preview-contact-photo {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 50%;
+                        flex-shrink: 0;
+                    }
+
+                    .preview-contact-photo.blue {
+                        background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                    }
+
+                    .preview-contact-photo.green {
+                        background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+                    }
+
+                    .preview-contact-photo.orange {
+                        background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+                    }
+
+                    .preview-mail-content {
+                        flex: 1;
+                        min-width: 0;
+                    }
+
+                    .preview-sender {
+                        font-weight: 600;
+                        font-size: 13px;
+                        margin-bottom: 2px;
+                    }
+
+                    .preview-subject {
+                        font-size: 12px;
+                        margin-bottom: 2px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .preview-snippet {
+                        font-size: 11px;
+                        color: #666;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .preview-date {
+                        font-size: 11px;
+                        color: #888;
+                        white-space: nowrap;
+                    }
+
+                    .preview-label {
+                        display: inline-block;
+                        font-size: 10px;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        background: #e3f2fd;
+                        color: #1976d2;
+                        margin-top: 4px;
+                    }
+
+                    /* Controls Panel */
+                    #skinControlsPanel {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        min-width: 0;
+                    }
+
+                    #skinToolbar {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                        padding: 10px 0;
+                        border-bottom: 1px solid var(--border-color);
+                        margin-bottom: 15px;
+                    }
+
+                    #skinToolbar j-button {
+                        white-space: nowrap;
+                    }
+
+                    #skinsListWrapper {
+                        flex: 1;
+                        overflow-y: auto;
+                    }
+
+                    #skinsAndThemesListing {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+
+                    #skinsAndThemesListing th {
+                        text-align: left;
+                        padding: 8px;
+                        border-bottom: 2px solid var(--border-color);
+                        position: sticky;
+                        top: 0;
+                        background: var(--bg-color);
+                    }
+
+                    #skinsAndThemesListing td {
+                        padding: 8px;
+                        border-bottom: 1px solid var(--border-color);
+                    }
+
+                    #skinsAndThemesListing .skinLine:hover {
+                        background: var(--bg-light-color-hover);
+                    }
+                </style>
+
+                <div id="skinsPageLayout">
+                    <!-- Controls Panel -->
+                    <div id="skinControlsPanel">
+                        <div id="skinToolbar">
+                            <j-button id="skinResetBtn" icon="refresh" class="raised"
+                                title="Reset all skins and custom CSS">Reset All</j-button>
+                            <j-button id="skinNightModeBtn" icon="brightness-2" class="raised"
+                                title="Set night mode skin">Night Mode</j-button>
+                            <j-button id="skinBgColorBtn" icon="format-color-fill" class="raised"
+                                title="Set background color">Background Color</j-button>
+                            <j-button id="skinCustomCSSBtn" icon="code" class="filled"
+                                title="Open custom CSS editor">Custom
+                                CSS</j-button>
+                            <a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab" target="_blank">
+                                <j-button icon="help"></j-button>
+                            </a>
+                        </div>
+
+                        <div id="skinsListWrapper">
+                            <table id="skinsAndThemesListing">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px"></th>
+                                        <th>Name</th>
+                                        <th style="text-align:center;width:80px">Image</th>
+                                        <th>Author</th>
+                                        <th style="width:70px;display:none;">Installs</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Live Preview Panel -->
+                    <div id="skinPreviewPanel">
+                        <div class="preview-header">
+                            <img src="images/icons/icon_48.png" alt="Gmail Checkr">
+                            <span>Live Preview</span>
+                        </div>
+                        <div id="skinPreviewContent">
+                            <iframe id="skinPreviewFrame" src="popup.html?source=optionsPreview"
+                                style="width:100%; height:100%; border:none;"></iframe>
+                        </div>
+                    </div>
+                </div>
             </div>
         </template>
 

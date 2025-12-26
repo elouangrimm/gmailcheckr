@@ -1150,16 +1150,123 @@ async function initPage(tabName) {
             
         } else if (tabName == "skinsAndThemes") {
 
-            const $skinsListing = byId("skinsAndThemesListing");
+            const $skinsListing = byId("skinsAndThemesListing").querySelector("tbody") || byId("skinsAndThemesListing");
+            const $previewStyles = byId("skinPreviewStyles");
+
+            // Function to update preview
+            function updateSkinPreview() {
+                const $iframe = byId("skinPreviewFrame");
+                if ($iframe && $iframe.contentWindow) {
+                    $iframe.contentWindow.location.reload();
+                }
+            }
+
+            // Toolbar button handlers
+            onClick("#skinResetBtn", async () => {
+                if (confirm("Reset all skins, custom CSS, and background color?")) {
+                    await storage.remove("skins");
+                    await storage.remove("customSkin");
+                    await storage.remove("popup-bg-color");
+                    await storage.remove("nightModeSkin");
+                    
+                    // Reset UI
+                    $skinsListing.querySelectorAll(".addSkin").forEach($btn => {
+                        $btn.setAttribute("icon", "add");
+                        $btn.classList.add("filled");
+                    });
+                    
+                    updateSkinPreview();
+                    showToast(getMessage("done"));
+                }
+            });
+
+            onClick("#skinNightModeBtn", async () => {
+                const skins = await Controller.getSkins();
+                const nightModeSkin = await storage.get("nightModeSkin");
+                
+                // Create a simple selection dialog
+                const $dialog = document.createElement("div");
+                $dialog.innerHTML = `
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <div style="padding: 8px; cursor: pointer; border-radius: 4px;" data-skin-id="none">
+                            <strong>None</strong> - Disable night mode skin
+                        </div>
+                        ${skins.map(s => `
+                            <div style="padding: 8px; cursor: pointer; border-radius: 4px; ${nightModeSkin?.id == s.id ? 'background: var(--primary-color-light);' : ''}" data-skin-id="${s.id}">
+                                <strong>${s.name}</strong>
+                            </div>
+                        `).join("")}
+                    </div>
+                `;
+                
+                openDialog($dialog, {
+                    title: getMessage("nightMode"),
+                    closeButton: true
+                });
+
+                $dialog.querySelectorAll("[data-skin-id]").forEach($item => {
+                    onClick($item, async () => {
+                        const skinId = $item.getAttribute("data-skin-id");
+                        if (skinId === "none") {
+                            await storage.remove("nightModeSkin");
+                        } else {
+                            const selectedSkin = skins.find(s => s.id == skinId);
+                            if (selectedSkin) {
+                                await storage.set("nightModeSkin", selectedSkin);
+                            }
+                        }
+                        showToast(getMessage("done"));
+                        $dialog.closest("dialog")?.close();
+                    });
+                });
+            });
+
+            onClick("#skinBgColorBtn", async () => {
+                const color = await openColorChooser();
+                if (color) {
+                    await storage.set("popup-bg-color", color);
+                    updateSkinPreview();
+                    showToast(getMessage("done"));
+                }
+            });
+
+            onClick("#skinCustomCSSBtn", () => {
+                // Open custom CSS editor in a popup window
+                const width = 700;
+                const height = 500;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+                
+                window.open(
+                    chrome.runtime.getURL("custom-css-editor.html"),
+                    "customCSSEditor",
+                    `width=${width},height=${height},left=${left},top=${top},resizable=yes`
+                );
+            });
+
+            // Listen for custom CSS updates from editor popup
+            window.addEventListener("message", (event) => {
+                if (event.data?.type === "customSkinUpdated") {
+                    updateSkinPreview();
+                }
+            });
 
             showSpinner();
 
             try {
                 const skins = await Controller.getSkins();
                 const activeSkins = await storage.get("skins") || [];
+                
                 skins.forEach(skin => {
                     const $row = document.createElement("tr");
                     $row.classList.add("skinLine");
+
+                    // Checkbox column
+                    const $checkboxTd = document.createElement("td");
+                    const $checkbox = document.createElement("input");
+                    $checkbox.type = "checkbox";
+                    $checkbox.checked = activeSkins.some(s => s.id == skin.id);
+                    $checkboxTd.append($checkbox);
 
                     const $name = document.createElement("td");
                     $name.classList.add("name");
@@ -1183,26 +1290,10 @@ async function initPage(tabName) {
                     const $installs = document.createElement("td");
                     $installs.textContent = skin.installs;
 
-                    const $addSkinWrapper = document.createElement("td");
-
-                    const isActive = activeSkins.some(s => s.id == skin.id);
-                    const $addSkin = document.createElement("j-button");
-                    $addSkin.classList.add("addSkin");
-                    if (isActive) {
-                        $addSkin.setAttribute("icon", "check");
-                    } else {
-                        $addSkin.classList.add("filled");
-                        $addSkin.setAttribute("icon", "add");
-                    }
-
-                    $addSkinWrapper.append($addSkin);
-
-                    $row.append($name, $skinImageWrapper, $author, $installs, $addSkinWrapper);
-
+                    $row.append($checkboxTd, $name, $skinImageWrapper, $author, $installs);
                     $row._skin = skin;
 
                     if (skin.image) {
-                        // Convert local paths to absolute extension URLs
                         const imageUrl = skin.image.startsWith("skins/") 
                             ? chrome.runtime.getURL(skin.image) 
                             : skin.image;
@@ -1210,35 +1301,40 @@ async function initPage(tabName) {
                         $skinImageLink.href = imageUrl;
                         $skinImageLink.target = "_previewWindow";
                     }
-    
+
                     const $authorLink = document.createElement("a");
-                    $authorLink.textContent = skin.author;
+                    $authorLink.textContent = skin.author || "";
                     if (skin.author_url) {
                         $authorLink.href = skin.author_url;
                         $authorLink.target = "_preview";
-                        $skinImage.style["cursor"] = "pointer";
                     }
-                    $author.append( $authorLink );
-                    onClick($addSkin, async () => {
+                    $author.append($authorLink);
+                    
+                    // Handle checkbox change
+                    $checkbox.addEventListener("change", async () => {
                         let currentSkins = await storage.get("skins") || [];
+                        // Create a mutable copy
+                        currentSkins = [...currentSkins];
                         const index = currentSkins.findIndex(s => s.id == skin.id);
-                        if (index == -1) {
+                        
+                        if ($checkbox.checked && index == -1) {
                             currentSkins.push(skin);
-                            $addSkin.setAttribute("icon", "check");
-                            $addSkin.classList.remove("filled");
-                        } else {
+                        } else if (!$checkbox.checked && index != -1) {
                             currentSkins.splice(index, 1);
-                            $addSkin.setAttribute("icon", "add");
-                            $addSkin.classList.add("filled");
                         }
+                        
                         await storage.set("skins", currentSkins);
-                        showToast(getMessage("done"));
+                        updateSkinPreview();
                     });
-    
+
                     $skinsListing.append($row);
                 });
+
+                // Initial preview update
+                updateSkinPreview();
+                
             } catch (error) {
-                $skinsListing.append("Problem loading skins: " + error);
+                $skinsListing.innerHTML = `<tr><td colspan="5">Problem loading skins: ${error}</td></tr>`;
             }
 
             hideLoading();
