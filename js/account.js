@@ -630,12 +630,17 @@ function Account() {
        const watchRetries = deepClone(await storage.get("_enablePushNotificationsRetries"));
        try {
             if (await isGCMSupported(true)) {
-                // Add email/regid to datastore so watch responses know who to notify ie. extension
-                const response = await linkEmailToRegistrationId({
-                    email: email,
-                    registrationId: await ensureGCMRegistration()
-                });
-                console.info("enablePushNotifications response: " + response);
+                const registrationId = await ensureGCMRegistration();
+                if (registrationId) {
+                    // Add email/regid to datastore so watch responses know who to notify ie. extension
+                    const response = await linkEmailToRegistrationId({
+                        email: email,
+                        registrationId: registrationId
+                    });
+                    console.info("enablePushNotifications response: " + response);
+                } else {
+                    console.warn("GCM registration ID not available, skipping link registration.");
+                }
             }
 
             // reset retries

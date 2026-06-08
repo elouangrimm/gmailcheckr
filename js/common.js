@@ -5204,17 +5204,23 @@ function getObjectStore(storeId, mode, key) {
             // using relaxed - might have fixed slow issue and maybe corrupt issue: https://jasonsavard.com/forum/discussion/6104/slow-popup-window/p4
             trans = wrappedDB.db.transaction([storeId], mode, { durability: "relaxed" });
             trans.onabort = function (e) {
-                if (e.target.error == "QuotaExceededError") {
-                    throw Error("Quota exceeded: Try clearing space on your drive.");
-                } else if (e.target.error == "NotFoundError") { /* https://developer.chrome.com/blog/chrome-130-beta?hl=en#improved_error_reporting_in_indexeddb_for_large_value_read_failures */
-                    throw Error(`Object store not found: ${key} - try reinstalling`);
-                } else if (e.target.error == "UnknownError") {
-                    /*  Not sure but this could fall into the UnknownError: Failed to read large IndexedDB value, but should be caught by NotFoundError above
-                        Another reason: The operation failed for reasons unrelated to the database itself and not covered by any other error code
-                    */
-                    throw Error(`Unknown indexedDB error: ${key} - try reinstalling`);
+                const error = e.target.error;
+                const errorName = error ? (error.name || error.toString()) : "";
+                const errorMsg = error ? (error.message || "") : "";
+
+                if (errorName === "UnknownError" && (errorMsg.includes("Failed to read large IndexedDB value") || key === "_lastShowNotifParams")) {
+                    console.warn(`Transaction aborted due to large IndexedDB value read failure for key: ${key}`);
+                    return;
+                }
+
+                if (errorName === "QuotaExceededError" || error == "QuotaExceededError") {
+                    console.error("Quota exceeded: Try clearing space on your drive.");
+                } else if (errorName === "NotFoundError" || error == "NotFoundError") {
+                    console.error(`Object store not found: ${key} - try reinstalling`);
+                } else if (errorName === "UnknownError" || error == "UnknownError") {
+                    console.error(`Unknown indexedDB error: ${key} - try reinstalling`);
                 } else {
-                    throw Error(`Trans abort: ${key} ${e.target.error}`);
+                    console.error(`Trans abort: ${key} ${error}`);
                 }
             };
         } catch (error) {
@@ -5338,8 +5344,14 @@ wrappedDB.deleteSetting = function (storeId, key) {
 wrappedDB.readAllObjects = function (storeId) {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(storeId, "readonly", "readAllObjects");
-        store.getAll().onsuccess = function (event) {
+        const request = store.getAll();
+        request.onsuccess = function (event) {
             resolve(event.target.result);
+        };
+        request.onerror = function (e) {
+            var error = "Error reading all objects: " + e.target.error;
+            logError(error);
+            reject(error);
         };
     });
 };
@@ -5356,9 +5368,23 @@ wrappedDB.readObject = function (storeId, key) {
             }
         };
         request.onerror = function (e) {
-            var error = "Error reading object with key: " + key + " " + e.target.error;
-            logError(error);
-            reject(error);
+            const error = e.target.error;
+            const errorMsg = error ? (error.message || error.toString()) : "";
+            if (errorMsg.includes("Failed to read large IndexedDB value") || errorMsg.includes("UnknownError")) {
+                console.warn("Failed to read large IndexedDB value for key: " + key + ". Clearing the corrupted key and returning undefined.");
+                e.preventDefault();
+                e.stopPropagation();
+
+                wrappedDB.deleteSetting(storeId, key).catch(err => {
+                    console.error("Failed to delete corrupted key " + key + ":", err);
+                });
+
+                resolve();
+            } else {
+                var errorStr = "Error reading object with key: " + key + " " + e.target.error;
+                logError(errorStr);
+                reject(errorStr);
+            }
         };
     });
 };
@@ -5618,54 +5644,71 @@ function IndexedDBStorage() {
 
 var storage = new IndexedDBStorage();
 
+let instanceTokenPromise = null;
+
 async function getInstanceToken() {
-    if (!chrome.instanceID) {
-        console.warn("GCM not supported cause instanceID not available");
-        return;
+    if (instanceTokenPromise) {
+        return instanceTokenPromise;
     }
 
-    const MAX_ATTEMPTS = 3;
-    const BASE_DELAY = 500; // Base delay in milliseconds
+    instanceTokenPromise = (async () => {
+        if (!chrome.instanceID) {
+            console.warn("GCM not supported cause instanceID not available");
+            return;
+        }
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-            return await new Promise((resolve, reject) => {
-                chrome.instanceID.getToken({
-                    authorizedEntity: GCM_SENDER_ID,
-                    scope: "GCM"
-                }, async token => {
-                    clearTimeout(globalThis.instanceIdTimeout);
-                    if (chrome.runtime.lastError) {
-                        //console.error(chrome.runtime.lastError.message);
-                        if (chrome.runtime.lastError.message.includes("Asynchronous operation is pending")) {
-                            console.warn("Retrying instanceID token..."); // Log as warning instead
-                            reject(chrome.runtime.lastError.message);
+        const MAX_ATTEMPTS = 3;
+        const BASE_DELAY = 500; // Base delay in milliseconds
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                return await new Promise((resolve, reject) => {
+                    chrome.instanceID.getToken({
+                        authorizedEntity: GCM_SENDER_ID,
+                        scope: "GCM"
+                    }, async token => {
+                        clearTimeout(globalThis.instanceIdTimeout);
+                        if (chrome.runtime.lastError) {
+                            //console.error(chrome.runtime.lastError.message);
+                            if (chrome.runtime.lastError.message.includes("Asynchronous operation is pending")) {
+                                console.warn("Retrying instanceID token..."); // Log as warning instead
+                                reject(chrome.runtime.lastError.message);
+                            } else {
+                                // Edge: instanceID is not available in Microsoft Edge.
+                                // Brave: Instance ID is currently disabled
+                                resolve();
+                            }
                         } else {
-                            // Edge: instanceID is not available in Microsoft Edge.
-                            // Brave: Instance ID is currently disabled
-                            resolve();
+                            resolve(token);
                         }
-                    } else {
-                        resolve(token);
-                    }
-                });
+                    });
 
-                // seems Brave browser doesn't respond to success or failure
-                clearTimeout(globalThis.instanceIdTimeout);
-                globalThis.instanceIdTimeout = setTimeout(() => {
-                    reject(Error("instanceID not responding"));
-                }, seconds(2));
-            });
-        } catch (error) {
-            console.error("Problem getting instance token: ", error);
-            if (attempt < MAX_ATTEMPTS) {
-                const delay = BASE_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
-                console.error(`Retrying in ${delay}ms... (Attempt ${attempt} of ${MAX_ATTEMPTS})`);
-                await sleep(delay);
-            } else {
-                throw error;
+                    // seems Brave browser doesn't respond to success or failure
+                    clearTimeout(globalThis.instanceIdTimeout);
+                    globalThis.instanceIdTimeout = setTimeout(() => {
+                        reject(Error("instanceID not responding"));
+                    }, seconds(2));
+                });
+            } catch (error) {
+                console.error("Problem getting instance token: ", error);
+                if (attempt < MAX_ATTEMPTS) {
+                    const delay = BASE_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
+                    console.error(`Retrying in ${delay}ms... (Attempt ${attempt} of ${MAX_ATTEMPTS})`);
+                    await sleep(delay);
+                } else {
+                    throw error;
+                }
             }
         }
+    })();
+
+    try {
+        return await instanceTokenPromise;
+    } catch (error) {
+        console.warn("Could not get instance token, falling back to polling:", error);
+        return;
+    } finally {
+        instanceTokenPromise = null;
     }
 }
 
