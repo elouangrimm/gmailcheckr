@@ -1,10 +1,11 @@
-// Local build: applies user-authored custom CSS (from custom-css-editor.html)
-// to the popup and options page. The editor writes storage key "customSkin".
+// Local build: applies user-authored custom CSS (from the Skins & Themes editor)
+// to the popup and options page. Stored under storage key "customCss".
 
 "use strict";
 
 globalThis.CustomCss = (function () {
     const STYLE_ID = "userCustomCss";
+    const STORAGE_KEY = "customCss";
     let applying = null;
 
     function apply(css) {
@@ -25,14 +26,25 @@ globalThis.CustomCss = (function () {
     }
 
     async function loadAndApply() {
-        // `storage` comes from common.js; guard so this file never breaks a page
-        // that loads it without that dependency (or during early teardown).
+        // `storage` comes from common.js. It must be init()ed before any get(),
+        // otherwise getObjectStore() throws "DB not opened - try reinstalling"
+        // and that surfaces to the user as "Corrupt browser profile".
         if (typeof storage === "undefined" || !storage?.get) {
             return;
         }
         try {
-            const customSkin = await storage.get("customSkin");
-            apply(customSkin?.css);
+            if (storage.init) {
+                await storage.init("customCssApply");
+            }
+
+            // Two independent sources, both legitimately user-authored:
+            //  - customCss  : the inline editor on Options > Skins & Themes
+            //  - customSkin : the "custom" entry in the popup's skin dialog (css + image)
+            const inlineCss = (await storage.get(STORAGE_KEY)) || "";
+            const popupSkin = await storage.get("customSkin");
+            const skinCss = popupSkin?.css || "";
+
+            apply([skinCss, inlineCss].filter(Boolean).join("\n"));
         } catch (error) {
             console.warn("could not apply custom css: " + error);
         }
@@ -42,8 +54,8 @@ globalThis.CustomCss = (function () {
     function listenForChanges() {
         if (chrome.storage?.onChanged) {
             chrome.storage.onChanged.addListener((changes, area) => {
-                if (area == "local" && changes.customSkin) {
-                    apply(changes.customSkin.newValue?.css);
+                if (area == "local" && (changes[STORAGE_KEY] || changes.customSkin)) {
+                    loadAndApply();
                 }
             });
         }
@@ -64,7 +76,7 @@ globalThis.CustomCss = (function () {
         return applying;
     }
 
-    return {init, apply, loadAndApply, STYLE_ID};
+    return {init, apply, loadAndApply, STYLE_ID, STORAGE_KEY};
 })();
 
 CustomCss.init();

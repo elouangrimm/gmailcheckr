@@ -11,8 +11,28 @@
 
 	<style>
         :root {
-            --header-bg-color: #d23f31;
+            /* Header follows the shared theme palette instead of a hardcoded red,
+               so it stays consistent in both light and dark mode. */
             --gap: 30px;
+        }
+
+        /* The header sits on --header-bg-color, so its text and icons must not
+           inherit the page link colour / button colour (which turn blue). */
+        .site-header,
+        .site-header a,
+        .site-header j-button,
+        .site-header j-input {
+            --button-text-color: var(--header-color);
+            --icon-color: var(--header-color);
+            color: var(--header-color);
+        }
+
+        /* Dark mode: jdom's default header indigo is far too bright against a
+           near-black page, so use the same surface colour as the rest of the UI. */
+        :root[color-scheme='dark'] .site-header {
+            --header-bg-color: var(--bg-light-color);
+            --header-color: var(--text-color);
+            border-bottom: 1px solid var(--separator-color);
         }
 
 		body {
@@ -279,11 +299,137 @@
             text-align: left;
         }
         #skinsAndThemesPage .name {max-width:300px;overflow:hidden;padding-right:10px}
-        #skinsAndThemesPage .author a[href] {color: #03a9f4; text-decoration: none}
-        #skinsAndThemesPage .skinImageWrapper {width:200px;text-align:center}
+        #skinsAndThemesPage .author a[href] {color: var(--link-color); text-decoration: none}
+        #skinsAndThemesPage .skinImageWrapper {width:80px;text-align:center}
         #skinsAndThemesPage .skinImage {width:40px;transition:width 0.2s ease-in}
-        #skinsAndThemesPage .addSkin {opacity:0}
-        #skinsAndThemesPage .skinLine:hover .addSkin {opacity:1}
+        #skinsAndThemesPage .addSkin {opacity:0.35;transition:opacity 0.15s ease-in}
+        #skinsAndThemesPage .skinLine:hover .addSkin,
+        #skinsAndThemesPage .addSkin.selected {opacity:1}
+
+        /* two-column skin editor: controls left, live popup preview right */
+        .skin-editor-layout {
+            display: grid;
+            grid-template-columns: minmax(360px, 1fr) 400px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .skin-editor-left { min-width: 0; }
+
+        .skin-mode-toggle {
+            display: inline-flex;
+            border: 1px solid var(--separator-color);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .skin-mode-tab {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: var(--text-color);
+            font: inherit;
+            font-weight: 500;
+            padding: 9px 22px;
+            cursor: pointer;
+        }
+
+        .skin-mode-tab:hover { background: var(--bg-light-color-hover, rgba(0,0,0,0.06)); }
+
+        .skin-mode-tab.selected {
+            background: var(--accent-color, #1a73e8);
+            color: white;
+        }
+
+        .skin-mode-panel.hide { display: none; }
+
+        .skin-hint {
+            font-size: small;
+            color: gray;
+            margin: 0 0 10px;
+        }
+
+        .skin-css-toolbar,
+        .skin-css-footer,
+        .skin-preview-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .skin-css-toolbar { margin-bottom: 8px; }
+        .skin-css-footer { margin-top: 8px; }
+
+        .skin-mini-button {
+            appearance: none;
+            border: 1px solid var(--separator-color);
+            background: transparent;
+            color: var(--text-color);
+            font: inherit;
+            font-size: small;
+            padding: 5px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .skin-mini-button:hover { background: var(--bg-light-color-hover, rgba(0,0,0,0.06)); }
+
+        #inlineCssEditor {
+            width: 100%;
+            min-height: 420px;
+            resize: vertical;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid var(--separator-color);
+            border-radius: 10px;
+            background: var(--input-bg-color, white);
+            color: var(--text-color);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            tab-size: 4;
+        }
+
+        #inlineCssEditor:focus {
+            outline: none;
+            border-color: var(--accent-color, #1a73e8);
+        }
+
+        .skin-css-status { font-size: small; color: gray; }
+        .skin-css-status.saving { color: #c77700; }
+        .skin-css-status.saved { color: #2e7d32; }
+        .skin-css-status.error { color: #c62828; }
+
+        .skin-editor-right {
+            position: sticky;
+            top: 20px;
+        }
+
+        .skin-preview-toolbar {
+            margin-bottom: 8px;
+        }
+
+        .skin-preview-label {
+            font-size: small;
+            color: gray;
+        }
+
+        #skinPreviewFrame {
+            width: 400px;
+            height: 620px;
+            border: 1px solid var(--separator-color);
+            border-radius: 10px;
+            background: white;
+            display: block;
+        }
+
+        @media (max-width: 1000px) {
+            .skin-editor-layout { grid-template-columns: 1fr; }
+            .skin-editor-right { position: static; }
+            #skinPreviewFrame { width: 100%; }
+        }
 
         #compose-button-placement-section {
             display: flex;
@@ -303,6 +449,7 @@
     <script src="js/common.js"></script>
     <script src="js/skins-local.js"></script>
     <script src="js/local-overrides.js"></script>
+    <script src="js/storage-selfheal.js"></script>
     <script src="js/custom-css-apply.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
@@ -1215,13 +1362,44 @@
 
         <template id="skinsAndThemesPageTemplate">
             <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
-                <div class="layout horizontal col-gap" style="align-items:center;margin-bottom:16px">
-                    <j-button id="openCustomCssEditor" class="filled" icon="code">Open custom CSS editor</j-button>
-                    <span style="font-size:small;color:gray">Edit popup and options styling directly. Changes apply on next open.</span>
+                <div class="skin-editor-layout">
+
+                    <section class="skin-editor-left">
+                        <div class="skin-mode-toggle" role="tablist">
+                            <button type="button" class="skin-mode-tab selected" data-mode="skins" role="tab">Skins</button>
+                            <button type="button" class="skin-mode-tab" data-mode="css" role="tab">Custom CSS</button>
+                        </div>
+
+                        <div id="skinModeSkins" class="skin-mode-panel">
+                            <p class="skin-hint">Click + to install a skin. Changes preview instantly on the right.</p>
+                            <table id="skinsAndThemesListing">
+                                <tr><th>Name</th><th style="text-align:center">Preview</th><th>Author</th></tr>
+                            </table>
+                        </div>
+
+                        <div id="skinModeCss" class="skin-mode-panel hide">
+                            <div class="skin-css-toolbar">
+                                <span class="skin-hint">Styles the popup and this options page.</span>
+                                <button type="button" id="cssEditorFormat" class="skin-mini-button">Format</button>
+                            </div>
+                            <textarea id="inlineCssEditor" spellcheck="false" autocomplete="off"
+                                placeholder="/* e.g. --header-bg-color: #1e1e2e; */"></textarea>
+                            <div class="skin-css-footer">
+                                <span id="inlineCssStatus" class="skin-css-status">Ready</span>
+                                <button type="button" id="cssEditorReset" class="skin-mini-button">Clear</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside class="skin-editor-right">
+                        <div class="skin-preview-toolbar">
+                            <span class="skin-preview-label">Popup preview</span>
+                            <button type="button" id="skinPreviewRefresh" class="skin-mini-button">Refresh</button>
+                        </div>
+                        <iframe id="skinPreviewFrame" title="Popup preview" src="about:blank"></iframe>
+                    </aside>
+
                 </div>
-                <table id="skinsAndThemesListing">
-                    <tr><th>Name</th><th style="text-align:center">Image</th><th>Author</th><th>Installs</th></tr>
-                </table>
             </div>
         </template>
 
@@ -1295,12 +1473,13 @@
 
                 <fieldset class="options selected" style="margin-block:20px">
                     <legend>Local build</legend>
-                    <label style="display:flex;align-items:center;gap:10px">
-                        <input type="checkbox" id="premiumUnlockedToggle">
-                        <span>Unlock all premium features</span>
-                    </label>
+                    <div class="layout horizontal col-gap" style="align-items:center">
+                        <j-button id="premiumUnlockButton" class="filled" icon="lock-open">Re-unlock premium features</j-button>
+                        <span id="premiumUnlockStatus" style="font-size:small;color:gray"></span>
+                    </div>
                     <div style="color:gray;font-size:small;margin-top:6px">
-                        Writes the same flag the original paywall used. Unchecked hides premium-only options.
+                        Click to write the unlock flag. Press it repeatedly if a feature still looks locked
+                        (e.g. after importing settings or a sync overwrites the flag).
                     </div>
                 </fieldset>
 

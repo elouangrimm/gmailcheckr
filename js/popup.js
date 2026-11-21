@@ -19,6 +19,7 @@ var popupView;
 var fromToolbar;
 var isSidePanel;
 var isDetached;
+var isPreview; // options page Skins & Themes preview iframe
 var isTemporaryPopup;
 var isRequestingPermission;
 var renderAccountsInterval;
@@ -68,6 +69,12 @@ var zoomPromise = getZoomFactor().then(function(thisZoomFactor) {
 
 if (location.href.includes("source=widget")) {
 	inWidget = true;
+} else if (location.href.includes("source=preview")) {
+	// rendered inside the options page Skins & Themes preview iframe:
+	// behave like a toolbar popup so it lays out at popup width, but disable
+	// interaction so clicking around cannot navigate the preview away.
+	fromToolbar = true;
+	isPreview = true;
 } else if (location.href.includes("source=toolbar") || location.href.includes("source=aiPrompt")) {
 	fromToolbar = true;
 } else if (location.href.includes("source=sidepanel")) {
@@ -6814,6 +6821,19 @@ async function init() {
 
 	if (fromToolbar) {
 		htmlElement.classList.add("fromToolbar");
+    }
+
+    if (isPreview) {
+        // Skins & Themes preview: a picture of the popup, not a live app.
+        // Screenshot mode is injected after load so skins still render.
+        addCSS("previewMode", `
+            html, body {
+                overflow: hidden !important;
+                pointer-events: none !important;
+                user-select: none !important;
+            }
+            * { cursor: default !important; }
+        `);
     }
 
 	$body.classList.add(await storage.get("accountAddingMethod"));

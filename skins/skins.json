@@ -78,6 +78,19 @@
     "updated_date": "2025-12-04 17:44:47"
   },
   {
+    "id": 146,
+    "name": "Close button: Hide",
+    "gmail": 1,
+    "calendar": 1,
+    "css": ".close {display:none}",
+    "image": null,
+    "text_color": "",
+    "author": "Elouan",
+    "author_url": "",
+    "created_date": "2026-11-21 8:52:00",
+    "updated_date": "2026-11-21 8:52:00"
+  },
+  {
     "id": 3,
     "name": "Compose button: Hide",
     "gmail": 1,

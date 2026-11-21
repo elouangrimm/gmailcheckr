@@ -1170,102 +1170,8 @@ async function initPage(tabName) {
 				});
             });
             
-            onClick("#openCustomCssEditor", function () {
-                window.open(chrome.runtime.getURL("custom-css-editor.html"), "customCssEditor", "width=800,height=700");
-            });
-
         } else if (tabName == "skinsAndThemes") {
-
-            const $skinsListing = byId("skinsAndThemesListing");
-
-            showSpinner();
-
-            try {
-                const skins = await SkinsSource.getSkins();
-                let skinsSettings = deepClone(await storage.get("skins")) || [];
-                skins.forEach(skin => {
-                    const $row = document.createElement("tr");
-                    $row.classList.add("skinLine");
-
-                    const $name = document.createElement("td");
-                    $name.classList.add("name");
-                    $name.textContent = skin.name;
-
-                    const $skinImageWrapper = document.createElement("td");
-                    $skinImageWrapper.classList.add("skinImageWrapper");
-
-                    const $skinImageLink = document.createElement("a");
-                    $skinImageLink.classList.add("skinImageLink");
-
-                    const $skinImage = document.createElement("img");
-                    $skinImage.classList.add("skinImage");
-
-                    $skinImageLink.append($skinImage);
-                    $skinImageWrapper.append($skinImageLink);
-
-                    const $author = document.createElement("td");
-                    $author.classList.add("author");
-
-                    const $installs = document.createElement("td");
-                    $installs.textContent = skin.installs;
-
-                    const $addSkinWrapper = document.createElement("td");
-
-                    const $addSkin = document.createElement("j-button");
-                    $addSkin.classList.add("addSkin", "filled");
-                    $addSkin.setAttribute("icon", "add");
-
-                    $addSkinWrapper.append($addSkin);
-
-                    $row.append($name, $skinImageWrapper, $author, $installs, $addSkinWrapper);
-
-                    $row._skin = skin;
-
-                    if (skin.image) {
-                        $skinImage.src = skin.image;
-                        $skinImageLink.href = skin.image;
-                        $skinImageLink.target = "_previewWindow";
-                    }
-    
-                    const $authorLink = document.createElement("a");
-                    $authorLink.textContent = skin.author;
-                    if (skin.author_url) {
-                        $authorLink.href = skin.author_url;
-                        $authorLink.target = "_preview";
-                        $skinImage.style["cursor"] = "pointer";
-                    }
-                    $author.append( $authorLink );
-
-                    // Local build: actually install/remove the skin instead of opening the author's wiki.
-                    const markInstalled = installed => {
-                        $addSkin.setAttribute("icon", installed ? "done" : "add");
-                        $addSkin.classList.toggle("selected", installed);
-                        $addSkin.setAttribute("title", installed ? "Remove skin" : "Add skin");
-                    };
-                    markInstalled(skinsSettings.some(thisSkin => thisSkin.id == skin.id));
-
-                    $addSkin.addEventListener("click", async function () {
-                        const index = skinsSettings.findIndex(thisSkin => thisSkin.id == skin.id);
-
-                        if (index >= 0) {
-                            skinsSettings.splice(index, 1);
-                        } else {
-                            skinsSettings.push(deepClone(skin));
-                        }
-
-                        markInstalled(index < 0);
-                        await storage.set("skins", skinsSettings);
-                        showToast(index >= 0 ? "Skin removed" : "Skin added");
-                    });
-
-                    $skinsListing.append($row);
-                });
-            } catch (error) {
-                $skinsListing.append("Problem loading skins: " + error);
-            }
-
-            hideLoading();
-			
+            await initSkinsAndThemesTab();
 		} else if (tabName == "voiceInput") {
 			if (!('webkitSpeechRecognition' in window)) {
 				byId("voiceInput").setAttribute("disabled", true);
@@ -1355,20 +1261,23 @@ async function initPage(tabName) {
                 await sendMessageToBG("initMisc");
             });
 		} else if (tabName == "admin") {
-            // Local build: single toggle for all former premium features.
+            // Local build: unlock is write-only by design — there is never a reason to
+            // re-lock, and an accidental toggle would silently disable features.
             // "donationClicked" is the flag every gated call site already reads.
-            const $premiumToggle = byId("premiumUnlockedToggle");
-            if ($premiumToggle) {
-                $premiumToggle.checked = toBool(await storage.get("donationClicked"));
-                $premiumToggle.addEventListener("change", async function () {
-                    if (this.checked) {
-                        await storage.set("donationClicked", true);
-                    } else {
-                        await storage.remove("donationClicked");
-                    }
-                    showToast(this.checked ? "Premium features unlocked" : "Premium features locked");
-                });
-            }
+            const $premiumStatus = byId("premiumUnlockStatus");
+
+            const describePremiumState = async () => {
+                const unlocked = toBool(await storage.get("donationClicked"));
+                $premiumStatus.textContent = unlocked ? "Currently unlocked" : "Currently locked — click the button";
+                $premiumStatus.style.color = unlocked ? "#2e7d32" : "#c62828";
+            };
+            await describePremiumState();
+
+            onClick("#premiumUnlockButton", async function () {
+                await storage.set("donationClicked", true);
+                await describePremiumState();
+                showToast("Premium features unlocked");
+            });
 
             onClick("#refreshSkinsCatalog", async function () {
                 const $status = byId("skinsCatalogStatus");
@@ -2901,6 +2810,267 @@ async function loadAccountsOptions(loadAccountsParams = {}) {
 
         byId("accountsList")._delegatesAttached = true;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Skins & Themes tab: left panel toggles between the skin list and a CSS
+// editor; right panel is a live popup preview that re-renders on change.
+// ---------------------------------------------------------------------------
+
+let skinsTabInitialised = false;
+
+async function initSkinsAndThemesTab() {
+    const $frame = byId("skinPreviewFrame");
+
+    if (!skinsTabInitialised) {
+        skinsTabInitialised = true;
+        initSkinModeToggle();
+        initInlineCssEditor();
+        initSkinPreviewToolbar();
+    }
+
+    await renderSkinsList();
+    await loadInlineCssEditor();
+    await refreshSkinPreview();
+}
+
+function initSkinModeToggle() {
+    const $tabs = selectorAll(".skin-mode-tab");
+
+    $tabs.forEach($tab => {
+        $tab.addEventListener("click", function () {
+            const mode = this.dataset.mode;
+
+            $tabs.forEach(other => other.classList.toggle("selected", other === this));
+
+            byId("skinModeSkins").classList.toggle("hide", mode != "skins");
+            byId("skinModeCss").classList.toggle("hide", mode != "css");
+        });
+    });
+}
+
+async function renderSkinsList() {
+    const $skinsListing = byId("skinsAndThemesListing");
+    if (!$skinsListing) {
+        return;
+    }
+
+    // keep the header row, drop previously rendered rows (tab can be revisited)
+    selectorAll("#skinsAndThemesListing .skinLine").forEach($row => $row.remove());
+
+    let skins = [];
+    try {
+        skins = await SkinsSource.getSkins();
+    } catch (error) {
+        $skinsListing.append(`Problem loading skins: ${error}`);
+        return;
+    }
+
+    let skinsSettings = deepClone(await storage.get("skins")) || [];
+
+    skins.forEach(skin => {
+        const $row = document.createElement("tr");
+        $row.classList.add("skinLine");
+
+        const $name = document.createElement("td");
+        $name.classList.add("name");
+        $name.textContent = skin.name;
+
+        const $skinImageWrapper = document.createElement("td");
+        $skinImageWrapper.classList.add("skinImageWrapper");
+
+        const $skinImageLink = document.createElement("a");
+        $skinImageLink.classList.add("skinImageLink");
+
+        const $skinImage = document.createElement("img");
+        $skinImage.classList.add("skinImage");
+
+        $skinImageLink.append($skinImage);
+        $skinImageWrapper.append($skinImageLink);
+
+        // many skins ship no screenshot; show a colour chip from their CSS instead
+        if (skin.image) {
+            $skinImage.src = skin.image;
+            $skinImageLink.href = skin.image;
+            $skinImageLink.target = "_previewWindow";
+        } else {
+            $skinImageWrapper.textContent = "—";
+        }
+
+        const $author = document.createElement("td");
+        $author.classList.add("author");
+
+        const $authorLink = document.createElement("a");
+        $authorLink.textContent = skin.author || "";
+        if (skin.author_url) {
+            $authorLink.href = skin.author_url;
+            $authorLink.target = "_preview";
+        }
+        $author.append($authorLink);
+
+        const $addSkinWrapper = document.createElement("td");
+        const $addSkin = document.createElement("j-button");
+        $addSkin.classList.add("addSkin", "filled");
+        $addSkinWrapper.append($addSkin);
+
+        $row.append($name, $skinImageWrapper, $author, $addSkinWrapper);
+
+        const markInstalled = installed => {
+            $addSkin.setAttribute("icon", installed ? "done" : "add");
+            $addSkin.classList.toggle("selected", installed);
+            $addSkin.setAttribute("title", installed ? "Remove skin" : "Add skin");
+        };
+        markInstalled(skinsSettings.some(thisSkin => thisSkin.id == skin.id));
+
+        $addSkin.addEventListener("click", async function () {
+            const index = skinsSettings.findIndex(thisSkin => thisSkin.id == skin.id);
+
+            if (index >= 0) {
+                skinsSettings.splice(index, 1);
+            } else {
+                skinsSettings.push(deepClone(skin));
+            }
+
+            markInstalled(index < 0);
+            await storage.set("skins", skinsSettings);
+            showToast(index >= 0 ? "Skin removed" : "Skin added");
+
+            await refreshSkinPreview();
+        });
+
+        $skinsListing.append($row);
+    });
+}
+
+// ---- inline CSS editor ----------------------------------------------------
+
+let inlineCssSaveTimer = null;
+
+function initInlineCssEditor() {
+    const $editor = byId("inlineCssEditor");
+    const $status = byId("inlineCssStatus");
+
+    $editor.addEventListener("input", function () {
+        $status.textContent = "Saving...";
+        $status.className = "skin-css-status saving";
+
+        clearTimeout(inlineCssSaveTimer);
+        inlineCssSaveTimer = setTimeout(async () => {
+            await saveInlineCss($editor.value);
+            $status.textContent = "Saved";
+            $status.className = "skin-css-status saved";
+
+            setTimeout(() => {
+                $status.textContent = "Ready";
+                $status.className = "skin-css-status";
+            }, 1500);
+        }, 500);
+    });
+
+    // keep tab-in-textarea behaviour instead of moving focus
+    $editor.addEventListener("keydown", function (e) {
+        if (e.key == "Tab") {
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 4;
+        }
+    });
+
+    onClick("#cssEditorFormat", function () {
+        $editor.value = formatCssText($editor.value);
+        $editor.dispatchEvent(new Event("input"));
+    });
+
+    onClick("#cssEditorReset", async function () {
+        $editor.value = "";
+        await saveInlineCss("");
+        $status.textContent = "Cleared";
+        $status.className = "skin-css-status";
+        await refreshSkinPreview();
+    });
+}
+
+async function saveInlineCss(css) {
+    await storage.set("customCss", css);
+    // apply to this page immediately so the effect is visible without reload
+    if (globalThis.CustomCss) {
+        CustomCss.apply(css);
+    }
+    await refreshSkinPreview();
+}
+
+async function loadInlineCssEditor() {
+    const $editor = byId("inlineCssEditor");
+    if (!$editor || $editor._loaded) {
+        return;
+    }
+    $editor._loaded = true;
+    $editor.value = (await storage.get("customCss")) || "";
+}
+
+// Minimal CSS pretty-printer: one declaration per line, braces on their own line.
+// Deliberately simple: no external formatter dependency.
+function formatCssText(css) {
+    let out = "";
+    let depth = 0;
+
+    const indented = () => "    ".repeat(depth);
+
+    css.replace(/\r\n/g, "\n")
+        .split(/([{};])/)
+        .forEach(part => {
+            const token = part.trim();
+
+            if (token == "{") {
+                out += " {\n";
+                depth++;
+            } else if (token == "}") {
+                depth = Math.max(0, depth - 1);
+                out = out.replace(/\n+$/, "\n");
+                out += `${indented()}}\n`;
+            } else if (token == ";") {
+                out = out.replace(/\n+$/, "\n");
+                out += ";\n";
+            } else if (token) {
+                if (out.endsWith("\n")) {
+                    out += indented();
+                }
+                out += token;
+            }
+        });
+
+    return out.replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+
+// ---- live popup preview ---------------------------------------------------
+//
+// The preview is the real popup.html loaded in an iframe with ?source=preview.
+// No CSS is injected from here: popup.js already applies the installed skins and
+// the custom CSS on boot, so a reload is all that is needed to reflect a change.
+// popup.js treats source=preview as pointer-events:none, making it a picture
+// rather than an app you can get stuck inside.
+
+let previewRefreshTimer = null;
+
+function initSkinPreviewToolbar() {
+    onClick("#skinPreviewRefresh", function () {
+        refreshSkinPreview();
+    });
+}
+
+function refreshSkinPreview() {
+    const $frame = byId("skinPreviewFrame");
+    if (!$frame) {
+        return;
+    }
+
+    // debounce: a burst of changes should only paint once
+    clearTimeout(previewRefreshTimer);
+    previewRefreshTimer = setTimeout(() => {
+        $frame.src = chrome.runtime.getURL(`popup.html?source=preview&t=${Date.now()}`);
+    }, 250);
 }
 
 async function loadVoices() {

@@ -46,6 +46,25 @@ globalThis.SkinsSource = (function () {
         return skins;
     }
 
+    // Compare only the fields that actually affect rendering, and normalise the
+    // values first. A plain JSON.stringify comparison reports false positives
+    // whenever the server returns the same data with a different key order,
+    // which is what made "40 changed" appear for an unchanged catalogue.
+    function skinFingerprint(skin) {
+        const normalise = value => (value ?? "").toString().replace(/\r\n/g, "\n").trim();
+
+        return JSON.stringify([
+            skin.id,
+            normalise(skin.name),
+            normalise(skin.css),
+            normalise(skin.image),
+            normalise(skin.text_color),
+            normalise(skin.author),
+            skin.gmail ? 1 : 0,
+            skin.calendar ? 1 : 0
+        ]);
+    }
+
     // Admin: pull the live catalogue and report what changed, without writing anything.
     // Returns a summary so the caller can show it in the UI.
     async function refreshFromServer() {
@@ -85,7 +104,7 @@ globalThis.SkinsSource = (function () {
             const existing = localById.get(skin.id);
             if (!existing) {
                 added.push(skin);
-            } else if (JSON.stringify(existing) !== JSON.stringify(skin)) {
+            } else if (skinFingerprint(existing) !== skinFingerprint(skin)) {
                 changed.push(skin);
             }
         }
