@@ -632,14 +632,12 @@ async function initPage(tabName) {
                     $allDay.setAttribute("icon", "done-all");
 					$allDay.setAttribute("day", a % 7);
                     onClick($allDay, async function () {
-						if (await donationClicked("DND_schedule")) {
 							let allDayChecked = this.checked;
-							let day = this.getAttribute("day");
-							selectorAll(`#dndScheduleDialog input[day='${day}']`).forEach(el => {
-								el.checked = !allDayChecked;
-							});
-							this.checked = !this.checked;
-						}
+						let day = this.getAttribute("day");
+						selectorAll(`#dndScheduleDialog input[day='${day}']`).forEach(el => {
+							el.checked = !allDayChecked;
+						});
+						this.checked = !this.checked;
 					});
 					$dayHeader.append($allDay, dateFormat.i18n.dayNamesShort[a % 7]);
 					$header.append($dayHeader);
@@ -667,9 +665,7 @@ async function initPage(tabName) {
 						$checkbox.setAttribute("day", day);
 						$checkbox.setAttribute("hour", hour);
                         onClick($checkbox, async function () {
-							if (!await donationClicked("DND_schedule")) {
-								this.checked = false;
-							}
+							// local build: no contribution gate
 						});
 
 						if (DND_timetable && DND_timetable[day][hour]) {
@@ -682,13 +678,11 @@ async function initPage(tabName) {
                     $allWeek.classList.add("allWeek");
                     $allWeek.setAttribute("icon", "done-all");
                     onClick($allWeek, async function () {
-						if (await donationClicked("DND_schedule")) {
 							let allWeekChecked = this.checked;
-							this.closest(".row").querySelectorAll("input[type='checkbox']").forEach(el => {
-								el.checked = !allWeekChecked;
-							});
-							this.checked = !this.checked;
-						}
+						this.closest(".row").querySelectorAll("input[type='checkbox']").forEach(el => {
+							el.checked = !allWeekChecked;
+						});
+						this.checked = !this.checked;
 					});
 
 					$row.append($allWeek);
@@ -1027,17 +1021,8 @@ async function initPage(tabName) {
             });
 
             byId("appearance").addEventListener("change", async function (e) {
-                if (await donationClicked("darkMode")) {
-                    await storage.set("darkMode", e.target.value);
-                    initColorScheme();
-                } else {
-                    this.value = e.target.dataset.previousValue;
-                    try {
-                        var quotaText = await fetch(`https://jasonsavard.com/getQuotaText?space=${"gmail"}`).then(response => response.json());
-                    } catch (error) {
-                        console.error("Error fetching quota text", error);
-                    }
-                }
+                await storage.set("darkMode", e.target.value);
+                initColorScheme();
             });
 
 		} else if (tabName == "accounts") {
@@ -1185,6 +1170,10 @@ async function initPage(tabName) {
 				});
             });
             
+            onClick("#openCustomCssEditor", function () {
+                window.open(chrome.runtime.getURL("custom-css-editor.html"), "customCssEditor", "width=800,height=700");
+            });
+
         } else if (tabName == "skinsAndThemes") {
 
             const $skinsListing = byId("skinsAndThemesListing");
@@ -1192,7 +1181,8 @@ async function initPage(tabName) {
             showSpinner();
 
             try {
-                const skins = await Controller.getSkins();
+                const skins = await SkinsSource.getSkins();
+                let skinsSettings = deepClone(await storage.get("skins")) || [];
                 skins.forEach(skin => {
                     const $row = document.createElement("tr");
                     $row.classList.add("skinLine");
@@ -1245,10 +1235,29 @@ async function initPage(tabName) {
                         $skinImage.style["cursor"] = "pointer";
                     }
                     $author.append( $authorLink );
-                    onClick($addSkin, () => {
-                        window.open("https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab", "emptyWindow");
+
+                    // Local build: actually install/remove the skin instead of opening the author's wiki.
+                    const markInstalled = installed => {
+                        $addSkin.setAttribute("icon", installed ? "done" : "add");
+                        $addSkin.classList.toggle("selected", installed);
+                        $addSkin.setAttribute("title", installed ? "Remove skin" : "Add skin");
+                    };
+                    markInstalled(skinsSettings.some(thisSkin => thisSkin.id == skin.id));
+
+                    $addSkin.addEventListener("click", async function () {
+                        const index = skinsSettings.findIndex(thisSkin => thisSkin.id == skin.id);
+
+                        if (index >= 0) {
+                            skinsSettings.splice(index, 1);
+                        } else {
+                            skinsSettings.push(deepClone(skin));
+                        }
+
+                        markInstalled(index < 0);
+                        await storage.set("skins", skinsSettings);
+                        showToast(index >= 0 ? "Skin removed" : "Skin added");
                     });
-    
+
                     $skinsListing.append($row);
                 });
             } catch (error) {
@@ -1346,6 +1355,38 @@ async function initPage(tabName) {
                 await sendMessageToBG("initMisc");
             });
 		} else if (tabName == "admin") {
+            // Local build: single toggle for all former premium features.
+            // "donationClicked" is the flag every gated call site already reads.
+            const $premiumToggle = byId("premiumUnlockedToggle");
+            if ($premiumToggle) {
+                $premiumToggle.checked = toBool(await storage.get("donationClicked"));
+                $premiumToggle.addEventListener("change", async function () {
+                    if (this.checked) {
+                        await storage.set("donationClicked", true);
+                    } else {
+                        await storage.remove("donationClicked");
+                    }
+                    showToast(this.checked ? "Premium features unlocked" : "Premium features locked");
+                });
+            }
+
+            onClick("#refreshSkinsCatalog", async function () {
+                const $status = byId("skinsCatalogStatus");
+                $status.textContent = "Checking...";
+                try {
+                    const result = await SkinsSource.refreshFromServer();
+                    if (!result.added.length && !result.changed.length && !result.removed.length) {
+                        $status.textContent = `Up to date (${result.localCount} skins).`;
+                    } else {
+                        $status.textContent = `${result.remoteCount} on server, ${result.localCount} local — ` +
+                            `${result.added.length} new, ${result.changed.length} changed, ${result.removed.length} gone.`;
+                        console.log("Skin catalogue differences", result);
+                    }
+                } catch (error) {
+                    $status.textContent = "Could not reach server: " + error.message;
+                }
+            });
+
 			onClick("#deleteAllCustomSounds", async function () {
 				await storage.remove("customSounds");
 				location.reload();
@@ -3348,11 +3389,7 @@ async function maybePromptForHostPermissions() {
         }
     });
 
-    onClick("#changelog", function(event) {
-        openChangelog("GmailOptions");
-        event.preventDefault();
-        event.stopPropagation();
-    });
+    // local build: changelog/help links removed from the header
 
     // detect x
     addEventListeners("#search", "search", function(e) {

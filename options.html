@@ -4,6 +4,9 @@
   	<title>Gmail Checkr - Options</title>
   	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
+    <!-- must run before the stylesheet paints, not deferred -->
+    <script src="js/color-scheme-early.js"></script>
+
     <link rel="stylesheet" href="css/jdom.css">
 
 	<style>
@@ -298,6 +301,9 @@
   	</style>
 
     <script src="js/common.js"></script>
+    <script src="js/skins-local.js"></script>
+    <script src="js/local-overrides.js"></script>
+    <script src="js/custom-css-apply.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
 
@@ -326,9 +332,6 @@
                 <div class="utility-items">
                     <j-input id="search" type="search" msgLabel="search"></j-input>
                     <a id="version" class="ripple" href="#"><span id="version-text">v.00.0.0</span></a>
-                    <a id="changelog" class="ripple" href="https://jasonsavard.com/wiki/Checker_Plus_for_Gmail_changelog?ref=GmailOptions"><span msg="changelog">Changelog</span></a>
-                    <a href="contribute.html" class="ripple"><span msg="contribute">Unlock Premium</span></a>
-                    <a href="https://jasonsavard.com/forum/t/checker-plus-for-gmail" class="ripple"><span msg="help">Help</span></a>
                 </div>
             </div>
 
@@ -1212,8 +1215,10 @@
 
         <template id="skinsAndThemesPageTemplate">
             <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
-                <a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab" target="_blank"><j-button raised class="raised" msg="help">helpp</j-button></a>
-                <br><br>
+                <div class="layout horizontal col-gap" style="align-items:center;margin-bottom:16px">
+                    <j-button id="openCustomCssEditor" class="filled" icon="code">Open custom CSS editor</j-button>
+                    <span style="font-size:small;color:gray">Edit popup and options styling directly. Changes apply on next open.</span>
+                </div>
                 <table id="skinsAndThemesListing">
                     <tr><th>Name</th><th style="text-align:center">Image</th><th>Author</th><th>Installs</th></tr>
                 </table>
@@ -1287,6 +1292,29 @@
                         <j-button id="importFromFileOptions" class="filled" icon="file-upload" msg="importOptions"></j-button>
                     </fieldset>
                 </div>
+
+                <fieldset class="options selected" style="margin-block:20px">
+                    <legend>Local build</legend>
+                    <label style="display:flex;align-items:center;gap:10px">
+                        <input type="checkbox" id="premiumUnlockedToggle">
+                        <span>Unlock all premium features</span>
+                    </label>
+                    <div style="color:gray;font-size:small;margin-top:6px">
+                        Writes the same flag the original paywall used. Unchecked hides premium-only options.
+                    </div>
+                </fieldset>
+
+                <fieldset class="options selected" style="margin-block:20px">
+                    <legend>Bundled assets</legend>
+                    <div class="layout horizontal col-gap" style="align-items:center">
+                        <j-button id="refreshSkinsCatalog" class="filled" icon="cloud-download">Check server for skin updates</j-button>
+                        <span id="skinsCatalogStatus" style="font-size:small;color:gray"></span>
+                    </div>
+                    <div style="color:gray;font-size:small;margin-top:6px">
+                        Skins are read from the bundled <code>skins/skins.json</code> — no network calls happen during normal use.
+                        This button fetches the live catalogue and reports differences so you can update the local file by hand.
+                    </div>
+                </fieldset>
 
                 <div class="layout vertical" style="gap: 10px">
                     <j-button id="deleteAllCustomSounds" class="filled" icon="queue-music" msg="deleteCustomSounds"></j-button>

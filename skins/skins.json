@@ -381,7 +381,7 @@
     "name": "Theme: Arnau",
     "gmail": 1,
     "calendar": 0,
-    "css": ":root {\n  --logo: url('https://jasonsavard.com/images/buttonIcons/inboxByGmail/new.png');\n}\n\n/* CSS */\n#inbox .account .accountHeader {\n  background-color: rgba(85, 85, 85, 0.3) !important;\n}\nimg.logo {\n  content: var(--logo);\n  height: 25px;\n  margin: 3px 0 0 0;\n}",
+    "css": ":root {\n}\n\n/* CSS */\n#inbox .account .accountHeader {\n  background-color: rgba(85, 85, 85, 0.3) !important;\n}\nimg.logo {\n  content: var(--logo);\n  height: 25px;\n  margin: 3px 0 0 0;\n}",
     "image": null,
     "text_color": "",
     "author": "Arnau Villoslada",
@@ -398,7 +398,7 @@
     "image": null,
     "text_color": "",
     "author": "Piter432",
-    "author_url": "https://jasonsavard.com/forum/profile/Piter432",
+    "author_url": "",
     "created_date": "2015-06-27 06:14:05",
     "updated_date": "2023-01-09 11:24:52"
   },
@@ -437,7 +437,7 @@
     "image": null,
     "text_color": "",
     "author": "Liam",
-    "author_url": "https://jasonsavard.com/forum/discussion/comment/12175#Comment_12175",
+    "author_url": "",
     "created_date": "2015-06-25 05:40:48",
     "updated_date": "2025-12-05 16:55:00"
   },
@@ -515,7 +515,7 @@
     "image": null,
     "text_color": "",
     "author": "Carpii",
-    "author_url": "https://jasonsavard.com/forum/discussion/comment/6761#Comment_6761",
+    "author_url": "",
     "created_date": "2015-08-02 12:47:32",
     "updated_date": "2023-01-09 11:22:19"
   },
@@ -531,5 +531,44 @@
     "author_url": "",
     "created_date": "2016-04-27 00:00:00",
     "updated_date": "2023-01-09 11:23:41"
+  },
+  {
+    "id": 143,
+    "name": "Theme: Catppuccin Latte",
+    "gmail": 1,
+    "calendar": 0,
+    "css": "@import url('skins/catppuccin-latte.css');",
+    "image": null,
+    "text_color": "",
+    "author": "Catppuccin",
+    "author_url": "https://github.com/catppuccin/catppuccin",
+    "created_date": "2026-11-21 12:00:00",
+    "updated_date": "2026-11-21 12:00:00"
+  },
+  {
+    "id": 144,
+    "name": "Theme: Catppuccin Frappé",
+    "gmail": 1,
+    "calendar": 0,
+    "css": "@import url('skins/catppuccin-frappe.css');",
+    "image": null,
+    "text_color": "",
+    "author": "Catppuccin",
+    "author_url": "https://github.com/catppuccin/catppuccin",
+    "created_date": "2026-11-21 12:00:00",
+    "updated_date": "2026-11-21 12:00:00"
+  },
+  {
+    "id": 145,
+    "name": "Theme: Catppuccin Mocha",
+    "gmail": 1,
+    "calendar": 0,
+    "css": "@import url('skins/catppuccin-mocha.css');",
+    "image": null,
+    "text_color": "",
+    "author": "Catppuccin",
+    "author_url": "https://github.com/catppuccin/catppuccin",
+    "created_date": "2026-11-21 12:00:00",
+    "updated_date": "2026-11-21 12:00:00"
   }
 ]

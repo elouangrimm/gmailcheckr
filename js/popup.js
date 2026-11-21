@@ -502,15 +502,38 @@ async function getBGObjects() {
 
     initEmailListContextMenu();
 
-    accountAddingMethod = await storage.get("accountAddingMethod");
-    highlightDates = await storage.get("highlightDates");
-    skinsSettings = deepClone(await storage.get("skins"));
-    maxEmailsToShowPerAccount = await storage.get("maxEmailsToShowPerAccount");
-    emailPreview = await storage.get("emailPreview");
-    keyboardException_R = await storage.get("keyboardException_R");
-    openGmailInNewTab = await storage.get("openGmailInNewTab");
-    enableSwiping = await storage.get("enableSwiping");
-    messageBodyLightPreviewActive = await storage.get("messageBodyLightPreviewActive");
+    // these reads are independent of each other, so fetch them in one round-trip batch
+    const [
+        _accountAddingMethod,
+        _highlightDates,
+        _skins,
+        _maxEmailsToShowPerAccount,
+        _emailPreview,
+        _keyboardException_R,
+        _openGmailInNewTab,
+        _enableSwiping,
+        _messageBodyLightPreviewActive
+    ] = await Promise.all([
+        storage.get("accountAddingMethod"),
+        storage.get("highlightDates"),
+        storage.get("skins"),
+        storage.get("maxEmailsToShowPerAccount"),
+        storage.get("emailPreview"),
+        storage.get("keyboardException_R"),
+        storage.get("openGmailInNewTab"),
+        storage.get("enableSwiping"),
+        storage.get("messageBodyLightPreviewActive")
+    ]);
+
+    accountAddingMethod = _accountAddingMethod;
+    highlightDates = _highlightDates;
+    skinsSettings = deepClone(_skins);
+    maxEmailsToShowPerAccount = _maxEmailsToShowPerAccount;
+    emailPreview = _emailPreview;
+    keyboardException_R = _keyboardException_R;
+    openGmailInNewTab = _openGmailInNewTab;
+    enableSwiping = _enableSwiping;
+    messageBodyLightPreviewActive = _messageBodyLightPreviewActive;
 
 	console.timeEnd("getBGObjects");
 }
@@ -5142,49 +5165,38 @@ function openComposeSection(params) {
 
             sendGA('sendAttachment', 'start');
 
-            if (!await storage.get("donationClicked") && await storage.get("_sendAttachmentTested")) {
-                openContributeDialog("sendAttachment", {monthly: true});
-                resetSending();
-            } else {
-                // insert slight delay because seems sendEmail bottlenecks when sending large attachments
-                setTimeout(async () => {
-                    executeAccountAction(account, "sendEmail", {actionParams: sendEmailParams}).then(async () => {
-                        showToast("Sent");
+            // local build: attachment sending is no longer gated
+            // insert slight delay because seems sendEmail bottlenecks when sending large attachments
+            setTimeout(async () => {
+                executeAccountAction(account, "sendEmail", {actionParams: sendEmailParams}).then(async () => {
+                    showToast("Sent");
 
-                        if (!await storage.get("donationClicked")) {
-                            openContributeDialog("sendAttachment", {
-                                monthly: true,
-                                footerText: "<i style='color:gray'>For testing this message will be sent to yourself at " + account.getEmail() + "</i>"
-                            });
-                        }
-
-                        await storage.setDate("_sendAttachmentTested");
-                        setTimeout(function() {
-                            byId("composeBack").click();
-                        }, 1200);
-                        sendGA('sendAttachment', 'success');
-                    }).catch(error => {
-                        console.error(error);
-                        openDialog("There was problem sending the email. Don't worry you can still download the message and attach it yourself in Gmail", {
-                            title: error,
-                            cancel: true,
-                            buttons: [{
-                                label: getMessage("download"),
-                                primary: true,
-                                onClick: function() {
-                                    var url = window.URL.createObjectURL(blob);
-                                    var link = window.document.createElement('a');
-                                    link.href = url;
-                                    link.download = sendEmailParams.attachment.filename;
-                                    link.dispatchEvent(new Event("click"));
-                                }
-                            }]
-                        });
-                    }).then(function() {
-                        resetSending();
+                    await storage.setDate("_sendAttachmentTested");
+                    setTimeout(function() {
+                        byId("composeBack").click();
+                    }, 1200);
+                    sendGA('sendAttachment', 'success');
+                }).catch(error => {
+                    console.error(error);
+                    openDialog("There was problem sending the email. Don't worry you can still download the message and attach it yourself in Gmail", {
+                        title: error,
+                        cancel: true,
+                        buttons: [{
+                            label: getMessage("download"),
+                            primary: true,
+                            onClick: function() {
+                                var url = window.URL.createObjectURL(blob);
+                                var link = window.document.createElement('a');
+                                link.href = url;
+                                link.download = sendEmailParams.attachment.filename;
+                                link.dispatchEvent(new Event("click"));
+                            }
+                        }]
                     });
-                }, 1);
-            }
+                }).then(function() {
+                    resetSending();
+                });
+            }, 1);
         }).catch(error => {
             resetSending();
             showError(error);
@@ -5437,34 +5449,30 @@ async function renderAccounts() {
 
                 onClick($account.querySelector(".alias"), async function() {
                     closeMenu(this);
-                    if (await donationClicked("alias")) {
-                        const $dialog = initTemplate("aliasDialogTemplate");
-                        const response = openDialog($dialog, {cancel: true});
+                    const $dialog = initTemplate("aliasDialogTemplate");
+                    const response = openDialog($dialog, {cancel: true});
 
-                        const newAlias = byId("newAlias");
-                        newAlias.value = await account.getEmailDisplayName();
-                        replaceEventListeners(newAlias, "keydown", function(e) {
-                            if (e.key == 'Enter' && !e.isComposing) {
-                                updateAlias(newAlias.value);
-                                this.closest("dialog").close("ok");
-                            }
-                        });
-
-                        if (await response == "ok") {
+                    const newAlias = byId("newAlias");
+                    newAlias.value = await account.getEmailDisplayName();
+                    replaceEventListeners(newAlias, "keydown", function(e) {
+                        if (e.key == 'Enter' && !e.isComposing) {
                             updateAlias(newAlias.value);
+                            this.closest("dialog").close("ok");
                         }
+                    });
+
+                    if (await response == "ok") {
+                        updateAlias(newAlias.value);
                     }
                 });
 
                 onClick($account.querySelector(".colors"), async function() {
                     closeMenu(this);
-                    if (await donationClicked("colors")) {
-                        const color = await openColorChooser();
-                        account.saveSetting("accountColor", color);
-                        setAccountHeaderColor($account, color);
-                        const $accountAvatar = getAccountAvatar(account);
-                        setAccountAvatar($account, $accountAvatar);
-                    }
+                    const color = await openColorChooser();
+                    account.saveSetting("accountColor", color);
+                    setAccountHeaderColor($account, color);
+                    const $accountAvatar = getAccountAvatar(account);
+                    setAccountAvatar($account, $accountAvatar);
                 });
 
                 const profileInfo = await account.getSetting("profileInfo");
@@ -5478,12 +5486,10 @@ async function renderAccounts() {
                 } else {
                     onClick($account.querySelector(".setAccountIcon"), async function() {
                         closeMenu(this);
-                        if (await donationClicked("setAccountIcon")) {
-                            const tokenResponse = await requestPermission({ email: account.getEmail(), initOAuthProfiles: true, useGoogleAccountsSignIn: true });
-                            if (tokenResponse) {
-                                refresh();
-                                showToast(getMessage("profileLoaded"));
-                            }
+                        const tokenResponse = await requestPermission({ email: account.getEmail(), initOAuthProfiles: true, useGoogleAccountsSignIn: true });
+                        if (tokenResponse) {
+                            refresh();
+                            showToast(getMessage("profileLoaded"));
                         }
                     });
                 }
@@ -6282,8 +6288,7 @@ function addNightModeIcon($paperItem) {
 function showSkinsDialog() {
 	showSpinner();
 
-	Controller.getSkins().then(async skins => {
-        const donationClickedFlag = await storage.get("donationClicked");
+	SkinsSource.getSkins().then(async skins => {
 		const $dialog = initTemplate("skinsDialogTemplate");
 		const $availableSkins = $dialog.querySelector("#availableSkins");
         emptyNode($availableSkins);
@@ -6312,23 +6317,20 @@ function showSkinsDialog() {
 					maybeRemoveBackgroundSkin(skinsSettings);
 
 					storage.set("skins", skinsSettings).then(() => {
-						Controller.updateSkinInstalls(skin.id, -1);
+						// local build: no remote install-counter ping
 					}).catch(error => {
 						showError(error);
 					});
-				} else if (donationClickedFlag) {
+				} else {
                     console.log("add skin");
                     $addButton.classList.add("selected");
                     addSkin(skin);
                     skinsSettings.push(skin);
                     storage.set("skins", skinsSettings).then(() => {
-                        Controller.updateSkinInstalls(skin.id, 1);
+                        // local build: no remote install-counter ping
                     }).catch(error => {
                         showError(error);
                     });
-				} else {
-                    $addButton.checked = false;
-                    openContributeDialog("skins");
                 }
 
                 //$paperItem.removeAttribute("focused");
@@ -6466,27 +6468,23 @@ function showSkinsDialog() {
                 title: getMessage("nightMode"),
                 icon: "watch-later",
                 onClick: async function() {
-                    if (donationClickedFlag) {
-                        attemptedToAddSkin = false;
+                    attemptedToAddSkin = false;
 
-                        const $paperItem = selector("#skinsDialog #availableSkins j-item.selected");
-                        if ($paperItem) {
-                            const skin = getSkin(skins, $paperItem);
-                            const nightModeSkin = await storage.get("nightModeSkin");
+                    const $paperItem = selector("#skinsDialog #availableSkins j-item.selected");
+                    if ($paperItem) {
+                        const skin = getSkin(skins, $paperItem);
+                        const nightModeSkin = await storage.get("nightModeSkin");
 
-                            byId("nightModeIcon")?.remove();
+                        byId("nightModeIcon")?.remove();
 
-                            if (nightModeSkin?.id == skin.id) {
-                                storage.remove("nightModeSkin");
-                            } else {
-                                storage.set("nightModeSkin", skin);
-                                addNightModeIcon($paperItem);
-                            }
+                        if (nightModeSkin?.id == skin.id) {
+                            storage.remove("nightModeSkin");
                         } else {
-                            niceAlert("Select a theme first to set as night mode.");
+                            storage.set("nightModeSkin", skin);
+                            addNightModeIcon($paperItem);
                         }
                     } else {
-                        openContributeDialog("nightMode");
+                        niceAlert("Select a theme first to set as night mode.");
                     }
                 }
             }, {
@@ -6494,12 +6492,10 @@ function showSkinsDialog() {
                 icon: "format-color-fill",
                 onClick: async function() {
                     const color = await openColorChooser();
-                    if (await donationClicked("background-color")) {
-                        setPopupBgColor(color);
-                        await storage.set("popup-bg-color", color);
-                        if (document.body.classList.contains("background-skin")) {
-                            showToast("Remove image to see background color.");
-                        }
+                    setPopupBgColor(color);
+                    await storage.set("popup-bg-color", color);
+                    if (document.body.classList.contains("background-skin")) {
+                        showToast("Remove image to see background color.");
                     }
                 }
             }, {
@@ -6567,9 +6563,6 @@ function showSkinsDialog() {
                                         css: textarea.value,
                                         image: customBackgroundImageUrl.value
                                     });
-                                    if (!await storage.get("donationClicked")) {
-                                        showToast(getMessage("donationRequired"));
-                                    }
                                 }
                             }
                         }, {
@@ -6577,19 +6570,11 @@ function showSkinsDialog() {
                             primary: true,
                             onClick: async function(dialog) {
                                 if (await canLoadBackgroundImage()) {
-                                    if (donationClickedFlag) {
-                                        customSkin.css = textarea.value;
-                                        customSkin.image = customBackgroundImageUrl.value;
+                                    customSkin.css = textarea.value;
+                                    customSkin.image = customBackgroundImageUrl.value;
 
-                                        addSkin(customSkin);
-                                        await storage.set("customSkin", customSkin);
-                                    } else {
-                                        textarea.value = "";
-                                        removeSkin(customSkin);
-                                        if (!donationClickedFlag) {
-                                            showToast(getMessage("donationRequired"));
-                                        }
-                                    }
+                                    addSkin(customSkin);
+                                    await storage.set("customSkin", customSkin);
                                     dialog.close();
                                 }
                             }
@@ -7137,51 +7122,8 @@ async function init() {
 		}
 	});
 
-	if (await storage.get("removeShareLinks")) {
-        hide(".share-button");
-	}
-
-    const $shareButton = selector(".share-button");
-    if ($shareButton) {
-        $shareButton.addEventListener("mouseup", function() {
-            maxHeightOfPopup();
-        });
-
-        $shareButton.addEventListener("click", async function() {
-            await storage.enable("followMeClicked");
-
-            const shareMenu = byId("share-menu");
-
-            onClickReplace("#share-menu j-icon-item", event => {
-                const value = event.currentTarget.id;
-                sendGA('shareMenu', value);
-
-                if (value == "facebook") {
-                    //openUrl("https://www.facebook.com/thegreenprogrammer");
-                    openUrl(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
-                } else if (value == "twitter") {
-                    //openUrl("https://twitter.com/JasonSavard");
-                    openUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent("Check out Gmail Checkr")}&url=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
-                } else if (value == "linkedin") {
-                    //openUrl("https://www.linkedin.com/in/jasonsavard");
-                    openUrl(`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
-                } else if (value == "email-subscription") {
-                    openUrl("https://jasonsavard.com/blog/?show-email-subscription=true");
-                } else if (value == "share-by-email") {
-                    const params = {
-                        subject: "Check out Gmail Checkr",
-                        message: "https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu",
-                    };
-                    accounts[0].openCompose(params);
-                } else if (value == "copy-link") {
-                    const url = "https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu";
-                    navigator.clipboard.writeText(url);
-                    showToast(getMessage("done"));
-                    shareMenu.hidePopover();
-                }
-            });
-        });
-    }
+	// local build: the share menu only advertised the author's store listing, so it
+	// and its social handlers have been removed along with the menu markup.
 
 	onClick("#refresh", function() {
         hideToast();
@@ -7401,7 +7343,7 @@ async function init() {
     });
 
     onClick(".contribute", function() {
-        openUrl("contribute.html?ref=GmailCheckerOptionsMenu");
+        // local build: contribute page removed
     });
 
     onClick(".discoverMyApps", function() {
@@ -7465,7 +7407,7 @@ async function init() {
         show($newsNotificationReducedDonationMessage);
     } else if (await shouldShowReducedDonationMsg(true)) {
         onClick($newsNotification, () => {
-            openUrl("contribute.html?ref=reducedDonationFromPopup");
+            // local build: contribute page removed
         });
         show($newsNotification);
         Controller.getMinimumPayment().then(minPaymentObj => {

@@ -1,0 +1,271 @@
+* {
+    --ctp-rosewater: #f2d5cf;
+    --ctp-flamingo: #eebebe;
+    --ctp-pink: #f4b8e4;
+    --ctp-mauve: #ca9ee6;
+    --ctp-red: #e78284;
+    --ctp-maroon: #ea999c;
+    --ctp-peach: #ef9f76;
+    --ctp-yellow: #e5c890;
+    --ctp-green: #a6d189;
+    --ctp-teal: #81c8be;
+    --ctp-sky: #99d1db;
+    --ctp-sapphire: #85c1dc;
+    --ctp-blue: #8caaee;
+    --ctp-lavender: #babbf1;
+
+    --ctp-text: #c6d0f5;
+    --ctp-subtext1: #b5bfe2;
+    --ctp-subtext0: #a5adce;
+    --ctp-overlay2: #949cbb;
+    --ctp-overlay1: #838ba7;
+    --ctp-overlay0: #737994;
+    --ctp-surface2: #626880;
+    --ctp-surface1: #51576d;
+    --ctp-surface0: #414559;
+    --ctp-base: #303446;
+    --ctp-mantle: #292c3c;
+    --ctp-crust: #232634;
+
+    /* REVISED MAPPING: Darker Background (Crust/Mantle), Lighter Foreground (Base/Surface) */
+    
+    /* Main Background: Crust (Darkest) */
+    --primary-background-color: var(--ctp-crust); 
+    
+    /* Secondary Background (Items, Lists, Cards): Base (Lighter than Crust) */
+    --secondary-background-color: var(--ctp-base);
+    
+    /* Highlight/Hover: Surface0 (Lighter than Base) */
+    --highlight-background-color: var(--ctp-surface0);
+    
+    /* Hover Message: Surface1 */
+    --hover-message-color: var(--ctp-surface1);
+
+    --primary-text-color: var(--ctp-text);
+    --secondary-text-color: var(--ctp-subtext1); /* Increased brightness for readability */
+    --disabled-text-color: var(--ctp-overlay2);
+
+    --error-color: var(--ctp-red);
+    
+    --primary-color: var(--ctp-blue);
+    --accent-color: var(--ctp-blue);
+    
+    --icons: var(--ctp-blue); /* Icons in blue for visibility */
+    --line-color: var(--ctp-surface0);
+}
+
+/* --- GENERAL --- */
+
+html,
+body,
+paper-button,
+paper-item,
+paper-icon-item {
+    font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+    color: var(--primary-text-color) !important;
+    background-color: var(--primary-background-color) !important;
+}
+
+/* invert text colors for messageBody override */
+.messageBody * {
+    color: var(--primary-text-color) !important;
+}
+
+/* links */
+a,
+.message a,
+.message a > span[style *= 'color'] {
+    color: var(--accent-color) !important;
+    text-decoration: none;
+}
+
+.message a:hover {
+    color: var(--ctp-sky) !important;
+}
+
+
+/* --- MAIN window --- */
+
+/* header and body background */
+html:not(#z) #inboxSection,
+html:not(#z) #inboxSection #main-header-toolbar {
+    background-color: var(--primary-background-color) !important; /* Crust */
+}
+
+/* account header - Distinct from main bg */
+body.popup app-toolbar {
+    background-color: var(--ctp-mantle) !important; /* Slightly lighter than crust, darker than base */
+    color: var(--primary-text-color) !important;
+}
+
+/* Search option */
+#searchInput {
+    color: var(--primary-text-color);
+    background-color: var(--ctp-surface0) !important; /* Input field needs to be distinct */
+    border: none !important; 
+    border-radius: 4px;
+}
+
+/* mail items - The "Foreground" elements */
+.mail {
+    background-color: var(--secondary-background-color) !important; /* Base */
+    border-bottom: 1px solid var(--line-color);
+    margin-bottom: 1px; /* Separation */
+}
+
+.mail:hover {
+    background-color: var(--highlight-background-color) !important; /* Surface0 */
+    /* REMOVED SHITTY GLOW/SHADOW */
+    box-shadow: none !important; 
+    z-index: 1;
+}
+
+/* mail snippet text */
+.snippet {
+    color: var(--secondary-text-color) !important;
+}
+
+/* menus */
+paper-item:hover,
+paper-icon-item:hover {
+    background-color: var(--highlight-background-color);
+}
+
+/* menus outer frame */
+#options-menu,
+.accountOptionsMenu {
+    border: 1px solid var(--line-color);
+    background-color: var(--ctp-base) !important;
+}
+
+paper-item:active,
+paper-icon-item:active {
+    background-color: var(--ctp-surface1);
+}
+
+/* menu divider */
+paper-item.separator {
+    background: var(--line-color) !important;
+}
+
+/* toasts */
+paper-toast {
+    background-color: var(--ctp-mantle);
+    border: 1px solid var(--ctp-blue);
+    color: var(--primary-text-color);
+}
+
+
+/* --- OPEN MAIL window --- */
+
+app-header-layout, #mainContent {
+    background-color: var(--primary-background-color) !important;
+}
+
+/* labels */
+.label {
+    background-color: var(--ctp-surface0) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface1);
+}
+
+/* mail content */
+#openEmail {
+    background-color: var(--primary-background-color);
+}
+
+/* Message body container */
+.message {
+    border-top: 1px solid var(--line-color);
+    background-color: var(--secondary-background-color); /* Base */
+    padding: 10px;
+    border-radius: 8px;
+    margin: 5px;
+}
+
+/* Reply Area */
+#replyArea {
+    background: var(--ctp-base);
+    border: 1px solid var(--line-color);
+    color: var(--primary-text-color);
+}
+
+#replyArea:hover {
+    background-color: var(--ctp-surface0) !important;
+}
+
+/* --- DIALOGS --- */
+
+paper-dialog {
+    border: 1px solid var(--line-color);
+    background-color: var(--ctp-base);
+    color: var(--primary-text-color);
+}
+
+/* Inputs */
+textarea, input {
+    color: var(--primary-text-color) !important;
+    background-color: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+    box-shadow: none !important; /* No glow */
+}
+
+/* Buttons */
+paper-button[raised].colored {
+    background-color: var(--ctp-blue) !important;
+    color: var(--ctp-base) !important; 
+    font-weight: 700;
+    box-shadow: none !important;
+}
+
+#skinsDialog .addButton {
+    background-color: var(--ctp-surface0);
+}
+
+/* Scroll Bar */
+::-webkit-scrollbar {
+    width: 10px;
+    background-color: var(--ctp-crust);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--ctp-surface2);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ctp-overlay0);
+}
+
+/* Account Header Specifics */
+.accountHeader {
+    background-color: var(--ctp-mantle) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+#titleLabel,
+.accountTitle,
+.unreadCount,
+.unread,
+.labelName {
+    color: var(--primary-text-color) !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+.unread {
+    color: var(--ctp-blue) !important; /* Make unread status pop with accent */
+    font-weight: 800;
+}
+
+/* Fix popup background */
+.polymer2.popup, body.popup {
+    background-color: var(--ctp-crust) !important;
+}
+
+app-drawer {
+    --app-drawer-content-container: {
+        background-color: var(--ctp-base);
+    }
+}

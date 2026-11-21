@@ -7,6 +7,9 @@
 	<link rel="icon" href="images/icons/icon_32.png" sizes="32x32"/>
 	<link rel="icon" href="images/icons/icon_64.png" sizes="64x64"/>
 
+    <!-- must run before the stylesheet paints, not deferred -->
+    <script src="js/color-scheme-early.js"></script>
+
     <link rel="stylesheet" href="css/jdom.css">
 
    	<style>
@@ -192,10 +195,6 @@
 		xxhtml.searchInputVisible #searchInputWrapper {display:block}
 
 		.external-link {opacity:0.5;margin-inline-start: 7px}
-
-        [contribute] {
-            opacity: 0.5;
-        }
 
 		#prevMail:not(.visible),
         #nextMail:not(.visible) {opacity:0.2}
@@ -1397,6 +1396,9 @@
    	</style>
 
 	<script src="js/common.js"></script>
+    <script src="js/skins-local.js"></script>
+    <script src="js/local-overrides.js"></script>
+    <script src="js/custom-css-apply.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
 
@@ -1443,34 +1445,6 @@
                             <div id="newsNotificationBigUpdateMessage" hidden style="text-align:center"><span msg="extensionUpdated">big update</span></div>
                         </j-tooltip>
 
-                        <j-button id="share-icon-button" class="share-button" icon="share" popovertarget-id="share-menu"></j-button>
-                        <j-listbox id="share-menu" popover position="center">
-                            <j-icon-item id="facebook">
-                                <j-icon icon="facebook"></j-icon>
-                                <span>Facebook</span>
-                            </j-icon-item>
-                            <j-icon-item id="twitter">
-                                <j-icon icon="twitter"></j-icon>
-                                <span>Twitter</span>
-                            </j-icon-item>
-                            <j-icon-item id="linkedin">
-                                <j-icon icon="linkedin"></j-icon>
-                                <span>LinkedIn</span>
-                            </j-icon-item>
-                            <j-icon-item id="share-by-email">
-                                <j-icon icon="mail" style="color:#666"></j-icon>
-                                <span msg="email">Email</span>
-                            </j-icon-item>
-                            <j-icon-item id="email-subscription">
-                                <j-icon icon="markunread-mailbox" style="color:#666"></j-icon>
-                                <span>Subscribe</span>
-                            </j-icon-item>
-                            <j-icon-item id="copy-link">
-                                <j-icon icon="link" style="color:#666"></j-icon>
-                                <span>Copy Link</span>
-                            </j-icon-item>
-                        </j-listbox>
-                        <j-tooltip for="share-icon-button" animation-delay="0"><span msg="share">share</span></j-tooltip>
 
                         <j-button id="refresh" icon="refresh" msgTitle="refresh"></j-button>
                         <j-button id="maximize" icon="open-in-browser" msgTitle="openGmailTab"></j-button>
@@ -1508,7 +1482,6 @@
                             </j-icon-item>
 
                             <j-item class="separator" disabled></j-item>
-                            <j-item class="contribute">Unlock Premium</j-item>
                             <j-item class="changelog"><span msg="changelog">Changelog</span></j-item>
                             <j-item class="discoverMyApps"><span msg="discoverMyApps">discoverMyApps</span></j-item>
                             <j-item class="aboutMe"><span msg="aboutMe">about me</span></j-item>
@@ -1569,21 +1542,18 @@
                                     <span msg="copyEmailAddress"></span>
                                 </j-icon-item>
                                 <j-item class="separator" disabled></j-item>
-                                <j-icon-item class="alias" contribute>
+                                <j-icon-item class="alias">
                                     <j-icon icon="text-format"></j-icon>
                                     <span msg="alias"></span>...
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
-                                <j-icon-item class="colors" contribute>
+                                <j-icon-item class="colors">
                                     <j-icon icon="palette"></j-icon>
                                     <span msg="colors"></span>...
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
-                                <j-icon-item class="setAccountIcon" contribute>
+                                <j-icon-item class="setAccountIcon">
                                     <j-icon icon="account-circle"></j-icon>
                                     <span class="setAccountIconLabel" msg="setAccountIcon"></span>
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
                                 <j-icon-item class="showContactPhotos">
                                     <j-icon icon="account-circle"></j-icon>
                                     <span msg="showContactPhotos"></span>
@@ -1698,7 +1668,6 @@
                                 <span id="ai-compose-listen-toggle-state" style="margin-inline-start:8px;opacity:.75">On</span>
                             </j-item>
                             <j-item class="separator" disabled></j-item>
-                            <j-item class="contribute">Unlock Premium</j-item>
                             <j-item class="checker-plus-compose-help"><span msg="help">help</span></j-item>
                         </j-listbox>
                     </div>

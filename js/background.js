@@ -8,6 +8,8 @@ try {
         importScripts(
             "/lib/Autolinker.js",
             "common.js",
+            "skins-local.js",
+            "local-overrides.js",
             "checkerPlusForGmail.js",
             "mime/addressparser.js",
             "mime/buffer.js",
@@ -106,11 +108,15 @@ chrome.runtime.onInstalled.addListener(async details => {
         // Note: Install dates only as old as implementation of this today, Dec 14th 2013
         await storage.initInstallationVars();
 
+        // Local build: unlock all former premium features on install.
+        // "donationClicked" is the existing storage key every gated feature checks.
+        // Toggle afterwards from Options > Admin.
+        await storage.set("donationClicked", true);
+
         const managedItems = await getManagedStorage();
         if (!managedItems?.DoNotOpenWebsiteOnInstall) {
-            const optionsUrl = chrome.runtime.getURL("options.html"); // i moved the "?action=install" to the redirect in the thankyouforinstalling page because siteground was giving me 403 forbidden whenever it found %3F (which is an encoded "?")
             chrome.tabs.create({
-                url: `https://jasonsavard.com/thankYouForInstalling?app=gmail&optionsUrl=${encodeURIComponent(optionsUrl)}`
+                url: chrome.runtime.getURL("options.html?action=install")
             });
         }
 
@@ -325,7 +331,8 @@ if (chrome.alarms) {
                 const nightModeSkin = await storage.get("nightModeSkin");
 
                 if (skinsIds.length || nightModeSkin) {
-                    const skins = await Controller.getSkins(skinsIds, await storage.get("_lastUpdateSkins"));
+                    // local build: refresh installed skins from the bundled catalogue, no network call
+                    const skins = await SkinsSource.getSkins(skinsIds);
                     console.log("skins:", skins);
 
                     let foundSkins = false;
@@ -1863,7 +1870,7 @@ async function performButtonAction(params) {
 		clearRichNotification(params.notificationId);
 	} else if (params.notificationButtonValue == "reducedDonationAd") {
 		await storage.enable("reducedDonationAdClicked");
-		openUrl("contribute.html?ref=reducedDonationFromNotif");
+		// local build: contribute page removed
 		clearRichNotification(params.notificationId);
     } else if (params.notificationButtonValue == "otp-code") {
         const width = 180;
@@ -3215,11 +3222,8 @@ async function mailUpdate(params = {}) {
     await storage.set("unreadCount", totalUnread);
 	initPopup();
 
-	// update the uninstall url caused we detected an email
-	const firstEmail = getFirstEmail(accounts);
-	if (await storage.get("_uninstallEmail") != firstEmail) {
-		setUninstallUrl(firstEmail);
-    }
+	// local build: uninstall telemetry removed (it sent the user's email address to the
+	// author's server). The "_uninstallEmail" bookkeeping is gone with it.
 
     await serializeAccounts(accounts, {source: params.pollingAccountsSource ? "polling-accounts" : "mailUpdate"});
 

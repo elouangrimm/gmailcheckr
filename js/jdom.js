@@ -1829,7 +1829,11 @@ class IronIcon extends HTMLElement {
                     icon = document.createElementNS("http://www.w3.org/2000/svg", "path");
                     icon.setAttribute("d", "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z");
                 } else {
-                    throw new Error(`Icon not found: ${svgIconName}`);
+                    // local build: icons.js is trimmed to the icons actually used.
+                    // Degrade to a no-op instead of throwing and breaking the whole page.
+                    console.warn(`Icon not found: ${svgIconName}`);
+                    icon = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    icon.setAttribute("d", "");
                 }
             }
 
@@ -2124,6 +2128,13 @@ async function isDarkMode() {
 async function initColorScheme() {
     let scheme = await isDarkMode() ? "dark" : "light";
     document.documentElement.setAttribute("color-scheme", scheme);
+
+    // keep the synchronous pre-paint mirror (js/color-scheme-early.js) in sync
+    try {
+        localStorage.setItem("_colorSchemeCache", scheme);
+    } catch (error) {
+        // private mode / quota — the early script falls back to the OS preference
+    }
 }
 
 function initButtonGroup(groupElement) {
