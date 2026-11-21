@@ -3,7 +3,7 @@
 
 	"name": "Gmail Checkr",
 	"description": "__MSG_description__",
-	"version": "34.0.1",
+	"version": "36.7.1",
 	"background": {
 		"service_worker": "js/background.js"
 	},
@@ -101,8 +101,7 @@
 		"webRequest"
 	],
 	"host_permissions": [
-		"https://mail.google.com/",
-		"https://jaogjaacnemkkjdbjpljjdjeahfiaeic.chromiumapp.org/*"
+		"https://mail.google.com/"
 	],
 	"optional_host_permissions": [
 		"https://*.googleusercontent.com/"
@@ -127,7 +126,7 @@
 				"https://jasonsavard.com/*",
 				"https://checkout.stripe.com/*",
 				"https://www.paypal.com/*",
-				"https://commerce.coinbase.com/*"
+				"https://nowpayments.io/*"
 			]
 		},
 		{

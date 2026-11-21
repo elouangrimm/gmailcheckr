@@ -34,7 +34,7 @@ function closeWindow() {
                 await niceAlert("Click the extension icon to open the popup window");
                 chrome.action.openPopup();
             }
-            await niceAlert("Click to close window", true);
+            await niceAlert("Click to close this window", true);
             closeWindow();
         }
     });

@@ -2,13 +2,6 @@
 "use strict";
 
 function closeWindow() {
-    //document.body.append(getMessage("done"));
-    const clipboardIcon = document.getElementById("clipboard-icon");
-    if (clipboardIcon) {
-        clipboardIcon.style.display = "block";
-        clipboardIcon.classList.add("flash");
-    }
-
     setTimeout(async () => {
         const windowResponse = await chrome.windows.getCurrent();
         chrome.windows.remove(windowResponse.id);
@@ -32,6 +25,12 @@ docReady(() => {
     otpCodeField.focus();
     otpCodeField.select();
     document.execCommand("copy");
+
+    const clipboardIcon = document.getElementById("clipboard-icon");
+    if (clipboardIcon) {
+        clipboardIcon.style.display = "block";
+        clipboardIcon.classList.add("flash");
+    }
 
     closeWindow();
 });

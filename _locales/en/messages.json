@@ -1,7 +1,4 @@
 {
-	"name": {
-      "message": "Gmail Checkr"
-   },
 	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "Get notifications, read, listen to or delete emails without opening Gmail and easily manage multiple accounts."},
 
@@ -25,9 +22,11 @@
 	"refresh": {"message": "Refresh"},
 	"or": {"message": "or"},
 	"hours": {"message": "hours"},
-	
+
 	"delete": {"message": "Delete"},
-	
+	"print": {"message": "Print"},
+	"unsubscribe": {"message": "Unsubscribe"},
+
 	"enterAnAmount": {"message": "You must enter an amount!"},
 	"minimumAmount": {"message": "You must contribute a minimum of $1"},
 	"amount": {"message": "Amount"},
@@ -61,7 +60,7 @@
 	"undo": {"message": "Undo"},
 
 	"failureWithPayPalPurchase": {"message": "Canceled or failure with transaction! Try $1 instead?"},
-	
+
 	"thankYouForYourContribution": {"message": "The features are now unlocked. Thank you for your contribution!"},
 
 	"volume": {"message": "Volume"},
@@ -101,17 +100,17 @@
 	"showIconAnimationToolTip": {"message": "Animates the icon when there is new mail"},
 
 	"archive_read": {"message": "Archiving marks as read"},
-	"archive_readToolTip": {"message": "Mark a mail as read when you archive it"},	
+	"archive_readToolTip": {"message": "Mark a mail as read when you archive it"},
 	"deletingMarksAsRead": {"message": "Deleting marks as read"},
-	"deletingMarksAsReadToolTip": {"message": "Mark a mail as read when you delete it"},	
+	"deletingMarksAsReadToolTip": {"message": "Mark a mail as read when you delete it"},
 	"starringMarksAsRead": {"message": "Starring marks as read"},
     "movingMarksAsRead": {"message": "Moving marks as read"},
 	"previewingMarksAsRead": {"message": "Previewing marks as read"},
-	"previewingMarksAsReadToolTip": {"message": "Mark a mail as read when previewing it in the popup window"},	
+	"previewingMarksAsReadToolTip": {"message": "Mark a mail as read when previewing it in the popup window"},
 	"openComposeInTab": {"message": "Open compose new mail in a tab"},
-	"openComposeInTabToolTip": {"message": "Open new mail composing in a tab instead of a small popup window (also applies to mailto links)"},	
+	"openComposeInTabToolTip": {"message": "Open new mail composing in a tab instead of a small popup window (also applies to mailto links)"},
 	"hideUnreadCount": {"message": "Hide unread mail count"},
-	"hideUnreadCountToolTip": {"message": "Hide the unread count number from the browser action icon"},	
+	"hideUnreadCountToolTip": {"message": "Hide the unread count number from the browser action icon"},
 
 	"openPopupPreview": {"message": "Open Checker Plus"},
 	"openPopupPreviewToolTip": {"message": "Quickly view and take action on unread ONLY emails from any label you monitor. Highly customizable, optimized for multiple accounts."},
@@ -155,6 +154,8 @@
 	"reportSpam": {"message": "Report spam"},
 	"notSpam": {"message": "Not spam"},
 	"viewSpamFolder": {"message": "View spam folder"},
+	"trash": {"message": "Trash"},
+	"viewTrashFolder": {"message": "View trash folder"},
 	"archive": {"message": "Archive"},
 	"archiveAll": {"message": "Archive all"},
 	"starLinkTitle": {"message": "Star mail"},
@@ -215,7 +216,7 @@
 	"openReply": {"message": "Open (Reply)"},
 	"reply": {"message": "Reply"},
 	"replyInGmail": {"message": "Reply in Gmail"},
-	"replyToAll": {"message": "Reply to all"},
+	"replyToAll": {"message": "Reply all"},
 	"clickToPreviewEmail": {"message": "Click to preview email"},
 	"conversationView": {"message": "Conversation view"},
 	"conversationViewToolTip": {"message": "Sets whether emails of the same topic are grouped together (Recommended default is ON)"},
@@ -267,7 +268,7 @@
 	"EOM": {"message": "EOM"},
 	"EOMToolTip": {"message": "End Of Message"},
 
-	"tooManyUnread": {"message": "Only $1 emails at a time will be actioned to prevent timeouts. Too many emails? Try monitoring the Primary or other labels in the Options > Accounts / Labels"},
+	"tooManyUnread": {"message": "Only $1 emails at a time will be actioned to prevent timeouts. Too many emails? Click the other solutions button."},
 
 	"contacts": {"message": "Contacts"},
 	"contactsMobile": {"message": "M"},
@@ -292,6 +293,7 @@
 	"schedule": {"message": "Schedule"},
 	"indefinitely": {"message": "Indefinitely"},
 	"onlyMuteSounds": {"message": "Only mute sounds"},
+	"onlyPreventNotifications": {"message": "Only prevent notifications (keep badge count, animations & sounds)"},
 	"syncDND": {"message": "Sync the DND setting to all Checker Plus extensions"},
 
 	"colors": {"message": "Colors"},
@@ -307,9 +309,9 @@
 
 	"duplicateLabelWarning": {"message": "Select only 1 of the main labels (Inbox, Primary, Important, All Mail) or else you will get duplicates!"},
 
-	"showAllEmails": {"message": "Show all emails"},	
+	"showAllEmails": {"message": "Show all emails"},
 	"hideReadEmails": {"message": "Hide read emails"},
-	
+
 	"openComposeReplyAction": {"message": "Compose and Reply buttons"},
 	"openComposeReplyActionInTab": {"message": "Open in tab"},
 	"openComposeReplyActionInPopupWindow": {"message": "Open in external popup window"},
@@ -322,36 +324,36 @@
 	"cancel": {"message": "Cancel"},
 
 	"keys": {"message": "Keys"},
-	
+
 	"ignoreThisAccount": {"message": "Ignore this account"},
 	"ignored": {"message": "Ignored"},
 
 	"notificationTryItOutInstructions": {"message": "Mark atleast one of your emails as unread then click here and wait to see the notification window!"},
 
-	"alias": {"message": "Alias"},	
-	"addEmailAlias": {"message": "Add an alias to your email address"},	
+	"alias": {"message": "Alias"},
+	"addEmailAlias": {"message": "Add an alias to your email address"},
 
-	"voiceInput": {"message": "Voice Input"},	
-	"enableVoiceInputToolTip": {"message": "Adds a microphone at the bottom of a new message or reply box in your Gmail webpage"},	
+	"voiceInput": {"message": "Voice Input"},
+	"enableVoiceInputToolTip": {"message": "Adds a microphone at the bottom of a new message or reply box in your Gmail webpage"},
 	"voiceInputSuggestions": {"message": "Enable suggestions"},
-		
+
 	"differentSounds": {"message": "Sounds for different accounts, labels or people"},
 
-	"send": {"message": "Send"},	
-	"sending": {"message": "Sending"},	
-	"sent": {"message": "Sent"},	
-	"hearEmail": {"message": "Hear email"},	
-	"hearEmailToolTip": {"message": "Select which parts of the email you want to hear... sender, subject or message (body) of email"},	
+	"send": {"message": "Send"},
+	"sending": {"message": "Sending"},
+	"sent": {"message": "Sent"},
+	"hearEmail": {"message": "Hear email"},
+	"hearEmailToolTip": {"message": "Select which parts of the email you want to hear... sender, subject or message (body) of email"},
 
 	"textNotification": {"message": "Text notification"},
 	"textNotificationToolTip": {"message": "Simple notifications"},
-	"richNotification": {"message": "Rich notification"},	
+	"richNotification": {"message": "Rich notification"},
 	"richNotificationToolTip": {"message": "Notifications with buttons"},
 
-	"doNotShowNotificationIfGmailTabOpen": {"message": "Do not show notifications if a Gmail tab is open"},	
+	"doNotShowNotificationIfGmailTabOpen": {"message": "Do not show notifications if a Gmail tab is open"},
 
 	"accountsAndLabels": {"message": "Accounts / Labels"},
-	
+
 	"shortcutKeysHeader": {"message": "These keys apply only for the top popup window that is activated by the button"},
 	"standard": {"message": "Standard"},
 	"keyboardShortcuts": {"message": "Keyboard shortcuts"},
@@ -367,7 +369,8 @@
 
 	"subject": {"message": "Subject"},
 	"message": {"message": "Message"},
-	
+
+    "private": {"message": "Private"},
 	"email_from": {"message": "sender"},
 	"email_subject": {"message": "subject"},
 	"email_message": {"message": "message"},
@@ -394,14 +397,14 @@
 	"showUpdateNotificationsForEvertyhing": {"message": "Show notifications for all updates and bug fixes"},
 
 	"default": {"message": "Default"},
-	
+
 	"changelog": {"message": "Changelog"},
 	"discoverMyApps": {"message": "Discover my apps"},
 	"aboutMe": {"message": "About"},
-	
+
 	"reducedDonationAd_popup": {"message": "Good news long time user! Get the $1 for only $2"},
 	"reducedDonationAd_notification": {"message": "Good news long time user [Click to dismiss]"},
-	
+
 	"voiceTest": {"message": "Test voice"},
 	"feedback": {"message": "Feedback"},
 
@@ -414,11 +417,11 @@
 	"recommended": {"message": "Recommended"},
 
 	"switchToInbox": {"message": "Switch to inbox"},
-	
+
 	"switchToCheckerPlus": {"message": "Switch to Checker Plus"},
-	
+
 	"ifNoUnreadMail": {"message": "If no unread email"},
-	
+
 	"tab": {"message": "Tab"},
 	"tabToolTip": {"message": "Add tabs in the Gmail for mobile popup window"},
 	"primary": {"message": "Primary"},
@@ -479,6 +482,9 @@
 	"addToGoogleCalendar": {"message": "Add to Google Calendar"},
 
 	"revertAutoSizing": {"message": "Revert auto-sizing"},
+	"allowStyle": {"message": "Allow style"},
+	"copyHtml": {"message": "Copy HTML"},
+	"htmlCopiedToClipboard": {"message": "HTML copied to clipboard"},
 
 	"setAccountIcon": {"message": "Set account icon"},
 	"removeAccountIcon": {"message": "Remove account icon"},
@@ -542,11 +548,12 @@
 
 	"extraFeaturesPopup1": {"message": "These dimmed out options are extra features I spent a lot of time developing."},
 	"extraFeaturesPopup2": {"message": "To unlock these features, contribute an amount in support of my work."},
-	"extraFeaturesMonthlyBlurb": {"message": "This feature requires a monthly payment of an amount because of the quota imposed on me by the Gmail API. Note: Most extra features only require a one time payment to support me."},
+	"extraFeaturesMonthlyBlurb": {"message": "This feature requires a subscription because of the quota imposed on me by the Gmail API. Note: Most extra features only require a one time payment to support me."},
 	"monthlyContribution": {"message": "Monthly contribution"},
 	"manuallyAddingMultipleAccountsCost": {"message": "The default auto-detect supports unlimited accounts for free."},
     "manuallyAddingMultipleAccountsCost2": {"message": "The add accounts method supports $1 accounts for free, more than $1 requires a contribution to cover server costs with realtime notifications."},
     "realtimeForMultipleAccounts": {"message": "Realtime notifications for multiple accounts"},
+    "unlimitedManualAddAccounts": {"message": "Manually add unlimited accounts"},
 
 	"admin": {"message": "Admin"},
 	"welcome": {"message": "Welcome"},
@@ -606,7 +613,7 @@
     "importOptions": {"message": "Import options"},
 
 	"hideButton": {"message": "Hide button"},
-	
+
 	"showGrayIconInDND": {"message": "Always show gray icon"},
 
 	"tryAgain": {"message": "Please try again"},
@@ -635,7 +642,6 @@
 	"voiceCommands": {"message": "Voice commands"},
 	"deleteCustomSounds": {"message": "Delete custom sounds"},
 	"noUpdates": {"message": "No updates."},
-	"replyOnlyToSender": {"message": "Reply only to sender"},
 	"forward": {"message": "Forward"},
 	"realtime": {"message": "Real-time"},
 
@@ -646,6 +652,7 @@
     "bestDealTooltip": {"message": "Save money"},
 	"onetime": {"message": "One-time"},
 	"includesExtraFeaturesForX": {"message": "Includes the extra features for $1"},
+    "includesExtraFeaturesForAllMyExtensions": {"message": "Includes the extra features for ALL my extensions"},
 	"unlockOtherExtensions": {"message": "Unlock the other extensions by opening their contribute page and use the Already Contributed link above."},
 
 	"card": {"message": "Card"},
@@ -683,13 +690,14 @@
     "moveIntoActionCenter": {"message": "Move into action center"},
     "notificationWakesUpScreenTemporarily": {"message": "Notification wakes up screen temporarily"},
     "disableTransitions": {"message": "Disable transitions"},
-    
+
     "yourOffline": {"message": "You're Offline! Disable/renable the network connection, restart browser or try Options > Admin > Disable online check"},
     "networkProblem": {"message": "Network problem"},
 
     "onDATE_NAMEwrote": {"message": "On $1, $2 wrote:"},
 
     "showOnlyRecentUnreadEmails": {"message": "Show only recent unread emails"},
+    "refreshWhenOpeningPopup": {"message": "Refresh emails when opening the popup window"},
 
     "expandAll": {"message": "Expand all"},
     "dragToChangeOrder": {"message": "Drag to change order"},
@@ -714,10 +722,12 @@
     "securityCode": {"message": "security code"},
     "confirmationCode": {"message": "confirmation code"},
     "authentification": {"message": "authentification"},
+    "otpCodeKeywordPattern": {"message": "一次性(?:代码|代碼|密码|密碼)|验证码|驗證碼|确认码|確認碼|登录(?:代码|代碼|码|碼)|登入(?:代码|代碼|码|碼)|安全(?:代码|代碼|码|碼)"},
 
     "nightMode": {"message": "Night mode"},
     "addReaction": {"message": "Add reaction"},
 
+    "showCopyOTPInNotification": {"message": "Show Copy OTP button in notifications"},
     "deleteAfterOTP": {"message": "Delete email after copying code (OTP)"},
     "activateExtension": {"message": "Activate the extension"},
 
@@ -734,5 +744,69 @@
     "appearance": {"message": "Appearance"},
     "light": {"message": "Light"},
 
-	"LAST_ITEM_DO_NOT_REMOVE": {"message": "DO NOT REMOVE"}
+    "thinkingdotdotdot": {"message": "Thinking…"},
+    "brieflyWriteWhatYouWantToSay": {"message": "Briefly write what you want to say…"},
+    "restorePreviousPromptOffer": {"message": "An unsent prompt was saved for this email. Would you like to restore it?"},
+    "restorePreviousPrompt": {"message": "Restore previous prompt"},
+    "checkerPlusCompose": {"message": "Checker Plus Compose"},
+    "checkerPlusComposeIntro": {"message": "Checker Plus Compose is a powerful feature to help you write and reply to emails faster and more efficiently with prompts.\n\nThis feature sends the content of the current email thread to the Google Gemini AI model through a secure proxy. Neither the Checker Plus developer nor Google stores this data for training.\n\nData is encrypted, sanitized, and used only to generate responses."},
+ 	"checkerPlusComposeQuota": {"message": "You reached your daily quota for using Checker Plus Compose. Try again tomorrow or select a payment subscription to remove this quota."},
+    "checkerPlusComposeHardLimit": {"message": "You've reached the daily hard limit for using Checker Plus Compose. Please try again tomorrow."},
+    "showCheckerPlusComposeInPopup": {"message": "Add ✨ Compose button to Checker Plus"},
+    "showCheckerPlusComposeInGmail": {"message": "Add ✨ Compose button to Gmail"},
+    "openCheckerPlusComposeInGmailAction": {"message": "Where to open prompt window"},
+    "popupWindow": {"message": "Popup window"},
+    "sidePanel": {"message": "Side panel"},
+    "accept": {"message": "Accept"},
+    "decline": {"message": "Decline"},
+    "acceptAndContinue": {"message": "Accept & continue"},
+    "emailContext": {"message": "Email context"},
+    "draft": {"message": "Draft"},
+    "quickReply": {"message": "✨ Quick reply"},
+    "polish": {"message": "Polish"},
+    "formalize": {"message": "Formalize"},
+    "shorten": {"message": "Shorten"},
+    "elaborate": {"message": "Elaborate"},
+    "insertDraft": {"message": "Insert draft"},
+
+	"subscriptionFeatures": {"message": "Subscription features"},
+
+    "previewingMarksAsReadNotice": {"message": "Previewing emails marks them as read and removes them from this window, you can change that in the Options > $1"},
+    "reducedDonationAd_popup_line1": {"message": "Good news long time user!"},
+    "reducedDonationAd_popup_line2": {"message": "Get the $1 for only $2"},
+    "addToTasks": {"message": "Add to tasks"},
+	"taskCreated": {"message": "Task created"},
+
+	"individual": {"message": "Individual"},
+	"businesses": {"message": "Businesses"},
+	"pro": {"message": "Pro"},
+    "ultraSuite": {"message": "Ultra Suite"},
+	"bestValue": {"message": "Best value"},
+	"includesProForAllExtensions": {"message": "Unlock ALL features for ALL my extensions"},
+    "directDeveloperSupport": {"message": "Direct developer support"},
+	"getPro": {"message": "Get Pro"},
+	"getUltraSuite": {"message": "Get Ultra Suite"},
+	"changeDomain": {"message": "Change domain"},
+	"paypal": {"message": "PayPal"},
+	"pay": {"message": "Pay"},
+	"crypto": {"message": "Crypto"},
+	"selectFiatCurrencyForCrypto": {"message": "Select a fiat currency and an amount then the Crypto option will appear."},
+	"enterEmailToLinkExtensions": {"message": "Enter your email to link the other extensions"},
+	"enterEmailForReceipt": {"message": "Enter your email for the receipt"},
+	"mustEnterEmail": {"message": "You must enter an email"},
+	"tryAnotherPaymentMethod": {"message": "Try another payment method."},
+	"contact": {"message": "contact"},
+	"mustCompleteQrPayment": {"message": "You must scan the code and complete the payment first."},
+	"ifCompletedContact": {"message": "If you did this then contact the developer"},
+	"paypalUnsupportedWithCny": {"message": "PayPal is not supported with CNY currency. Please select USD or another payment method."},
+	"tryAnotherPaymentMethodInstead": {"message": "Try another payment method instead."},
+	"noPaymentFoundForEmail": {"message": "No payment found for email"},
+	"makeSureSignedIntoContributingAccount": {"message": "Make sure to sign into the Google account which you contributed from, then try again!"},
+	"contributionNotRecognizedUse": {"message": "If your contribution is not recognized then please use the"},
+	"alreadyContributedForm": {"message": "already contributed form"},
+	"contactDeveloperForMultipleUserLicense": {"message": "Click Ok to contact the developer to purchase a multiple user license."},
+	"invalidNumber": {"message": "Invalid number"},
+	"invalidPaymentProcess": {"message": "Invalid payment process"},
+	"mustGrantAccessForContribution": {"message": "You must first grant access via the popup window so that I can associate your account with the contribution."},
+	"subscriptionCryptoContact": {"message": "For a subscription by crypto, please contact the developer"}
 }

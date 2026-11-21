@@ -55,6 +55,53 @@ class Mail {
         this.getUrl = function () {
             return that.account.getMailUrl({ mail: that, useGmailUI: true });
         };
+        this.getPrintUrl = function () {
+            return that.account.getPrintUrl(that);
+        };
+        // parses the RFC 8058 "List-Unsubscribe" header, ie. <mailto:x@y.com?subject=unsubscribe>, <https://y.com/unsub?id=1>
+        this.getUnsubscribeUrls = function () {
+            const urls = (that.listUnsubscribe?.match(/<([^>]+)>/g) || []).map(match => match.slice(1, -1));
+            return {
+                mailto: urls.find(url => url.startsWith("mailto:")),
+                https: urls.find(url => url.startsWith("http"))
+            };
+        };
+        this.isOneClickUnsubscribe = function () {
+            const urls = that.getUnsubscribeUrls();
+            return !!(urls.https && that.listUnsubscribePost?.toLowerCase().includes("one-click"));
+        };
+        this.canUnsubscribe = function () {
+            if (that.account.getAccountAddingMethod() != "oauth") {
+                return false;
+            }
+            const urls = that.getUnsubscribeUrls();
+            return !!(urls.mailto || urls.https);
+        };
+        this.unsubscribe = async function () {
+            const urls = that.getUnsubscribeUrls();
+            if (that.isOneClickUnsubscribe()) {
+                // RFC 8058 one-click unsubscribe, fire-and-forget POST (no-cors because the 3rd party domain isn't in our host permissions)
+                await fetch(urls.https, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: "List-Unsubscribe=One-Click"
+                });
+                return {method: "oneClick"};
+            } else if (urls.https) {
+                openUrl(urls.https);
+                return {method: "url"};
+            } else if (urls.mailto) {
+                const mailtoUrl = new URL(urls.mailto);
+                that.account.openCompose({
+                    to: {email: mailtoUrl.pathname},
+                    subject: mailtoUrl.searchParams.get("subject") || "unsubscribe"
+                });
+                return {method: "mailto"};
+            } else {
+                throw new Error("No unsubscribe method found for this email");
+            }
+        };
         this.markAsRead = function (params = {}) {
             const executeMailActionParams = shallowClone(params);
             executeMailActionParams.mail = that;
@@ -127,11 +174,14 @@ class Mail {
                 throw error;
             }
         };
-        this.untrash = function (params = {}) {
+        this.untrash = async function (params = {}) {
             console.log("untrash");
             const executeMailActionParams = shallowClone(params);
             executeMailActionParams.mail = that;
             executeMailActionParams.action = MailAction.UNTRASH;
+            if (await storage.get("deletingMarksAsRead")) {
+                await that.markAsUnread();
+            }
             return that.account.executeMailAction(executeMailActionParams);
         };
         this.undoArchive = async function (params = {}) {
@@ -330,11 +380,15 @@ class Mail {
             else {
                 // html
                 replyObj.subject = that.title;
+
+                // Commented cause this is not being used, I generate this quoted when generating the reply message for the Gmail API
+                /*
                 replyObj.message = "";
                 if (params.message) {
                     replyObj.message += params.message;
                 }
                 replyObj.message += "<blockquote type='cite' style='border-left:1px solid #ccc;margin-top:20px;margin-bottom:10px;margin-left:50px;padding-left:9px'>" + quotedContent + "</blockquote>";
+                */
             }
             return replyObj;
         };
@@ -364,7 +418,12 @@ class Mail {
                 console.log("getThread: " + mail.title);
 
                 // th opens all thread msg only the last message i think,  dsqt=1 expand the text and removes quoted hidden text ... [Texte des messages précédents masqué]
-                const searchValue = mail.monitoredLabel == SYSTEM_SPAM ? "spam" : "all";
+                let searchValue = "all";
+                if (mail.monitoredLabel == SYSTEM_SPAM) {
+                    searchValue = "spam";
+                } else if (mail.monitoredLabel == SYSTEM_TRASH) {
+                    searchValue = "trash";
+                }
                 let data = await fetchText(mail.account.getMailUrl({urlParams: `ui=2&view=pt&search=${searchValue}&th=${mail.id}`}))
 
                 // patch 101 to not load any images because apparently $("<img src='abc.gif'");  will load the image even if not displayed
@@ -446,7 +505,6 @@ class Mail {
                             body: message.textContent
                         });
 
-                        message.textContent = html_sanitize(message.textContent);
                         mail.messages.push(message);
                     });
                 } else {
@@ -458,7 +516,6 @@ class Mail {
                     message.content = message.content.replaceAll("<script", "<div style='display:none'");
                     message.content = message.content.replaceAll("</script>", "</div>");
                     message.textContent = responseWrapper.textContent;
-                    message.textContent = html_sanitize(message.textContent);
                     mail.messages.push(message);
                 }
             }
@@ -538,9 +595,11 @@ class Mail {
         };
 
         this.getOTPCode = async function () {
+            that.otpCodeUsesFullContent = false;
             try {
                 const subject = that.title;
-                const emailContent = await that.getLastMessageText({htmlToText:true}); // v1 doNotPreprocessToTextContent:true but it was not pulling out code: https://jasonsavard.com/forum/discussion/comment/35834#Comment_35834
+                const lastMessage = that.messages?.last();
+                const emailContent = await that.getLastMessageText({htmlToText:true});
     
                 const keywords = [
                     // add english first since emails might be in english, then the translated versions
@@ -549,39 +608,98 @@ class Mail {
                     "password",
                     "verify",
                     "authentification",
+                    "identity confirmation",
+                    "recovery email",
                     getMessage("code"),
                     getMessage("passcode"),
-                    getMessage("password"),
+                    getMessage("otpPasswordKeywordPattern") || getMessage("password"), // otpPasswordKeywordPattern is used to match password or password in other languages like in hebrew it's סיסמ(?:ה|ת) to match סיסמה or סיסמת    
                     getMessage("verify"),
                     getMessage("authentification")
                 ];
 
+                const keywordsUpperCase = [
+                    "PIN"
+                ]
+
                 const isHebrew = /[\u0590-\u05FF]/.test(subject);
                 const wordBreak = isHebrew ? "" : "\\b";
+                const localizedOtpPhrasePattern = getMessage("otpCodeKeywordPattern");
+                const localizedOtpPhraseRegex = localizedOtpPhrasePattern ? new RegExp(localizedOtpPhrasePattern, "i") : null;
 
                 const subjectRegex = new RegExp(`${wordBreak}(${keywords.join("|")})${wordBreak}`, "i");
-                const emailContentRegex = new RegExp(`${wordBreak}security code|${getMessage("securityCode")}|one(\\-|\\s)time (code|passcode|password)|confirmation code|verification code|${getMessage("confirmationCode")}${wordBreak}`, "i");
+                const subjectRegexUpperCase = new RegExp(`${wordBreak}(${keywordsUpperCase.join("|")})${wordBreak}`);
+                const emailContentRegex = new RegExp(`${wordBreak}security code|${getMessage("securityCode")}|one(\\-|\\s)time (code|passcode|password)|confirmation code|verification code|login code|${getMessage("confirmationCode")}${wordBreak}`, "i");
 
-                if (subject?.match(subjectRegex) || emailContent?.match(emailContentRegex)) {
-                    const numberPattern = "[0-9]{6,8}";
-                    const numberCharacterPattern = "[0-9A-Z]{6,8}";
-                    const numberWithSpacePattern = "[0-9]{3}\\s?[0-9]{3}";
-                    
+                const subjectMatchesKeyword = subject?.match(subjectRegex) || subject?.match(subjectRegexUpperCase) || localizedOtpPhraseRegex?.test(subject || "");
+
+                // some services (ie. Slack) put the code directly in the subject, ie. "Slack confirmation code: 6SP-837"
+                if (subjectMatchesKeyword) {
+                    // Some services (ie. Patreon) include the code after "login code is" in the subject.
+                    const labeledSubjectCodeMatch = subject.match(/\b(?:login|verification|security|confirmation)\s+(?:code|passcode)\s*(?:is\s*)?[:#-]?\s*([A-Z0-9-]{4,10})\b/i);
+                    if (labeledSubjectCodeMatch && /\d/.test(labeledSubjectCodeMatch[1])) {
+                        return labeledSubjectCodeMatch[1];
+                    }
+
+                    // modified to have at least digit or else it was matching the word "one-time": *\d
+                    const subjectCodeMatch = subject.match(/\b(?=[0-9A-Z]*\d)[0-9A-Z]{2,5}-[0-9A-Z]{2,5}\b/i);
+                    if (subjectCodeMatch) {
+                        return subjectCodeMatch[0];
+                    }
+                }
+
+                const matchesOtpKeyword = content => subjectMatchesKeyword || content?.match(emailContentRegex) || localizedOtpPhraseRegex?.test(content || "");
+                const numberWithSpacePattern = "[0-9]{3}\\s?[0-9]{3}";
+                const findNumericCode = content => {
+                    if (!matchesOtpKeyword(content)) {
+                        return;
+                    }
+                    const smallerMinimumNumbers = /airbnb/i.test(content);
+                    const numberPattern = smallerMinimumNumbers ? "[0-9]{4,9}" : "[0-9]{5,9}";
                     // don't match numberCharacterPattern on text (emailContent) only html because there is no line breaks and so "1234The beginning of next line" is not a code match
-                    let regex = new RegExp(`\\b${numberPattern}|${numberWithSpacePattern}\\b`, "g");
-                    const otpCodeMatch = emailContent.match(regex);
-                    if (otpCodeMatch) {
-                        return otpCodeMatch[0];
-                    } else if (that.messages?.length) {
-                        regex = new RegExp(`\\b${numberCharacterPattern}|${numberWithSpacePattern}\\b`, "g");
-                        // If the code is not in the text, try to find it in the HTML content
-                        return await sendToOffscreenDoc("find-otp-code-in-html", {
-                            html: that.messages.last().content,
-                            serializedRegex: {
-                                pattern: regex.source,
-                                flags: regex.flags
-                            }
-                        });
+                    const regex = new RegExp(`\\b(?:${numberPattern}|${numberWithSpacePattern})\\b`, "g");
+                    return content.match(regex)?.[0];
+                };
+
+                if (subjectMatchesKeyword) {
+                    const subjectCode = findNumericCode(subject);
+                    if (subjectCode) {
+                        return subjectCode;
+                    }
+                }
+
+                const otpCode = findNumericCode(emailContent);
+                if (otpCode) {
+                    return otpCode;
+                }
+                const alphaNumericCodePattern = "(?=[A-Z0-9]{6,9}\\b)(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\\d)[A-Z0-9]{6,9}";
+                const alphaNumericCodeRegex = new RegExp(`\\b${alphaNumericCodePattern}\\b`, "i");
+                if (matchesOtpKeyword(emailContent)) {
+                    const alphaNumericCode = emailContent.match(alphaNumericCodeRegex);
+                    if (alphaNumericCode) {
+                        return alphaNumericCode[0];
+                    }
+                }
+                if (matchesOtpKeyword(emailContent) && lastMessage) {
+                    const regex = new RegExp(`\\b(?:${alphaNumericCodePattern}|[0-9]{5,9}|${numberWithSpacePattern})\\b`, "gi");
+                    // If the code is not in the text, try to find it in the HTML content
+                    const htmlCode = await sendToOffscreenDoc("find-otp-code-in-html", {
+                        html: lastMessage.content,
+                        serializedRegex: {
+                            pattern: regex.source,
+                            flags: regex.flags
+                        }
+                    });
+                    if (htmlCode) {
+                        return htmlCode;
+                    }
+                }
+
+                // Local fallback includes forwarded content that the display-body filter removes.
+                if (inLocalExtension && lastMessage?.content) {
+                    const fullContentCode = findNumericCode(await htmlToText(lastMessage.content));
+                    if (fullContentCode) {
+                        that.otpCodeUsesFullContent = true;
+                        return fullContentCode;
                     }
                 }
             } catch (error) {
@@ -677,7 +795,11 @@ class Mail {
                     span.textContent = that.getShortName();
                     $node.append(span);
                     if (useMessages) {
-                        $node.append(` (${that.messages.length})`);
+                        const threadCountSpan = document.createElement("span");
+                        threadCountSpan.classList.add("thread-count");
+                        threadCountSpan.textContent = that.messages.length;
+                        $node.append(" ");
+                        $node.append(threadCountSpan);
                     }
                 }
                 else {
@@ -788,6 +910,9 @@ class Mail {
                 }
                 else if (systemLabelId == SYSTEM_SPAM) {
                     labelObj.name = getMessage("spam");
+                }
+                else if (systemLabelId == SYSTEM_TRASH) {
+                    labelObj.name = getMessage("trash");
                 }
                 else if (labelId == GmailAPI.labels.SENT || labelId == GmailAPI.labels.UNREAD || labelId == GmailAPI.labels.IMPORTANT) {
                     // Note using labeId here instead of systemLabelId

@@ -15,6 +15,7 @@ function html(strings, ...values) {
 }
 
 function showError(message, options = {}) {
+    console.error("showError", message, options);
     options.duration ??= 30000;
     showToast(message, options);
 }
@@ -23,19 +24,38 @@ function showToast(message, params = {}) {
     params.duration ??= 3000;
     params.align ??= 'start';
 
+    const topDialog = getTopmostDialog();
+
     let $toastContainer = document.querySelector('.j-toast-container');
     if (!$toastContainer) {
         $toastContainer = document.createElement('div');
-        /*
-        if (params.align === 'end') {
-            $toastContainer.style.alignItems = 'end';
-        }
-        */
+        $toastContainer.setAttribute("popover", "manual");
+        $toastContainer.setAttribute("unanchored", "");
+        $toastContainer.setAttribute("aria-live", "assertive");
+    }
+
+    // hack so that can intract with toasts when modal dialog present
+    if (topDialog && topDialog.matches(':modal')) {
+        topDialog.appendChild($toastContainer);
+    } else {
         document.body.appendChild($toastContainer);
     }
 
-    $toastContainer.classList.add('j-toast-container', 'apply-dark-theme');
+    $toastContainer.classList.add('j-toast-container');
+
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const activeScheme = rootStyles.colorScheme;
+    if (activeScheme == "dark") {
+        $toastContainer.classList.add('apply-light-theme');
+    } else {
+        $toastContainer.classList.add('apply-dark-theme');
+    }
+
     $toastContainer.setAttribute("position", params.position || "bottom");
+
+    if (params.id) {
+        hideToast(params.id);
+    }
 
     const toast = document.createElement('div');
     toast.id = params.id ?? "";
@@ -43,11 +63,14 @@ function showToast(message, params = {}) {
 
     const $msg = document.createElement('span');
     $msg.className = "j-toast-message";
-    $msg.textContent = message;
+    $msg.append(message);
     toast.appendChild($msg);
 
     const controller = new AbortController();
     const signal = controller.signal;
+
+    const $toastButtons = document.createElement('div');
+    $toastButtons.className = "j-toast-buttons";
 
     let buttons = [];
     if (params.buttons) {
@@ -64,7 +87,7 @@ function showToast(message, params = {}) {
             const toastAction = document.createElement('j-button');
             toastAction.classList.add('j-toast-action');
             toastAction.textContent = btnParams.text;
-            toast.appendChild(toastAction);
+            $toastButtons.appendChild(toastAction);
 
             if (btnParams.onClick) {
                 toastAction.addEventListener('click', () => {
@@ -89,9 +112,12 @@ function showToast(message, params = {}) {
         }
     }, { signal });
     
-    toast.appendChild(close);
+    $toastButtons.appendChild(close);
+    toast.appendChild($toastButtons);
 
     $toastContainer.appendChild(toast);
+
+    $toastContainer.showPopover();
 
     toast.classList.add('visible');
     if (params.duration > 0) {
@@ -114,21 +140,37 @@ function hideToast(id) {
         });
     }
 }
-function showLoading(params = {}) {
-    document.body.classList.add('j-loading');
-    document.body.classList.toggle('j-loading-modal', params.modal !== false);
-    showSpinner();
+function showLoading() {
+    const spinner = showSpinner();
+    spinner.classList.add('modal');
+    document.body.setAttribute('inert', '');
 }
 
 function hideLoading() {
-    document.body.classList.remove('j-loading');
     hideSpinner();
+    hideProgress();
+    document.body.removeAttribute('inert');
 }
 
-function generateSpinnerElement(id) {
-    const spinner = document.createElement("div");
-    if (id) {
-        spinner.id = id;
+function getTopmostDialog() {
+    const dialogs = document.querySelectorAll('dialog[open]');
+    return dialogs.length > 0 ? dialogs[dialogs.length - 1] : null;
+}
+
+function showSpinner(targetNode) {
+    let spinner = byId("spinner");
+    if (spinner) {
+        console.log("alreday shown the spinner");
+        return spinner;
+    }
+
+    spinner = document.createElement("div");
+    spinner.id = "spinner";
+
+    if (!targetNode) {
+        spinner.setAttribute("popover", "manual");
+        spinner.setAttribute("unanchored", "");
+        spinner.setAttribute("aria-live", "assertive");
     }
     spinner.innerHTML = escapeHTMLPolicy.createHTML(`
         <style>
@@ -136,10 +178,10 @@ function generateSpinnerElement(id) {
             #spinner { width: 48px; height: 48px; pointer-events: none; }
             #spinner svg { width:100%; height:100%; display:block; }
             .j-spinner-svg {
-            transform-box: fill-box; /* ensure transform origin is inside SVG */
-            transform-origin: 50% 50%;
-            animation: j-spin 1s linear infinite;
-            will-change: transform;
+                transform-box: fill-box; /* ensure transform origin is inside SVG */
+                transform-origin: 50% 50%;
+                animation: j-spin 1s linear infinite;
+                will-change: transform;
             }
             @keyframes j-spin { to { transform: rotate(360deg); } }
         </style>
@@ -147,39 +189,28 @@ function generateSpinnerElement(id) {
             <circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 31.4" transform="rotate(-90 25 25)"></circle>
         </svg>
     `);
+
+    if (targetNode) {
+        targetNode.appendChild(spinner);
+    } else {
+        document.body.appendChild(spinner);
+    }
+
+    if (!targetNode) {
+        spinner.showPopover();
+    }
+
     return spinner;
 }
 
-function showSpinner(targetNode) {
-    hideSpinner();
-    let spinner = byId("spinner");
-    if (spinner) {
-        show(spinner);
-    } else {
-        spinner = generateSpinnerElement("spinner");
-    }
-
-    if (targetNode) {
-        spinner.classList.add('j-spinner-inline');
-    } else {
-        spinner.classList.remove('j-spinner-inline');
-        const modalDialog = document.querySelector('dialog[open]');
-        if (modalDialog) {
-            targetNode = modalDialog;
-        } else {
-            targetNode = document.body;
-        }
-    }
-    // Position parent as relative if not already
-    //if (getComputedStyle(targetNode).position === "static") {
-        //targetNode.style.position = "relative";
-    //}
-
-    targetNode.appendChild(spinner);
-}
-
 function hideSpinner() {
-    hide("#spinner");
+    const spinner = byId("spinner");
+    if (!spinner) return;
+
+    if (spinner.hasAttribute("popover")) {
+        spinner.hidePopover();
+    }
+    spinner.remove();
 }
 
 function showProgress() {
@@ -288,13 +319,15 @@ function addPopoverListener(source, popoverWithSourceParameter) {
             }
         });
 
-        replaceEventListeners(popover, 'toggle', (event) => {
-            if (event.newState == "open") {
-                requestAnimationFrame(() => {
-                    constrainPopoverHeight(popover);
-                });
-            }
-        });
+        if (popover.id != "side-rail-menu") {
+            replaceEventListeners(popover, 'toggle', (event) => {
+                if (event.newState == "open") {
+                    requestAnimationFrame(() => {
+                        constrainPopoverHeight(popover);
+                    });
+                }
+            });
+        }
     });
 }
 
@@ -323,6 +356,26 @@ function constrainPopoverHeight(popover) {
     }
 }
 
+function openContextMenu(menuElement, event) {
+    menuElement.style.position = "fixed";
+    menuElement.style.inset = "auto auto auto auto";
+    menuElement.style.left = `${event.clientX}px`;
+    menuElement.style.top = `${event.clientY}px`;
+    menuElement.showPopover();
+
+    const rect = menuElement.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+
+    const left = Math.min(Math.max(margin, event.clientX), maxLeft);
+    const top = Math.min(Math.max(margin, event.clientY), maxTop);
+
+    menuElement.style.left = `${left}px`;
+    menuElement.style.top = `${top}px`;
+}
+        
+
 function getPrimaryDialogButton(dialog) {
     return Array.from(dialog.querySelectorAll('#native-dialog-menu j-button')).pop();
 }
@@ -337,9 +390,13 @@ function openDialog(message, params = {}) {
             dialog.id = params.id;
         }
 
-        dialog.className = 'native-dialog';
+        dialog.classList.add('native-dialog');
 
-        if (params.modal === false) {
+        if (params.maximizeHeight) {
+            dialog.classList.add('maximize-height');
+        }
+
+        if (params.modal === false && params.closeByOutsideClick !== false) {
             dialog.setAttribute("closedby", "any");
         }
 
@@ -354,8 +411,8 @@ function openDialog(message, params = {}) {
             closeBtn.type = 'button';
             closeBtn.setAttribute('aria-label', 'Close dialog');
             closeBtn.addEventListener('click', () => {
-                dialog.close();
                 resolve("close");
+                dialog.close();
             }, { signal });
             closeContainer.appendChild(closeBtn);
             dialog.appendChild(closeContainer);
@@ -374,7 +431,11 @@ function openDialog(message, params = {}) {
             let nativeDialogMessage = document.createElement('div');
             nativeDialogMessage.id = "native-dialog-message";
 
-            if (message.id && message.id.startsWith(CONTAINER_FOR_TEMPLATE_PREFIX)) {
+            if (typeof message === "string") {
+                // Preserve \n and \r\n as visible line breaks safely
+                nativeDialogMessage.style.whiteSpace = "pre-wrap";
+                nativeDialogMessage.textContent = message;
+            } else if (message.id && message.id.startsWith(CONTAINER_FOR_TEMPLATE_PREFIX)) {
                 while (message.firstChild) {
                     nativeDialogMessage.appendChild(message.firstChild);
                 }
@@ -429,8 +490,8 @@ function openDialog(message, params = {}) {
             cancelBtn.value = 'cancel';
             cancelBtn.textContent = getMessage("cancel");
             cancelBtn.addEventListener('click', () => {
-                dialog.close();
                 resolve("cancel");
+                dialog.close();
             }, { signal });
             menu.appendChild(cancelBtn);
         }
@@ -441,6 +502,10 @@ function openDialog(message, params = {}) {
             params.buttons.forEach(btn => {
                 const b = document.createElement('j-button');
                 b.type = 'button';
+
+                if (btn.id) {
+                    b.id = btn.id;
+                }
 
                 if (btn.icon) {
                     b.setAttribute('icon', btn.icon);
@@ -454,13 +519,17 @@ function openDialog(message, params = {}) {
                     b.classList.add('filled');
                 }
 
-                if (btn.label) {
-                    b.appendChild(document.createTextNode(btn.label));
+                if (btn.label || btn.text) {
+                    b.appendChild(document.createTextNode(btn.label || btn.text));
                 }
 
                 if (btn.primary) {
                     b.classList.add("colored");
                     primaryAdded = true;
+                }
+
+                if (btn.focusOnOpen) {
+                    b.setAttribute('data-focus-on-open', 'true');
                 }
 
                 if (btn.classList) {
@@ -471,19 +540,22 @@ function openDialog(message, params = {}) {
                     b.style.cssText = btn.style;
                 }
 
-                if (btn.title) {
-                    b.title = btn.title;
-                }
-
                 if (btn.onClick) {
                     b.setAttribute('data-onclick-set-opendialog', 'true');
                     b.addEventListener('click', () => {
-                        btn.onClick(dialog);
                         resolve(btn.label);
+                        btn.onClick(dialog);
                     }, { signal });
                 }
 
                 menu.appendChild(b);
+
+                if (btn.title) {
+                    const tooltip = document.createElement('j-tooltip');
+                    tooltip.textContent = btn.title;
+                    menu.appendChild(tooltip);
+                }
+                
             });
         }
 
@@ -494,14 +566,58 @@ function openDialog(message, params = {}) {
             okBtn.classList.add("colored");
             okBtn.addEventListener('click', async () => {
                 if (dialog.querySelector("form").checkValidity()) {
-                    dialog.close();
                     resolve("ok");
+                    dialog.close();
                 } else {
                     dialog.querySelector("form").reportValidity();
                 }
             }, { signal });
             menu.appendChild(okBtn);
         }
+
+        dialog.addEventListener('toggle', function(event) {
+            const $toastContainer = document.querySelector('.j-toast-container');
+
+            if (event.newState == "open") {
+
+                if (params.modal !== false) {
+                    // Move toast container into modal dialog if it exists
+                    if ($toastContainer && $toastContainer.matches(':popover-open')) {
+                        dialog.appendChild($toastContainer);
+                        // had to recall this showpopover
+                        $toastContainer.showPopover();
+                    }
+                }
+
+                if (params.noAutoFocus) {
+                    //document.activeElement?.blur();
+                    dialog.focus();
+                }
+            } else if (event.newState == "closed") {
+                if (params.onClose) {
+                    params.onClose();
+                }
+
+                console.log("cleaning up dialog listeners");
+                controller.abort(); // Clean up all listeners
+                
+                if (params.modal === false) {
+                    dialog.closest(".non-modal-dialog-wrapper").remove();
+                } else {
+                    // Move toast container back to body if it exists
+                    if ($toastContainer && $toastContainer.matches(':popover-open')) {
+                        document.body.appendChild($toastContainer);
+                    }
+
+                    dialog.remove();
+                }
+
+                // let's capture any outside call to dialog.close("escape")
+                if (dialog.returnValue == "escape-key") {
+                    resolve("cancel");
+                }
+            }
+        }, { signal });
 
         if (params.modal === false) {
             dialog.show();
@@ -514,20 +630,18 @@ function openDialog(message, params = {}) {
         // next frame -> start animation
         requestAnimationFrame(() => requestAnimationFrame(() => dialog.classList.add('opening')));
 
-        setTimeout(() => {
-            dialog.querySelectorAll('j-button').forEach(btn => btn.blur());
-        }, 0);
-
-        dialog.addEventListener('close', function onClose() {
-            console.log("cleaning up dialog listeners");
-            controller.abort(); // Clean up all listeners
-            
-            if (params.modal === false) {
-                dialog.closest(".non-modal-dialog-wrapper").remove();
+        if (params.noAutoFocus) {
+            // do nothing
+        } else {
+            const focusTarget = dialog.querySelector('[data-focus-on-open="true"]');
+            if (focusTarget) {
+                focusTarget.focus();
             } else {
-                dialog.remove();
+                setTimeout(() => {
+                    dialog.querySelectorAll('j-button').forEach(btn => btn.blur());
+                }, 0);
             }
-        }, { once: true});
+        }
     });
 }
 
@@ -546,11 +660,11 @@ function isSlotEmpty(slot) {
 
 class JButton extends HTMLElement {
     static formAssociated = true;
-    static get observedAttributes() { return ['icon', 'src', 'disabled', 'icon-only']; }
+    static get observedAttributes() { return ['aria-label', 'icon', 'src', 'disabled']; }
 
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
+        this.attachShadow({ mode: 'open', delegatesFocus: true });
         this.internals = this.attachInternals();
         this._controller = new AbortController();
     }
@@ -575,9 +689,6 @@ class JButton extends HTMLElement {
                 cursor: pointer;
                 vertical-align: middle;
                 transition: background-color 0.15s, transform 0.1s, box-shadow 0.15s;
-                button {
-                    padding: var(--button-padding, 10px 14px);
-                }
             }
             :host([disabled]) {
                 pointer-events: none;
@@ -588,12 +699,12 @@ class JButton extends HTMLElement {
             }
 
             :host(:hover) {
-                background-color: color-mix(in srgb, var(--button), var(--bg-color) 90%);
+                background-color: var(--bg-light-color-hover);
             }
 
             :host(:active),
             :host(.active-state) {
-                background-color: color-mix(in srgb, var(--button), var(--bg-color) 80%);
+                background-color: color-mix(in srgb, var(--bg-light-color-hover), transparent 30%);
                 box-shadow: none;
             }
 
@@ -619,7 +730,21 @@ class JButton extends HTMLElement {
             }
 
             :host(.raised) {
+                background-color: light-dark(transparent, #1a1a1a);
                 box-shadow: 0 3px 1px -2px rgba(0,0,0,0.2),0 2px 2px 0 rgba(0,0,0,0.14),0 1px 5px 0 rgba(0,0,0,0.12);
+            }
+
+            :host(.raised:hover) {
+                background-color: color-mix(in srgb, var(--bg-light-color-hover), transparent 30%);
+            }
+
+            :host(.raised:active),
+            :host(.raised.active-state) {
+                background-color: color-mix(in srgb, var(--bg-light-color-hover), transparent 40%);
+            }
+
+            :host(.outline) {
+                box-shadow: 0 0 0 1px light-dark(rgb(0 0 0 / 10%), rgb(255 255 255 / 18%)), 0 0 0 0 light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.10)), 0 1px 5px 0 light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.45));
             }
 
             :host(.colored) {
@@ -643,7 +768,16 @@ class JButton extends HTMLElement {
                 background-color: color-mix(in srgb, var(--button-primary), white 20%);
             }
 
-            :host([icon]) {
+            :host(.small) {
+                font-size: 14px;
+                --icon-size: 18px;
+                button {
+                    padding: var(--button-padding, 6px 12px);
+                }
+            }
+
+            :host([icon]),
+            :host([src]) {
                 button {
                     padding: var(--button-padding, 8px 14px);
                 }
@@ -676,16 +810,6 @@ class JButton extends HTMLElement {
                 min-width: 40px;
             }
 
-            :host([icon-only]:hover) {
-                background-color: var(--button-icon-only-hover);
-                box-shadow: none;
-            }
-
-            :host([icon-only]:active),
-            :host([icon-only].active-state) {
-                background-color: color-mix(in srgb, var(--button-primary), transparent 80%);
-            }
-
             :host([invert-icon]) .icon {
                 filter: var(--icon-invert, none);
             }
@@ -695,7 +819,7 @@ class JButton extends HTMLElement {
                 border: none;
                 font: inherit;
                 cursor: inherit;
-                padding: 0;
+                padding: var(--button-padding, 10px 14px);
                 color: var(--button-text-color);
                 background-color: transparent;
                 gap: 0 6px;
@@ -764,16 +888,7 @@ class JButton extends HTMLElement {
         */
 
         // detect empty slot initially and on changes
-        const slotEl = this.shadowRoot.querySelector('slot');
-        if (slotEl) {
-            const updateEmpty = () => {
-                if (isSlotEmpty(slotEl) && !this.hasAttribute('button-look')) this.setAttribute('icon-only', '');
-                else this.removeAttribute('icon-only');
-            };
-            updateEmpty();
-            slotEl.addEventListener('slotchange', updateEmpty, { signal });
-        }
-
+        this._slotEl = this.shadowRoot.querySelector('slot');
         this._rootBtn = this.shadowRoot.querySelector('button');
         this._iconContainer = this.shadowRoot.querySelector('.icon');
 
@@ -790,26 +905,43 @@ class JButton extends HTMLElement {
             if (this.hasAttribute('disabled')) return;
             if (e.key === ' ' || e.key === 'Enter') {
                 e.preventDefault();
+                e.stopPropagation();
                 this._rootBtn.click();
             }
         }, { signal });
+
+        this._slotEl.addEventListener('slotchange', this._updateEmpty.bind(this), { signal });
 
         // initial state
         this._updateDisabled();
         this._updateIcon();
         // hide icon container if no icon
         this._syncIconVisibility();
+        this._updateEmpty();
+        // sync aria-label to shadow DOM button
+        if (this.hasAttribute('aria-label')) {
+            this._rootBtn.setAttribute('aria-label', this.getAttribute('aria-label'));
+        }
 
         addPopoverListener(this);
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue === newValue) return;
-        if (name === 'icon' || name === 'src' || name === 'icon-only') {
+        if (name === 'icon' || name === 'src') {
             this._updateIcon();
             this._syncIconVisibility();
+            this._updateEmpty();
         } else if (name === 'disabled') {
             this._updateDisabled();
+        } else if (name === 'aria-label') {
+            if (this._rootBtn) {
+                if (newValue) {
+                    this._rootBtn.setAttribute('aria-label', newValue);
+                } else {
+                    this._rootBtn.removeAttribute('aria-label');
+                }
+            }
         }
     }
 
@@ -824,6 +956,13 @@ class JButton extends HTMLElement {
             }
         }
     }
+
+    _updateEmpty() {
+        if (this._slotEl) { // might not be added to dom yet, createElement etc..
+            if (isSlotEmpty(this._slotEl) && !this.hasAttribute('button-look')) this.setAttribute('icon-only', '');
+            else this.removeAttribute('icon-only');
+        }
+    };
 
     _syncIconVisibility() {
         if (this._iconContainer) {
@@ -928,7 +1067,7 @@ class PaperTooltip extends HTMLElement {
             if (existingPopoverId) {
                 anchorName = `--${existingPopoverId}`;
             } else {
-                anchorName = `--${forId || forClass || 'anchor-' + Math.random().toString(36).substring(2, 9)}`;
+                anchorName = `--${forId || 'anchor-' + Math.random().toString(36).substring(2, 9)}`;
             }
 
             if (anchorElement.style.anchorName) {
@@ -939,6 +1078,11 @@ class PaperTooltip extends HTMLElement {
             }
 
             anchorElement.addEventListener('mouseenter', () => {
+                if (forClass) {
+                    // bind tooltip to the hovered element, not the last one
+                    tooltip.style.positionAnchor = anchorElement.style.anchorName;
+                }
+
                 if (!tooltip.hasAttribute("manual-mode")) {
                     tooltip.showPopover();
                 }
@@ -1172,13 +1316,21 @@ class FloatingInput extends HTMLElement {
                     width: 100%;
                 }
 
+                label:has(input:not(:focus) + .label-text) {
+                    clip-path: border-box;
+                }
+
+                label:has(input:not(:placeholder-shown) + .label-text) {
+                    clip-path: none;
+                }
+
                 input, textarea {
                     width: 100%;
                     box-sizing: border-box;
-                    padding: var(--input-padding, 12px); /* v1: 14px 12px 10px 12px */
-                    font-size: 16px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 8px;
+                    padding: var(--input-padding, 6px 12px); /* v2: 12px, v1: 14px 12px 10px 12px */
+                    font-size: var(--input-font-size);
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--input-border-radius);
                     background-color: var(--input-bg-color);
                     color: var(--text-color);
                     outline: none;
@@ -1188,13 +1340,13 @@ class FloatingInput extends HTMLElement {
 
                 :host(:not([no-outline])) input:focus,
                 :host(:not([no-outline])) textarea:focus {
-                    border-color: var(--input-focus-color);
-                    box-shadow: var(--input-focus-shadow, 0 0 0 4px rgba(37,99,235,0.08));
+                    border-color: transparent;
+                    outline: 2px solid var(--focus-visible-color);
                 }
 
                 input::placeholder,
                 textarea::placeholder {
-                    color: transparent;
+                    xxcolor: transparent; /* commented this for calendar */
                 }
 
                 .label-text {
@@ -1219,7 +1371,7 @@ class FloatingInput extends HTMLElement {
                 textarea:focus + .label-text,
                 input:not(:placeholder-shown) + .label-text,
                 textarea:not(:placeholder-shown) + .label-text {
-                    transform: translateY(-144%) scale(0.85);
+                    transform: translateY(-125%) scale(0.85);
                     color: var(--input-focus-color);
                     background-color: var(--input-bg-color);
                     border-radius: 5px;
@@ -1229,6 +1381,11 @@ class FloatingInput extends HTMLElement {
                 textarea {
                     min-height: 80px;
                     padding-top: 18px;
+                }
+
+                input[type=number]::-webkit-inner-spin-button,
+                input[type=number]::-webkit-outer-spin-button {
+                    filter: var(--inverted-spin-button-filter, none);
                 }
             </style>
 
@@ -1264,7 +1421,8 @@ class FloatingInput extends HTMLElement {
         this.input.addEventListener('input', () => this.validate(), { signal });
 
         this.input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            const jInputHost = e.target.getRootNode().host;
+            if (e.key === 'Enter' && !jInputHost.hasAttribute('disable-auto-submit')) {
                 console.log("input keydown", e.key, document.activeElement);
 
                 //e.preventDefault();
@@ -1275,6 +1433,7 @@ class FloatingInput extends HTMLElement {
                     const primaryButton = getPrimaryDialogButton(dialog);
                     if (primaryButton) {
                         e.preventDefault(); /* Do this to prevent key event from bubbling up and outside of the dialog and hitting the initial action that opened the dialog (loop) */
+                        e.stopPropagation(); // v2
                         primaryButton?.click();
                     } else {
                         dialog.close();
@@ -1339,6 +1498,275 @@ class FloatingInput extends HTMLElement {
 
 customElements.define('j-input', FloatingInput);
 
+class JSwitch extends HTMLElement {
+    static formAssociated = true;
+    static get observedAttributes() {
+        return ['checked', 'disabled', 'required', 'name', 'value', 'icons'];
+    }
+
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open', delegatesFocus: true });
+        this.internals = this.attachInternals();
+        this._controller = new AbortController();
+        this._checkedDirty = false;
+        this._defaultChecked = this.hasAttribute('checked');
+        this._formDisabled = false;
+    }
+
+    get checked() {
+        return this.hasAttribute('checked');
+    }
+
+    set checked(value) {
+        this.toggleAttribute('checked', Boolean(value));
+    }
+
+    get disabled() {
+        return this.hasAttribute('disabled');
+    }
+
+    set disabled(value) {
+        this.toggleAttribute('disabled', Boolean(value));
+    }
+
+    get value() {
+        return this.getAttribute('value') ?? 'on';
+    }
+
+    set value(val) {
+        this.setAttribute('value', val ?? 'on');
+    }
+
+    connectedCallback() {
+        if (this._controller.signal.aborted) this._controller = new AbortController();
+        const signal = this._controller.signal;
+
+        if (!this.shadowRoot.innerHTML) {
+            this.shadowRoot.innerHTML = escapeHTMLPolicy.createHTML(`
+            <style>
+                :host {
+                    --j-switch-track-width: 52px;
+                    --j-switch-track-height: 32px;
+                    --j-switch-track-radius: 999px;
+                    --j-switch-track-color: color-mix(in srgb, var(--text-color), transparent 90%);
+                    --j-switch-track-border: color-mix(in srgb, var(--text-color), transparent 65%);
+                    --j-switch-selected-track-color: color-mix(in srgb, var(--button-primary, #6750A4), white 8%);
+                    --j-switch-handle-color: light-dark(#5f6368, #d6d7db);
+                    --j-switch-selected-handle-color: #ffffff;
+                    --j-switch-icon-color: #f6f7f9;
+                    --j-switch-selected-icon-color: var(--j-switch-selected-track-color);
+
+                    display: inline-flex;
+                    align-items: center;
+                    vertical-align: middle;
+                    -webkit-tap-highlight-color: transparent;
+                    cursor: pointer;
+                }
+
+                :host([disabled]) {
+                    cursor: default;
+                    pointer-events: none;
+                    opacity: 0.5;
+                }
+
+                button {
+                    all: unset;
+                    box-sizing: border-box;
+                    width: var(--j-switch-track-width);
+                    height: var(--j-switch-track-height);
+                    border-radius: var(--j-switch-track-radius);
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    cursor: inherit;
+                }
+
+                .track {
+                    position: absolute;
+                    inset: 0;
+                    border-radius: inherit;
+                    background-color: var(--j-switch-track-color);
+                    border: 2px solid var(--j-switch-track-border);
+                    transition: background-color 150ms ease, border-color 150ms ease;
+                }
+
+                .handle {
+                    position: absolute;
+                    top: 50%;
+                    left: 7px;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    transform: translate(0, -50%);
+                    background: var(--j-switch-handle-color);
+                    color: var(--j-switch-icon-color);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: transform 180ms cubic-bezier(.2,.0,0,1), width 180ms cubic-bezier(.2,.0,0,1), height 180ms cubic-bezier(.2,.0,0,1), background-color 150ms ease, color 150ms ease;
+                    overflow: hidden;
+                }
+
+                .handle-icon {
+                    width: 14px;
+                    height: 14px;
+                    opacity: 0;
+                    transform: scale(0.75);
+                    transition: opacity 120ms ease, transform 180ms cubic-bezier(.2,.0,0,1);
+                    pointer-events: none;
+                }
+
+                .handle-icon path {
+                    fill: currentColor;
+                }
+
+                :host([icons]) .handle-icon {
+                    opacity: 1;
+                }
+
+                :host([checked]) .track {
+                    background-color: var(--j-switch-selected-track-color);
+                    border-color: var(--j-switch-selected-track-color);
+                }
+
+                :host([checked]) .handle {
+                    width: 24px;
+                    height: 24px;
+                    transform: translate(20px, -50%);
+                    background-color: var(--j-switch-selected-handle-color);
+                    color: var(--j-switch-selected-icon-color);
+                }
+
+                :host([checked]) .icon-off {
+                    opacity: 0;
+                    transform: scale(0.75);
+                }
+
+                :host([checked]) .icon-on {
+                    opacity: 1;
+                    transform: scale(1) translateX(7px);
+                }
+
+                :host(:not([checked])) .icon-on {
+                    opacity: 0;
+                    transform: scale(0.75);
+                }
+
+                :host(:not([checked])) .icon-off {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+
+                button:focus-visible {
+                    outline: 3px solid color-mix(in srgb, var(--focus-visible-color), transparent 20%);
+                    outline-offset: 3px;
+                }
+            </style>
+            <button type="button" part="button" role="switch" aria-checked="false">
+                <span class="track" part="track"></span>
+                <span class="handle" part="handle">
+                    <svg class="handle-icon icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 20.6 7.4 19.2 6z"></path>
+                    </svg>
+                    <svg class="handle-icon icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"></path>
+                    </svg>
+                </span>
+            </button>
+            `);
+        }
+
+        this._button = this.shadowRoot.querySelector('button');
+
+        this._button.addEventListener('click', () => this._toggleFromUser(), { signal });
+
+        this._button.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                this._toggleFromUser();
+            }
+        }, { signal });
+
+        this._syncFromAttributes();
+    }
+
+    attributeChangedCallback() {
+        if (this.isConnected) {
+            this._syncFromAttributes();
+        }
+    }
+
+    formDisabledCallback(disabled) {
+        this._formDisabled = disabled;
+        this._syncFromAttributes();
+    }
+
+    formResetCallback() {
+        this.checked = this._defaultChecked;
+        this._checkedDirty = false;
+        this._syncFromAttributes();
+    }
+
+    checkValidity() {
+        return this.internals.checkValidity();
+    }
+
+    reportValidity() {
+        return this.internals.reportValidity();
+    }
+
+    setCustomValidity(message) {
+        this.internals.setValidity(message ? { customError: true } : {}, message || '', this._button);
+    }
+
+    _toggleFromUser() {
+        if (this.disabled || this._formDisabled) return;
+        this._checkedDirty = true;
+        this.checked = !this.checked;
+
+        this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        this.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    }
+
+    _syncFromAttributes() {
+        if (!this._button) return;
+
+        const isDisabled = this.disabled || this._formDisabled;
+        const isChecked = this.checked;
+
+        this._button.setAttribute('aria-checked', String(isChecked));
+        this._button.toggleAttribute('disabled', isDisabled);
+
+        if (isDisabled) {
+            this._button.setAttribute('aria-disabled', 'true');
+            this._button.setAttribute('tabindex', '-1');
+        } else {
+            this._button.removeAttribute('aria-disabled');
+            this._button.setAttribute('tabindex', '0');
+        }
+
+        this.internals.setFormValue(isChecked ? this.value : null);
+
+        if (this.hasAttribute('required') && !isChecked) {
+            this.internals.setValidity(
+                { valueMissing: true },
+                this.getAttribute('validation-message') || 'Please turn this switch on.',
+                this
+            );
+        } else {
+            this.internals.setValidity({});
+        }
+    }
+
+    disconnectedCallback() {
+        this._controller.abort();
+    }
+}
+
+customElements.define('j-switch', JSwitch);
+
 class IronIcon extends HTMLElement {
     static get observedAttributes() { return ['icon', 'src']; }
 
@@ -1380,7 +1808,7 @@ class IronIcon extends HTMLElement {
                     align-items: center;
                     justify-content: center;
                     border: none;
-                    cursor: pointer;
+                    xxcursor: pointer; /* commented in cal for fieldIcon */
                     fill: var(--icon-color);
                 }
 
@@ -1546,11 +1974,16 @@ class PaperRipple extends HTMLElement {
 customElements.define('j-ripple', PaperRipple);
 
 function isFocusOnInputElement() {
-    const nodeName = document.activeElement.nodeName;
+    const activeElement = document.activeElement;
+    const nodeName = activeElement.nodeName;
+    const isInsideSelect = activeElement.closest('select') !== null;
+    
     return nodeName == "SELECT" ||
+        isInsideSelect ||
         nodeName == "TEXTAREA" ||
         nodeName == "INPUT" ||
         nodeName == "J-INPUT" ||
+        nodeName == "J-SWITCH" ||
         nodeName == "OVERLAY-HOST" ||
         document.activeElement.getAttribute("contenteditable")
     ;
@@ -1640,6 +2073,16 @@ function getSelectedRadioValue(name) {
     return null;
 }
 
+function setSelectedRadioValue(name, value) {
+    const radios = document.querySelectorAll(`input[type="radio"][name="${name}"]`);
+    for (const radio of radios) {
+        if (radio.value === value) {
+            radio.checked = true;
+            return;
+        }
+    }
+}
+
 async function getColorSchemeSetting() {
     if (globalThis.storage) {
         if (storage.init) {
@@ -1714,6 +2157,386 @@ function initSelects(node) {
     });
 }
 
+function openColorChooser() {
+    return new Promise((resolve, reject) => {
+        const colorListbox = document.createElement("j-listbox");
+        colorListbox.id = "color-listbox";
+
+        const style = document.createElement("style");
+        style.textContent = `
+            #color-listbox {
+                padding: 0;
+            }
+
+            #color-listbox-items {
+                display: flex;
+                flex-direction: column;
+                flex-wrap: wrap;
+            }
+
+            .color {
+                box-sizing: border-box;
+                width: 20px;
+                height: 20px;
+                min-height: 20px;
+                display: inline-block;
+                padding: 0;
+                margin: 0;
+                cursor: pointer;
+                font-size: 0;
+                position: relative;
+            }
+        `;
+        colorListbox.appendChild(style);
+
+        const items = document.createElement("div");
+        items.id = "color-listbox-items";
+        items.style.cssText = "height:200px; width:360px;";
+
+        const fragment = document.createDocumentFragment();
+        const colors = ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336', '#e53935', '#d32f2f', '#c62828', '#b71c1c', '#fce4ec', '#f8bbd0', '#f48fb1', '#f06292', '#ec407a', '#e91e63', '#d81b60', '#c2185b', '#ad1457', '#880e4f', '#f3e5f5', '#e1bee7', '#ce93d8', '#ba68c8', '#ab47bc', '#9c27b0', '#8e24aa', '#7b1fa2', '#6a1b9a', '#4a148c', '#ede7f6', '#d1c4e9', '#b39ddb', '#9575cd', '#7e57c2', '#673ab7', '#5e35b1', '#512da8', '#4527a0', '#311b92', '#e8eaf6', '#c5cae9', '#9fa8da', '#7986cb', '#5c6bc0', '#3f51b5', '#3949ab', '#303f9f', '#283593', '#1a237e', '#e3f2fd', '#bbdefb', '#90caf9', '#64b5f6', '#42a5f5', '#2196f3', '#1e88e5', '#1976d2', '#1565c0', '#0d47a1', '#e1f5fe', '#b3e5fc', '#81d4fa', '#4fc3f7', '#29b6f6', '#03a9f4', '#039be5', '#0288d1', '#0277bd', '#01579b', '#e0f7fa', '#b2ebf2', '#80deea', '#4dd0e1', '#26c6da', '#00bcd4', '#00acc1', '#0097a7', '#00838f', '#006064', '#e0f2f1', '#b2dfdb', '#80cbc4', '#4db6ac', '#26a69a', '#009688', '#00897b', '#00796b', '#00695c', '#004d40', '#e8f5e9', '#c8e6c9', '#a5d6a7', '#81c784', '#66bb6a', '#4caf50', '#43a047', '#388e3c', '#2e7d32', '#1b5e20', '#f1f8e9', '#dcedc8', '#c5e1a5', '#aed581', '#9ccc65', '#8bc34a', '#7cb342', '#689f38', '#558b2f', '#33691e', '#f9fbe7', '#f0f4c3', '#e6ee9c', '#dce775', '#d4e157', '#cddc39', '#c0ca33', '#afb42b', '#9e9d24', '#827717', '#fffde7', '#fff9c4', '#fff59d', '#fff176', '#ffee58', '#ffeb3b', '#fdd835', '#fbc02d', '#f9a825', '#f57f17', '#fff8e1', '#ffecb3', '#ffe082', '#ffd54f', '#ffca28', '#ffc107', '#ffb300', '#ffa000', '#ff8f00', '#ff6f00', '#fff3e0', '#ffe0b2', '#ffcc80', '#ffb74d', '#ffa726', '#ff9800', '#fb8c00', '#f57c00', '#ef6c00', '#e65100', '#fbe9e7', '#ffccbc', '#ffab91', '#ff8a65', '#ff7043', '#ff5722', '#f4511e', '#e64a19', '#d84315', '#bf360c', '#efebe9', '#d7ccc8', '#bcaaa4', '#a1887f', '#8d6e63', '#795548', '#6d4c41', '#5d4037', '#4e342e', '#3e2723', '#fafafa', '#f5f5f5', '#eeeeee', '#e0e0e0', '#bdbdbd', '#9e9e9e', '#757575', '#616161', '#424242', '#212121']
+        colors.forEach(color => {
+            const $listItem = document.createElement("span");
+            $listItem.setAttribute("class", "color");
+            $listItem.setAttribute("color", color);
+            $listItem.setAttribute("style", `background-color: ${color}`);
+            onClick($listItem, function() {
+                resolve(this.getAttribute("color"));
+                byId("color-chooser-dialog")?.close();
+            });
+            fragment.appendChild($listItem);
+        });
+
+        items.appendChild(fragment);
+        colorListbox.append(items);
+
+        openDialog(colorListbox, {
+            id: "color-chooser-dialog",
+            modal: false,
+            closeButton: true,
+            ok: false
+        });
+    });
+}
+
+function testJdom() {
+    // Create a comprehensive test container
+    const testContainer = document.createElement('div');
+    testContainer.style.cssText = 'max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; padding: 10px';
+
+    // dark/light
+    const darkLightSection = document.createElement('j-button');
+    darkLightSection.id = 'toggle-dark-light';
+    darkLightSection.textContent = 'Toggle Dark/Light Mode';
+    darkLightSection.addEventListener('click', async () => {
+        const currentScheme = document.documentElement.getAttribute('color-scheme');
+        let newScheme;
+        if (currentScheme === 'dark') {
+            newScheme = 'light';
+        } else {
+            newScheme = 'dark';
+        }
+        document.documentElement.setAttribute('color-scheme', newScheme);
+    });
+    testContainer.appendChild(darkLightSection);
+
+    // Test j-button variations
+    const buttonSection = document.createElement('div');
+    buttonSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-button examples</h3>
+        <j-button>Basic Button</j-button>
+        <j-button icon="close">With Icon</j-button>
+        <j-button src="https://jasonsavard.com/images/logo.webp">With Image</j-button>
+        <j-button icon="close"></j-button>
+        <j-button icon="close" class="filled"></j-button>
+        <j-button icon="close" class="colored"></j-button>
+        <j-button>Text only</j-button>
+        <j-button class="filled">Filled</j-button>
+        <j-button class="outline">Outline</j-button>
+        <j-button class="raised">Raised</j-button>
+        <j-button class="colored">Colored</j-button>
+        <j-button disabled>Disabled</j-button>
+        <j-button icon="close" disabled>Disabled with Icon</j-button>
+        <br>
+        <j-button popovertarget-id="test-popover">Open Popover</j-button>
+        <j-button popovertarget-id="test-popover2">Open Popover position="start"</j-button>
+        <j-button popovertarget-id="test-popover-end">Open Popover position="end"</j-button>
+        <j-button popovertarget-id="test-popover3">Open Popover position="center-start"</j-button>
+    `);
+    testContainer.appendChild(buttonSection);
+
+    // Test dialog, spinner, and loading
+    const dialogTestSection = document.createElement('div');
+    dialogTestSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>Dialog, Spinner & Loading examples</h3>
+        <j-button id="test-dialog-btn">Open Test Dialog</j-button>
+        <j-button id="test-modal-dialog-btn">Open Modal Dialog</j-button>
+        <j-button id="test-spinner-btn">Show Spinner</j-button>
+        <j-button id="test-spinner-with-target-btn">Show Spinner with Target</j-button>
+        <j-button id="test-loading-btn">Show Loading</j-button>
+        <j-button id="test-toast-btn">Show Toast</j-button>
+    `);
+    testContainer.appendChild(dialogTestSection);
+
+    dialogTestSection.querySelector('#test-dialog-btn')?.addEventListener('click', async () => {
+        const result = await openDialog('This is a test dialog', {
+            title: 'Test Dialog',
+            cancel: true,
+            modal: false,
+            buttons: [
+                { label: 'show toast', onClick: () => showToast("blah", { duration: 999999}) }
+            ]
+        });
+        console.log('Dialog result:', result);
+    });
+
+    dialogTestSection.querySelector('#test-modal-dialog-btn')?.addEventListener('click', async () => {
+        const result = await openDialog('This is a modal test dialog', {
+            title: 'Modal Test Dialog',
+            modal: true,
+            cancel: true,
+            buttons: [
+                { label: 'show toast', onClick: () => showToast("blah", { duration: 999999}) }
+            ]
+        });
+        console.log('Modal Dialog result:', result);
+    });
+
+    dialogTestSection.querySelector('#test-spinner-btn')?.addEventListener('click', () => {
+        showSpinner();
+        setTimeout(() => hideSpinner(), 2000);
+    });
+
+    dialogTestSection.querySelector('#test-spinner-with-target-btn')?.addEventListener('click', () => {
+        showSpinner(byId("test-spinner-with-target-btn"));
+        setTimeout(() => hideSpinner(), 2000);
+    });
+
+    dialogTestSection.querySelector('#test-loading-btn')?.addEventListener('click', () => {
+        showLoading();
+        //setTimeout(() => hideLoading(), 2000);
+    });
+
+    dialogTestSection.querySelector('#test-toast-btn')?.addEventListener('click', () => {
+        showToast('This is a test toast message!', { duration: 999999});
+    });
+
+    // Side rail menu
+
+    const sideRailButton = document.createElement('j-button');
+    sideRailButton.textContent = "Open Side Rail Menu";
+    sideRailButton.setAttribute("popovertarget-id", "side-rail-menu");
+    testContainer.appendChild(sideRailButton);
+
+    const sideRailSection = document.createElement('div');
+    sideRailSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <div id="side-rail-menu" popover>
+            <j-listbox>
+                <j-icon-item>
+                    <j-icon icon="close"></j-icon>
+                    Close
+                </j-icon-item>
+                <j-icon-item>
+                    <j-icon icon="close"></j-icon>
+                    Close
+                </j-icon-item>
+                <j-icon-item>
+                    <j-icon icon="close"></j-icon>
+                    Close
+                </j-icon-item>
+            </j-listbox>
+        </div>
+    `);
+    testContainer.appendChild(sideRailSection);
+
+
+    // Test popover
+    const popoverSection = document.createElement('div');
+    popoverSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <div id="test-popover" popover>
+            <p>This is popover content</p>
+            <j-button>Action</j-button>
+        </div>
+
+        <div id="test-popover2" popover position="start">
+            <p>This is popover content</p>
+            <j-button>Action</j-button>
+        </div>
+
+         <div id="test-popover-end" popover position="end">
+            <p>This is popover content</p>
+            <j-button>Action</j-button>
+        </div>
+
+        <div id="test-popover3" popover position="center-start">
+            <p>This is popover content</p>
+            <j-button>Action</j-button>
+        </div>
+    `);
+    testContainer.appendChild(popoverSection);    
+
+    // Test j-tooltip
+    const tooltipSection = document.createElement('div');
+    tooltipSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-tooltip examples</h3>
+
+        <div class="layout vertical center">
+        
+            <j-button id="tooltip-target">Hover with for no position</j-button>
+            <j-tooltip for="tooltip-target">This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+
+            <j-button>Hover no position</j-button>
+            <j-tooltip>This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+
+            <j-button>Hover position="start"</j-button>
+            <j-tooltip position="start">This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+
+            <j-button>Hover position="end"</j-button>
+            <j-tooltip position="end">This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+
+            <br><br>
+            <div style="display:inline; width: 100%">
+                <j-button xxid="test-slibling-tooltip">Previous sibling tooltip</j-button>
+                <j-tooltip xxfor="test-slibling-tooltip">This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+            
+                <j-button xxid="share-icon-button" xxclass="share-button" xxicon="share" xxpopovertarget-id="share-menu">blah</j-button>
+                <j-tooltip>This is a tooltipl skjflsjk dflsjdf lsjdf lsjef lsejkf slkefjslkef</j-tooltip>
+            </div>
+
+        </div>
+    `);
+    testContainer.appendChild(tooltipSection);    
+
+    // Test j-input variations
+    const inputSection = document.createElement('div');
+    inputSection.style.cssText = 'display: flex; flex-direction: column; gap: 12px; align-self: center;';
+    inputSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-input examples</h3>
+
+        <label>
+            <span class="label-text">Without Floating Label</span>
+            <select>
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
+                <option value="3">Option 3</option>
+            </select>
+        </label>
+
+        <j-input label="j-input" type="text" name="test-text"></j-input>
+        <input placeholder="native input" type="text" name="test-text">
+        <j-input label="Email" type="email" name="test-email" required></j-input>
+        <j-input label="Number" type="number" min="0" max="100" step="5" name="test-number"></j-input>
+        <j-input label="Password" type="password" name="test-password"></j-input>
+        <j-input label="Disabled" disabled value="Disabled value"></j-input>
+        <j-input label="Readonly" readonly value="Readonly value"></j-input>
+        <j-input label="No Spin" type="number" no-spin-button name="test-no-spin"></j-input>
+        <j-input label="Multiline" multiline name="test-textarea"></j-input>
+        <j-input label="With Placeholder" placeholder="Enter text here"></j-input>
+        <j-input label="Pattern" pattern="[A-Za-z]{3}" title="Three letters"></j-input>
+    `);
+    testContainer.appendChild(inputSection);
+
+    // Test j-switch variations
+    const switchSection = document.createElement('div');
+    switchSection.style.cssText = 'display: flex; flex-direction: column; gap: 10px;';
+    switchSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-switch examples</h3>
+        <label><span style="min-width: 170px">Default</span><j-switch name="switch-default"></j-switch></label>
+        <label><span style="min-width: 170px">Checked</span><j-switch name="switch-checked" checked></j-switch></label>
+        <label><span style="min-width: 170px">With Icons</span><j-switch name="switch-icons" checked icons></j-switch></label>
+        <label><span style="min-width: 170px">Disabled</span><j-switch disabled></j-switch></label>
+        <label><span style="min-width: 170px">Required</span><j-switch required name="switch-required"></j-switch></label>
+    `);
+    testContainer.appendChild(switchSection);
+
+    // Test j-icon variations
+    const iconSection = document.createElement('div');
+    iconSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-icon examples</h3>
+        <j-icon icon="close"></j-icon>
+        <j-icon src="https://jasonsavard.com/images/logo.webp"></j-icon>
+        <j-icon icon="close" invert-icon></j-icon>
+        <j-icon icon="close" style="--icon-size: 32px; --icon-color: red;"></j-icon>
+    `);
+    testContainer.appendChild(iconSection);
+
+    // Test j-listbox and items
+    const listboxSection = document.createElement('div');
+    listboxSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>j-listbox examples</h3>
+        <j-listbox>
+            <j-item>Simple Item</j-item>
+            <j-item class="selected">Selected Item</j-item>
+            <j-icon-item>
+                <j-icon icon="close"></j-icon>
+                Icon Item
+            </j-icon-item>
+            <j-item>
+                <j-item-body>
+                    <div>Item with Body</div>
+                    <small style="color: #666;">Secondary text</small>
+                </j-item-body>
+            </j-item>
+            <j-item class="separator"></j-item>
+            <j-item>After Separator</j-item>
+        </j-listbox>
+    `);
+    testContainer.appendChild(listboxSection);
+
+    // Test toast
+    const toastSection = document.createElement('div');
+    toastSection.innerHTML = escapeHTMLPolicy.createHTML(`
+        <h3>Toast examples</h3>
+        <j-button id="show-toast-btn">Show Toast</j-button>
+        <j-button id="show-toast-long-btn">Show Toast Long message</j-button>
+        <j-button id="show-error-btn">Show Error</j-button>
+        <j-button id="show-long-error-btn">Show Long Error</j-button>
+    `);
+    testContainer.appendChild(toastSection);
+
+    document.body.prepend(testContainer);
+
+    // Add toast event listeners
+    byId('show-toast-btn')?.addEventListener('click', () => {
+        showToast('This is a toast message', {
+            text: 'Action',
+            onClick: () => console.log('Toast action clicked')
+        });
+    });
+
+    byId('show-toast-long-btn')?.addEventListener('click', () => {
+        showToast('This is a longer toast message that should wrap onto https://groups.google.com/d/msgid/sc-apc-ndg/CAK69kXuJDr67Hc6wGEtBfv5feMnBS41PtnS%2B%3Da3HrJThKkDS%2BA%40mail.gmail.com to test the display of long toast messages in the toast notification system.', {
+            text: 'Action',
+            onClick: () => console.log('Toast action clicked')
+        });
+    });
+
+    byId('show-error-btn')?.addEventListener('click', () => {
+        showError('This is an error message');
+    });
+
+    byId('show-long-error-btn')?.addEventListener('click', () => {
+        showError('This is a longer error message that should wrap onto https://groups.google.com/d/msgid/sc-apc-ndg/CAK69kXuJDr67Hc6wGEtBfv5feMnBS41PtnS%2B%3Da3HrJThKkDS%2BA%40mail.gmail.com. lines to test the display of long error messages in the toast notification system.');
+    });
+
+    // Test dialog
+    setTimeout(() => {
+        const dialogBtn = document.createElement('j-button');
+        dialogBtn.textContent = 'Open Dialog';
+        dialogBtn.addEventListener('click', () => {
+            openDialog('This is a dialog message', {
+                title: 'Test Dialog',
+                cancel: true,
+                buttons: [
+                    { label: 'Custom Action', onClick: () => console.log('Custom clicked') },
+                    { label: 'Primary', primary: true, onClick: () => console.log('Primary clicked') }
+                ]
+            });
+        });
+        testContainer.appendChild(dialogBtn);
+    }, 100);
+}
+
 initColorScheme();
 
 const linkPreconnect = document.createElement('link');
@@ -1731,9 +2554,13 @@ fontLink.rel = 'stylesheet';
 fontLink.type = 'text/css';
 fontLink.crossOrigin = 'anonymous';
 fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap';
+fontLink.media = 'print'; // Load asynchronously to avoid blocking render when offline
+fontLink.onload = function() { this.media = 'all'; }; // Switch to all media once loaded
 document.head.appendChild(fontLink);
 
 docReady(() => {
+
+    //testJdom();
 
     initSelects(document);
 
@@ -1742,5 +2569,5 @@ docReady(() => {
     groups.forEach(group => {
         initButtonGroup(group);
     });
-    
+
 });

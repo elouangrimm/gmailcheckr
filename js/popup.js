@@ -32,10 +32,16 @@ var contactsData;
 var reversingView;
 var tabletFramePort;
 var attemptedToAddSkin;
+var emailListContextMenuMail;
+var emailListContextMenuMailNode;
+var messageBodyLightPreviewActive = false;
 var initialHeight = window.innerHeight;
+let aiPromptData;
+let aiPromptController;
 
 const MAX_POPUP_WIDTH = 800;
 const MAX_POPUP_HEIGHT = DetectClient.isFirefox() ? 550 : 600; /* must match height hardcoded in css */
+const PREVIEW_MARKS_AS_READ_NOTICE_INSTALL_DATE = new Date(2026, 4, 1);
 
 var HEADER_HEIGHT = 60;
 var ACCOUNT_HEADER_HEIGHT = 41;
@@ -62,7 +68,7 @@ var zoomPromise = getZoomFactor().then(function(thisZoomFactor) {
 
 if (location.href.includes("source=widget")) {
 	inWidget = true;
-} else if (location.href.includes("source=toolbar")) {
+} else if (location.href.includes("source=toolbar") || location.href.includes("source=aiPrompt")) {
 	fromToolbar = true;
 } else if (location.href.includes("source=sidepanel")) {
     isSidePanel = true;
@@ -82,7 +88,7 @@ var previewMailId = getUrlValue("previewMailId");
 // 25% CPU issue caused when calling window.close "before" the following execution stopped - inside previewing an email view and then trying to close it to show inbox view (which animates)
 async function closeWindow(params = {}) {
 	console.log("closeWindow: " + params.source);
-	
+
 	if (fromToolbar || isTemporaryPopup) {
 		if (params.delay) {
 			closeWindowTimeout = setTimeout(() => {
@@ -117,7 +123,7 @@ function isComposeView() {
 function showSelectedTab(url) {
 	if (url) {
         selectorAll(".tab").forEach(el => el.classList.remove("selected"));
-		
+
 		if (url.endsWith("/%5Ei") || url.endsWith("/Inbox") || url.includes("/Inbox/")) {
 			byId("tabInbox")?.classList.add("selected");
 		} else if (url.endsWith("/Important") || url.includes("/Important/")) {
@@ -162,7 +168,7 @@ async function initTabs(email) {
 	var account = getAccountByEmail(email);
 	if (account) {
 		tabs = await account.getSetting("tabs");
-		
+
 		// add enabled tabs only
 		var tabsArray = [];
 		for (const tab in tabs) {
@@ -170,7 +176,7 @@ async function initTabs(email) {
 				tabsArray.push(initTab(account, tab));
 			}
 		}
-		
+
 		tabsArray.sort(function($a, $b) {
 			if (parseInt($a.getAttribute("sortIndex")) < parseInt($b.getAttribute("sortIndex"))) {
 				return -1;
@@ -180,16 +186,16 @@ async function initTabs(email) {
 				return 0;
 			}
 		});
-		
+
 		var SHRINK_TABS_THRESHOLD = 6;
 		if (tabsArray.length > SHRINK_TABS_THRESHOLD) {
 			byId("tabs").classList.add("shrink");
 		}
         emptyNode("#tabs");
         byId("tabs").append( tabsArray );
-		
+
         htmlElement.classList.toggle("hasTabs", tabsArray.length);
-		
+
 		resizeFrameInExternalPopup();
 
 		// sync labels after display them (because the callback might delay the tabs from initially showing) remove any renamed or deleted from the settings
@@ -205,20 +211,20 @@ async function initTabs(email) {
 							break;
 						}
 					}
-					
+
 					if (!isSystemLabel(tab) && !tabFoundInLabels) {
 						console.log("remove this tab from settings: " + tab);
 						delete tabs[tab];
 						tabsUnsynced = true;
 					}
 				}
-				
+
 				if (tabsUnsynced) {
 					console.log("rescyning tabs");
 					const emailSettings = deepClone(await storage.get("emailSettings"));
 					emailSettings[email].tabs = tabs;
 					await storage.set("emailSettings", emailSettings);
-					
+
 					// force refresh of labels
 					account.getLabels(true).then(labels => {
                         console.log("labels hard", labels);
@@ -229,9 +235,9 @@ async function initTabs(email) {
 		}).catch(error => {
 			showError("Error loading labels: " + error);
 		});
-	
+
 	}
-	
+
 	showSelectedTab(await storage.get("tabletViewUrl"));
 }
 
@@ -309,9 +315,9 @@ function initTab(account, tabName) {
 }
 
 function initPopupView() {
-	
+
 	initSwitchMenuItem();
-	
+
 	console.log("initpopupview: " + popupView);
     (async () => {
         if (popupView == POPUP_VIEW_CHECKER_PLUS) {
@@ -336,7 +342,7 @@ function initPopupView() {
                     showError("Refresh or sign out and in!");
                 }, 500)
             }
-            
+
             /*
                 mui (checkerPlusForGmail must also be hard coded in manifest include_globs) is passed to the context script
                 the context script stores the mui value in the GMAIL_AT
@@ -348,7 +354,7 @@ function initPopupView() {
             let url;
             if (previewMailId) {
                 const mail = findMailById(previewMailId);
-                
+
                 var mobileViewFolder;
                 if (mail && mail.monitoredLabel == SYSTEM_PRIMARY) {
                     mobileViewFolder = "priority/%5Esmartlabel_personal";
@@ -359,7 +365,7 @@ function initPopupView() {
             } else {
                 url = await storage.get("tabletViewUrl");
             }
-            
+
             if (!url) {
                 url = urlPrefix;
             }
@@ -430,7 +436,7 @@ async function reversePopupView(force, oneTime) {
 			// store previous button action to delete next time
 			await storage.set("_oneTimeReversePopupView", await storage.get("browserButtonAction"));
 		}
-		
+
 		// reverse view
 		if (popupView == POPUP_VIEW_CHECKER_PLUS) {
 			popupView = POPUP_VIEW_TABLET;
@@ -439,7 +445,7 @@ async function reversePopupView(force, oneTime) {
 			popupView = POPUP_VIEW_CHECKER_PLUS;
 			await storage.set("browserButtonAction", BrowserButtonAction.CHECKER_PLUS);
 		}
-		
+
 		initPopupView();
 	}
 }
@@ -489,10 +495,12 @@ async function canReply(mail, dontOpenGrant) {
 
 async function getBGObjects() {
 	console.time("getBGObjects");
-    
+
     console.time("initUI");
     await initUI();
     console.timeEnd("initUI");
+
+    initEmailListContextMenu();
 
     accountAddingMethod = await storage.get("accountAddingMethod");
     highlightDates = await storage.get("highlightDates");
@@ -502,6 +510,7 @@ async function getBGObjects() {
     keyboardException_R = await storage.get("keyboardException_R");
     openGmailInNewTab = await storage.get("openGmailInNewTab");
     enableSwiping = await storage.get("enableSwiping");
+    messageBodyLightPreviewActive = await storage.get("messageBodyLightPreviewActive");
 
 	console.timeEnd("getBGObjects");
 }
@@ -520,18 +529,73 @@ function executeMailAction(mail, action, params = {}) {
 
 	return new Promise((resolve, reject) => {
 		const $mail = getMailNode(params.mail);
-		
+
+        function syncLabelsForPopupMail() {
+            if (!params.mail?.labels) {
+                return;
+            }
+
+            if (action == MailAction.APPLY_LABEL) {
+                if (!params.mail.labels.includes(params.actionParams)) {
+                    params.mail.labels.push(params.actionParams);
+                }
+            } else if (action == MailAction.REMOVE_LABEL) {
+                const index = params.mail.labels.indexOf(params.actionParams);
+                if (index != -1) {
+                    params.mail.labels.splice(index, 1);
+                }
+            }
+        }
+
+        function syncLabelsForMailListNode() {
+            if (!$mail || !params.mail?.labels) {
+                return;
+            }
+
+            const labelsTemplate = $mail.querySelector(".labelsTemplate");
+            if (!labelsTemplate?.content) {
+                return;
+            }
+
+            const $labels = $mail.querySelector(".labels");
+            if (!$labels) {
+                return;
+            }
+
+            removeAllNodes($labels.querySelectorAll(".label"));
+
+            const labelsFragment = new DocumentFragment();
+            const labels = params.mail.getDisplayLabels(true, true);
+            labels.forEach(labelObj => {
+                const $label = initTemplate(labelsTemplate).firstElementChild;
+                $label._label = labelObj;
+                $label.querySelector(".labelName").textContent = labelObj.name;
+                if (labelObj.color) {
+                    css($label.querySelector(".labelName"), {
+                        "color": labelObj.color.textColor,
+                        "background-color": labelObj.color.backgroundColor
+                    });
+                }
+
+                labelsFragment.append($label);
+            });
+
+            $labels.append(labelsFragment);
+        }
+
 		if (!params.actionParams) {
 			params.actionParams = {};
 		}
-        
+
         if (params.maybeHide) {
             params.actionParams.instantlyUpdatedCount = true;
         }
-        
+
         console.log("executeMailAction", params);
         // firefox gave error "The object could not be cloned." when trying to pass objects with functions declared, solution is stringify it manually
         sendMessageToBG("mailAction", params, true).then(response => {
+			syncLabelsForPopupMail();
+			syncLabelsForMailListNode();
 			resolve(response);
             if (response?.mustGrantAccess) {
                 // for firefox
@@ -549,9 +613,9 @@ function executeMailAction(mail, action, params = {}) {
 					errorStr = error;
 				}
             }
-            
+
             clearCloseWindowTimeout(true);
-            
+
             if (error.cause?.spreauthUrl) {
                 hideToast();
                 await openDialog(error.message, {
@@ -571,7 +635,7 @@ function executeMailAction(mail, action, params = {}) {
                 }
             }
 		});
-        
+
         if (params.maybeHide) {
             if (params.keepInInboxAsRead) {
                 $mail.classList.remove("unread");
@@ -588,24 +652,42 @@ function executeMailActionAndHide(mail, action, params = {}) {
     return executeMailAction(mail, action, params);
 }
 
-async function setContactPhoto(params, imageNode) {
+async function maybeShowPreviewingMarksAsReadNotice() {
+    if (await storage.firstTime("previewingMarksAsReadNoticeShown")) {
+        const installDate = await getInstallDate();
+        if (installDate < PREVIEW_MARKS_AS_READ_NOTICE_INSTALL_DATE) {
+            return;
+        }
 
-	function setNoPhoto() {
-		imageNode.setAttribute("src", "images/noPhoto.svg");
-		imageNode.classList.add("noPhoto");
-	}
+        showToast(getMessage("previewingMarksAsReadNotice", getMessage("general")), {
+            id: "preview-marks-as-read-notice",
+            duration: seconds(15),
+            text: getMessage("options"),
+            onClick: () => {
+                openUrl("options.html?ref=previewingMarksAsReadNotice&highlight=previewingMarksAsRead#general");
+            }
+        });
+    }
+}
+
+function setNoPhoto(imageNode) {
+    imageNode.setAttribute("src", "images/noPhoto.svg");
+    imageNode.classList.add("noPhoto");
+}
+
+async function setContactPhoto(params, imageNode) {
 
 	// contact photo
 	const contactPhoto = await getContactPhoto(params);
     imageNode.setAttribute("setContactPhoto", "true");
 
     if (params.useNoPhoto && !contactPhoto.realContactPhoto) {
-        setNoPhoto();
+        setNoPhoto(imageNode);
     } else if (contactPhoto.photoUrl) {
         imageNode.addEventListener("error", function() {
-            setNoPhoto();
+            setNoPhoto(imageNode);
         });
-        
+
         // used timeout because it was slowing the popup window from appearing
         requestIdleCallback(() => {
             if (isVisible(imageNode)) {
@@ -614,15 +696,15 @@ async function setContactPhoto(params, imageNode) {
         });
     } else {
         if (params.useNoPhoto) {
-            setNoPhoto();
+            setNoPhoto(imageNode);
         } else {
-            var name;			
+            var name;
             if (params.name) {
                 name = params.name;
             } else if (params.mail) {
                 name = params.mail.getName();
             }
-            
+
             var letterAvatorWord;
             if (name) {
                 letterAvatorWord = name;
@@ -631,31 +713,46 @@ async function setContactPhoto(params, imageNode) {
             }
             imageNode.removeAttribute("fade");
             requestIdleCallback(async () => {
-                imageNode.setAttribute("src", await letterAvatar(letterAvatorWord));
+                setLetterAvatar(imageNode, letterAvatorWord);
             });
         }
     }
 }
 
-async function letterAvatar(name, color) {
+async function setLetterAvatar(imageNode, name, color) {
     const colours = ["#1abc9c", "#2ecc71", "#3498db", "#9b59b6", "#34495e", "#16a085", "#27ae60", "#2980b9", "#8e44ad", "#2c3e50", "#f1c40f", "#e67e22", "#e74c3c", "#ecf0f1", "#95a5a6", "#f39c12", "#d35400", "#c0392b", "#bdc3c7", "#7f8c8d"];
 
     //name = "oなßüab"
-    if (!name || !/^[\p{L}\p{N}]/u.test(name.charAt(0))) {
-        // v1 commented below and return nothing to see generic contact photo intead
-        //name = " ";
+    if (!name) {
+        setNoPhoto(imageNode);
         return;
     }
-     
-    let letter = name.charAt(0).toUpperCase();
+
+    let nameCharIndex = 0;
+    let firstChar = name.charAt(nameCharIndex);
+
+    // If first character is not a letter or number, try second character
+    const letterOrNumberRegex = /^[\p{L}\p{N}]/u;
+    if (!letterOrNumberRegex.test(firstChar)) {
+        nameCharIndex = 1;
+        firstChar = name.charAt(nameCharIndex);
+
+        // If second character also fails, show no photo
+        if (!letterOrNumberRegex.test(firstChar)) {
+            setNoPhoto(imageNode);
+            return;
+        }
+    }
+
+    let letter = name.charAt(nameCharIndex).toUpperCase();
     if (letter == "SS") {
         letter = "ß";
     }
     const letterCode = letter.charCodeAt();
-     
+
     const charIndex = letterCode - 64,
         colourIndex = charIndex % 20;
-     
+
     let canvas;
 	const CANVAS_XY = 256;
 	if (typeof OffscreenCanvas != "undefined") {
@@ -666,7 +763,7 @@ async function letterAvatar(name, color) {
 	}
 
 	const context = canvas.getContext("2d");
-	 
+
 	if (color) {
 		context.fillStyle = color;
 	} else {
@@ -677,17 +774,16 @@ async function letterAvatar(name, color) {
 	context.textAlign = "center";
 	context.fillStyle = isColorTooLight(context.fillStyle, 0.60) ? "#000" : "#FFF";
     context.fillText(letter, CANVAS_XY / 2, CANVAS_XY / 1.5);
-    
+
     let dataUrl;
     try {
         dataUrl = await getDataUrl(canvas);
+        imageNode.setAttribute("src", dataUrl);
     } catch (error) {
         // refer to https://jasonsavard.com/forum/discussion/6072/error-when-reading-from-canvas-is-disabled
         console.warn("Canvas writing disabled for privacy so returning empty");
         dataUrl = "";
     }
-	
-	return dataUrl;
 }
 
 function initDarkFlags() {
@@ -712,13 +808,13 @@ function setPopupBgColor(color) {
 			id: "background-color",
             css: `
                 :root {
-                    /* --bg-color: ${color}; */
+                    xx--bg-color: ${color};
                 }
                 body:not(.background-skin) #inboxSection.active {
                     background-color: ${color};
-                    /* --inbox-section-bg-color: ${color}; */
-                    /* --bg-color: var(--bg-color); using color from popup.html */
-                    /* background-color: var(--main-background-color); */
+                    xx--inbox-section-bg-color: ${color};
+                    xx--bg-color: var(--bg-color); /* using color from popup.html */
+                    xxbackground-color: var(--main-background-color);
                 }
             `
 		});
@@ -729,53 +825,61 @@ function setPopupBgColor(color) {
 
 function hideMail($mail, autoAdvance) {
 	console.log("hideMail");
+
+	// guard against being invoked twice for the same mail (ex. accidental double-click on delete/markAsRead before the row is removed), which would otherwise crash later when $mail is already detached
+	if (!$mail || $mail._hidingInProgress) {
+		return;
+	}
+	$mail._hidingInProgress = true;
+
 	const mail = $mail._mail;
-	
+
 	if (mail) {
 		hiddenMails.push(mail.id);
 	}
-	
+
 	const wasUnread = $mail.classList.contains("unread");
-	
+
 	var onlyMailAndInPreview = false;
 	/*
 	 * commented because we added an undo notification that we wanted to be show before closing
-	// if in open email view and it's the only mail left then just close window with no animation 
+	// if in open email view and it's the only mail left then just close window with no animation
 	if ($(".mail").length == 1 && document.querySelector('neon-animated-pages').selected == 1) {
 		onlyMailAndInPreview = true;
 	}
 	*/
 
     const $nextActiveMail = $mail?.nextElementSibling || $mail?.previousElementSibling;
-	
+
 	if (!onlyMailAndInPreview) {
         const SPEED = 200;
-        slideUp($mail, SPEED);
+
+        slideUp($mail, SPEED, true);
         fadeOut($mail, SPEED);
         setTimeout(() => {
             // preserve account before removing $mail below
             const $account = $mail.closest(".account");
             $mail.remove();
-            
+
             initAccountHeaderClasses($account);
-            
+
             // had to wait till mail node was removed to init prev next buttons
             const openMail = getOpenEmail();
             if (openMail) {
                 const $openMail = getMailNode(openMail);
                 initPrevNextButtons($openMail);
             }
-            
+
             if (mail) {
                 console.log("pass exclude id: " + mail.title);
             }
             renderMoreAccountMails();
-            
-            if (selector(".mail")) {
+
+            if (selector(".mails > .mail")) {
                 if (!autoAdvance) {
-                    const $allMail = selectorAll("div.mail");
+                    const $allMail = selectorAll(".mails > div.mail");
                     $allMail.forEach(el => el.classList.remove("active"));
-                    
+
                     if ($nextActiveMail) {
                         $nextActiveMail.classList.add("active");
                     }
@@ -788,11 +892,11 @@ function hideMail($mail, autoAdvance) {
 
     // for notifications
     sendMessageToBG("hideMailTriggeredInPopup");
-	
+
 	if (wasUnread) {
         updateUnreadCount(-1, $mail);
 	}
-	
+
 	if (onlyMailAndInPreview) {
 		closeWindow({source:"onlyMailAndInPreview"});
 	} else {
@@ -804,7 +908,7 @@ function hideMail($mail, autoAdvance) {
 
 function getAccountAvatar(account) {
 	var $retAccountAvatar;
-	
+
 	Array.from(selectorAll(".accountAvatar")).some($accountAvatar => {
 		if ($accountAvatar._account.email.equalsIgnoreCase(account.email)) {
 			//setAvatarUnreadCount($accountAvatar, unreadCount);
@@ -812,7 +916,7 @@ function getAccountAvatar(account) {
 			return true;
 		}
 	});
-	
+
 	return $retAccountAvatar;
 }
 
@@ -834,7 +938,7 @@ async function setUnreadCountLabels($account) {
 	if (unreadCount == undefined) {
         unreadCount = account.unreadCount;
 	}
-	
+
     if (globalThis.allAccountsInDND || !await await isDND({account: account})) {
         if (unreadCount >= 1) {
             $account.classList.add("hasUnread");
@@ -849,7 +953,7 @@ async function setUnreadCountLabels($account) {
         $unreadCount.textContent = `(${getMessage("dnd")})`;
         show($unreadCount);
     }
-	
+
 	const $accountAvatar = getAccountAvatar(account);
 	if ($accountAvatar) {
 		setAvatarUnreadCount($accountAvatar, unreadCount);
@@ -867,7 +971,7 @@ async function setAccountAvatar($account, $accountAvatar) {
 		}, 20);
 	} else {
 		hide($account.querySelector(".accountPhoto"));
-		
+
 		let color;
 		if (await account.getSetting("accountColor") == "transparent") {
 			color = "#ccc";
@@ -876,7 +980,7 @@ async function setAccountAvatar($account, $accountAvatar) {
         }
         const emailDisplayName = await account.getEmailDisplayName();
         requestIdleCallback(async () => {
-            $accountPhoto.setAttribute("src", await letterAvatar(emailDisplayName, color));
+            setLetterAvatar($accountPhoto, emailDisplayName, color);
         });
 	}
 }
@@ -910,9 +1014,9 @@ async function updateUnreadCount(offset, $mail) {
 		unreadCount = account.unreadCount;
     }
 	unreadCount += offset;
-	
+
 	$unreadCount._count = unreadCount;
-	
+
 	setUnreadCountLabels($account);
 
     // update background unreadcount because it was out of sync after marking an email as read (since we don't poll immedaitely after), the count will be temporary because it will be overwritten on every poll
@@ -966,16 +1070,16 @@ async function initStar($star, mail) {
     }
 
 	const $mail = getMailNode(mail);
-	const $mailStar = $mail.querySelector(".star");
-	
+	const $mailStar = $mail?.querySelector(".star");
+
     // treat any star variant as starred
-    const isStarred = $mailStar.getAttribute("icon") == "star" || await mail.hasAnyLabel(GmailAPI.labels.STAR_VARIANTS) || await mail.hasLabel(SYSTEM_STARRED);
+    const isStarred = $mailStar?.getAttribute("icon") == "star" || await mail.hasAnyLabel(GmailAPI.labels.STAR_VARIANTS) || await mail.hasLabel(SYSTEM_STARRED);
     if (isStarred) {
         setStar();
 	} else {
         removeStar();
 	}
-	
+
     replaceEventListeners($star, "mouseup", event => {
         if (event.target.getAttribute("icon") == "star") {
             removeStar(event.target);
@@ -984,7 +1088,7 @@ async function initStar($star, mail) {
             setStar(event.target);
             executeMailAction(mail, "star");
             storage.get("starringMarksAsRead").then(starringMarksAsRead => {
-                if (starringMarksAsRead) {
+                if (starringMarksAsRead && $mail) {
                     hideMail($mail, true);
                 }
             });
@@ -1001,7 +1105,7 @@ function setContactPhotos(accounts, $mailNodes) {
 			if (mail) {
 				// photo
 				const $imageNode = mailNode.querySelector(".contactPhoto");
-				
+
 				// if not already set
 				if (!$imageNode.getAttribute("setContactPhoto")) {
 					// function required to keep imageNode in scope
@@ -1035,6 +1139,9 @@ function openMailInBrowser(mail, event) {
 }
 
 function openDialogWithSearch($dialog, $search, $selectionsWrapper, $selections) {
+
+    maxHeightOfPopup();
+
     openDialog($dialog, {
         id: "change-move-dialog"
     }).then(response => {
@@ -1067,6 +1174,213 @@ function openDialogWithSearch($dialog, $search, $selectionsWrapper, $selections)
     });
 }
 
+async function getLabelsWithCategories(labels) {
+    const labelsWithCategories = labels.slice(0);
+
+    if (await storage.get("accountAddingMethod") == "oauth") {
+        // Add categories at end of dropdown
+        labelsWithCategories.push({id:GmailAPI.labels.CATEGORY_PERSONAL, name:getMessage("primary")});
+        labelsWithCategories.push({id:GmailAPI.labels.CATEGORY_SOCIAL, name:getMessage("social")});
+        labelsWithCategories.push({id:GmailAPI.labels.CATEGORY_PROMOTIONS, name:getMessage("promotions")});
+        labelsWithCategories.push({id:GmailAPI.labels.CATEGORY_UPDATES, name:getMessage("updates")});
+        labelsWithCategories.push({id:GmailAPI.labels.CATEGORY_FORUMS, name:getMessage("forums")});
+    }
+
+    return labelsWithCategories;
+}
+
+function openMoveLabelDialog(mail, params = {}) {
+    const $moveLabelDialog = initTemplate("moveLabelDialogTemplate");
+
+    showLoading();
+    mail.account.getLabels().then(async labels => {
+        hideLoading();
+
+        const labelsTemplate = $moveLabelDialog.querySelector("#moveLabelTemplate");
+        const $moveLabels = $moveLabelDialog.querySelector("#moveLabels");
+        $moveLabels.querySelectorAll(".moveLabel").forEach(el => {
+            el.parentNode.removeChild(el);
+        });
+
+        labels = await getLabelsWithCategories(labels);
+
+        labels.forEach(labelObj => {
+            const $label = initTemplate(labelsTemplate).firstElementChild;
+            $moveLabels.append($label);
+            onClick($label, function() {
+                const hideAfterMove = params.hideAfterMove !== false;
+                const actionPromise = hideAfterMove
+                    ? executeMailActionAndHide(mail, "moveLabel", {
+                        autoAdvance: params.autoAdvance,
+                        actionParams: {newLabel: labelObj.id}
+                    })
+                    : executeMailAction(mail, "moveLabel", {actionParams: {newLabel: labelObj.id}});
+
+                actionPromise.then(() => {
+                    showToast("Moved to " + labelObj.name);
+                    if (params.onMoved) {
+                        params.onMoved();
+                    }
+                });
+
+                byId("change-move-dialog").close();
+            });
+            $label.querySelector(".labelText").textContent = labelObj.name;
+        });
+
+        openDialogWithSearch($moveLabelDialog, $moveLabelDialog.querySelector("#moveLabelSearch"), $moveLabels, $moveLabelDialog.querySelectorAll(".moveLabel"));
+    }).catch(error => {
+        hideLoading();
+        showError("error: " + error);
+    });
+}
+
+function openChangeLabelsDialog(mail, params = {}) {
+    const $changeLabelsDialog = initTemplate("changeLabelsDialogTemplate");
+
+    showLoading();
+    mail.account.getLabels().then(async labels => {
+        hideLoading();
+
+        const labelsTemplate = $changeLabelsDialog.querySelector("#changeLabelTemplate");
+        const $changeLabelsWrapper = $changeLabelsDialog.querySelector("#changeLabelsWrapper");
+
+        $changeLabelsWrapper.querySelectorAll(".changeLabel").forEach(el => {
+            el.parentNode.removeChild(el);
+        });
+
+        labels = await getLabelsWithCategories(labels);
+
+        for (const labelObj of labels) {
+            const $checkbox = initTemplate(labelsTemplate).firstElementChild;
+            $changeLabelsWrapper.appendChild($checkbox);
+            $checkbox.querySelector("input").checked = await mail.hasLabel(labelObj.id);
+
+            $checkbox.addEventListener("change", function(e) {
+                const onLabelActionComplete = () => {
+                    if (params.onLabelsChanged) {
+                        params.onLabelsChanged();
+                    }
+                    if (getOpenEmail()?.id == mail.id) {
+                        updateOpenEmailLabels();
+                    }
+                };
+
+                if (e.target.checked) {
+                    executeMailAction(mail, "applyLabel", {actionParams: labelObj.id}).then(() => {
+                        showToast(getMessage("labelAdded"));
+                        onLabelActionComplete();
+                    });
+                } else {
+                    executeMailAction(mail, "removeLabel", {actionParams: labelObj.id}).then(() => {
+                        showToast(getMessage("labelRemoved"));
+                        onLabelActionComplete();
+                    });
+                }
+            });
+            $checkbox.querySelector(".label-name").textContent = labelObj.name;
+        }
+
+        openDialogWithSearch($changeLabelsDialog, $changeLabelsDialog.querySelector("#changeLabelSearch"), $changeLabelsWrapper, $changeLabelsDialog.querySelectorAll(".changeLabel"));
+    }).catch(error => {
+        hideLoading();
+        showError("error: " + error);
+    });
+}
+
+async function openEmailListContextMenu(event, mail) {
+    const $contextMenu = byId("email-list-context-menu");
+    if (!$contextMenu) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    emailListContextMenuMail = mail;
+    emailListContextMenuMailNode = event.currentTarget;
+
+    const isUnread = emailListContextMenuMailNode?.classList.contains("unread");
+    const isSpam = emailListContextMenuMailNode?.classList.contains("is-spam");
+
+    $contextMenu.querySelector("#email-list-menu-mark-as-read").hidden = !isUnread;
+    $contextMenu.querySelector("#email-list-menu-mark-as-unread").hidden = isUnread;
+    $contextMenu.querySelector("#email-list-menu-add-to-tasks").hidden = !(await storage.get("showAddToTasks"));
+
+    openContextMenu($contextMenu, event);
+}
+
+function initEmailListContextMenu() {
+    function closeContextMenu() {
+        byId("email-list-context-menu")?.hidePopover();
+    }
+
+    onClickReplace("#email-list-menu-change-labels", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            openChangeLabelsDialog(emailListContextMenuMail);
+        }
+    });
+
+    onClickReplace("#email-list-menu-move-label", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            openMoveLabelDialog(emailListContextMenuMail, {
+                hideAfterMove: true,
+                autoAdvance: false
+            });
+        }
+    });
+
+    onClickReplace("#email-list-menu-archive", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            executeMailActionAndHide(emailListContextMenuMail, "archive");
+            if (accountAddingMethod == "oauth") {
+                showUndo({mail: emailListContextMenuMail, text: getMessage("archived"), undoAction: "undoArchive"});
+            }
+        }
+    });
+
+    onClickReplace("#email-list-menu-delete", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            executeMailActionAndHide(emailListContextMenuMail, "deleteEmail");
+            if (accountAddingMethod == "oauth") {
+                showUndo({mail: emailListContextMenuMail, text: getMessage("movedToTrash"), undoAction: "untrash"});
+            }
+        }
+    });
+
+    onClickReplace("#email-list-menu-add-to-tasks", async function() {
+        closeContextMenu();
+        if (!emailListContextMenuMail) {
+            return;
+        }
+
+        await createTaskFromMail(emailListContextMenuMail);
+    });
+
+    onClickReplace("#email-list-menu-mark-as-read", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            executeMailActionAndHide(emailListContextMenuMail, "markAsRead");
+            showUndo({$mail: emailListContextMenuMailNode, mail: emailListContextMenuMail, text: getMessage("markedAsRead"), undoAction: "markAsUnread"});
+        }
+    });
+
+    onClickReplace("#email-list-menu-mark-as-unread", function() {
+        closeContextMenu();
+        if (emailListContextMenuMail) {
+            executeMailAction(emailListContextMenuMail, "markAsUnread");
+            if (emailListContextMenuMailNode && !emailListContextMenuMailNode.classList.contains("unread")) {
+                emailListContextMenuMailNode.classList.add("unread");
+                updateUnreadCount(+1, emailListContextMenuMailNode);
+            }
+        }
+    });
+}
+
 function openDialogCalendarVersionNotSupported() {
     // not supported yet
     const content = new DocumentFragment();
@@ -1087,8 +1401,75 @@ function openDialogCalendarVersionNotSupported() {
     });
 }
 
+async function createTaskFromMail(mail) {
+    if (!mail) {
+        return;
+    }
+
+    showSpinner();
+    try {
+        const response = await sendMessageToCalendarExtension({
+            action: "createTask",
+            title: mail.title,
+            url: mail.getUrl()
+        });
+
+        console.log("response from calendar extension", response);
+
+        const taskUrl = response?.url || response?.taskUrl;
+        if (taskUrl) {
+            showToast(getMessage("taskCreated"), {
+                duration: seconds(8),
+                text: getMessage("open"),
+                onClick: function() {
+                    openUrl(taskUrl);
+                }
+            });
+        } else if (response?.error) {
+            showError(response.error);
+        } else {
+            openDialogCalendarVersionNotSupported();
+        }
+    } catch (error) {
+        console.error(error);
+        requiresCalendarExtension("addToTasks");
+    } finally {
+        hideSpinner();
+    }
+}
+
+function applyMessageBodyLightPreview() {
+    selectorAll("#openEmailMessages .messageBody").forEach(el => {
+        el.classList.toggle("light-preview", messageBodyLightPreviewActive);
+    });
+}
+
 function initOpenEmailEventListeners() {
-	
+    function refreshPreviewThemeToggleMenuItem() {
+        const previewThemeMenuItem = byId("menu-view-preview-light");
+        if (!previewThemeMenuItem) {
+            return;
+        }
+
+        const currentColorScheme = htmlElement.getAttribute("color-scheme") || "";
+        const darkSchemeActive = currentColorScheme == "dark";
+
+        previewThemeMenuItem.hidden = !darkSchemeActive;
+        if (!previewThemeMenuItem.hidden) {
+            const targetThemeMessage = messageBodyLightPreviewActive ? getMessage("dark") : getMessage("light");
+
+            const previewThemeText = byId("menu-view-preview-light-text");
+            if (previewThemeText) {
+                previewThemeText.textContent = `${getMessage("preview")} (${targetThemeMessage})`;
+            }
+        }
+    }
+
+    refreshPreviewThemeToggleMenuItem();
+    addEventListeners("#openEmailOptions", "mouseup", () => {
+        refreshPreviewThemeToggleMenuItem();
+    });
+
 	onClick("#back", function() {
 		openInbox();
 	});
@@ -1103,7 +1484,7 @@ function initOpenEmailEventListeners() {
 		if (this.classList.contains("visible")) {
 			const mail = getOpenEmail();
 			const $mail = getMailNode(mail);
-			
+
 			openPrevMail($mail);
 		}
 	});
@@ -1112,7 +1493,7 @@ function initOpenEmailEventListeners() {
 		if (this.classList.contains("visible")) {
 			const mail = getOpenEmail();
 			const $mail = getMailNode(mail);
-	
+
 			openNextMail($mail);
 		}
 	});
@@ -1154,7 +1535,7 @@ function initOpenEmailEventListeners() {
 			});
 		} else { // mark as UNread
 			openInbox();
-            
+
             const markAsUnreadResponse = executeMailAction(mail, "markAsUnread");
 
             if ($mail) {
@@ -1169,10 +1550,15 @@ function initOpenEmailEventListeners() {
 		}
 	});
 
+    onClick("#addToTasks", async function() {
+        const mail = getOpenEmail();
+        await createTaskFromMail(mail);
+    });
+
 	onClick("#addToGoogleCalendar, #menu-add-to-google-calendar", function() {
 		var mail = getOpenEmail();
 		var $mail = getMailNode(mail);
-		
+
 		const newEvent = {};
 		newEvent.allDay = true;
 		newEvent.summary = mail.title;
@@ -1180,7 +1566,7 @@ function initOpenEmailEventListeners() {
 		newEvent.description = mail.getUrl() + "\n\n" + mail.messages.last()?.content.htmlToText(); //mail.getLastMessageText();
 
 		console.log("newEvent", newEvent);
-		
+
 		sendMessageToCalendarExtension({action:"generateActionLink", eventEntry:JSON.stringify(newEvent)}).then(response => {
 			console.log("response: ", response);
 			if (response?.url) {
@@ -1193,121 +1579,33 @@ function initOpenEmailEventListeners() {
 		}).catch(response => {
 			// not installed or disabled
 			hideProgress();
-			
+
 			requiresCalendarExtension("addToGoogleCalendar");
 		});
 
 	});
 
 	onClick("#moveLabel, #menu-move-label", function() {
-		var mail = getOpenEmail();
-		var $mail = getMailNode(mail);
+        const popover = this.closest("[popover]");
+        if (popover) {
+            popover.hidePopover();
+        }
 
-		const $moveLabelDialog = initTemplate("moveLabelDialogTemplate");
-		
-		showLoading();
-		mail.account.getLabels().then(async labels => {
-			hideLoading();
-			
-			// labels
-			const labelsTemplate = $moveLabelDialog.querySelector("#moveLabelTemplate");
-			const $moveLabels = $moveLabelDialog.querySelector("#moveLabels");
-			//$moveLabels.find(".moveLabel").remove();
-			$moveLabels.querySelectorAll(".moveLabel").forEach(el => {
-				el.parentNode.removeChild(el);
-			});
-			
-			// shallow copy
-			var labels = labels.slice(0);
-
-			if (await storage.get("accountAddingMethod") == "oauth") {
-				// Add categories at end of dropdown
-				labels.push({id:GmailAPI.labels.CATEGORY_PERSONAL, name:getMessage("primary")});
-				labels.push({id:GmailAPI.labels.CATEGORY_SOCIAL, name:getMessage("social")});
-				labels.push({id:GmailAPI.labels.CATEGORY_PROMOTIONS, name:getMessage("promotions")});
-				labels.push({id:GmailAPI.labels.CATEGORY_UPDATES, name:getMessage("updates")});
-				labels.push({id:GmailAPI.labels.CATEGORY_FORUMS, name:getMessage("forums")});
-			}
-			
-			labels.forEach(labelObj => {
-                const $label = initTemplate(labelsTemplate).firstElementChild;
-				$moveLabels.append($label);
-                onClick($label, function() {
-                    executeMailActionAndHide(mail, "moveLabel", {autoAdvance: true, actionParams: {newLabel:labelObj.id}}).then(() => {
-                        showToast("Moved to " + labelObj.name);
-                    });
-                    byId("change-move-dialog").close();
-                });
-				$label.querySelector(".labelText").textContent = labelObj.name;
-				
-			});
-			
-			openDialogWithSearch($moveLabelDialog, $moveLabelDialog.querySelector("#moveLabelSearch"), $moveLabels, $moveLabelDialog.querySelectorAll(".moveLabel"));
-		}).catch(error => {
-			hideLoading();
-			showError("error: " + error);
-		});
-		
+        openMoveLabelDialog(getOpenEmail(), {
+            hideAfterMove: true,
+            autoAdvance: true
+        });
 	});
-	
+
 	onClick("#changeLabels", function() {
-		const mail = getOpenEmail();
-		const $mail = getMailNode(mail);
+        const popover = this.closest("[popover]");
+        if (popover) {
+            popover.hidePopover();
+        }
 
-		const $changeLabelsDialog = initTemplate("changeLabelsDialogTemplate");
-		
-		showLoading();
-		mail.account.getLabels().then(async labels => {
-			hideLoading();
-			
-			const labelsTemplate = $changeLabelsDialog.querySelector("#changeLabelTemplate");
-			const $changeLabelsWrapper = $changeLabelsDialog.querySelector("#changeLabelsWrapper");
-
-			$changeLabelsWrapper.querySelectorAll(".changeLabel").forEach(el => {
-				el.parentNode.removeChild(el);
-			});
-			
-			// shallow copy
-			var labels = labels.slice(0);
-
-			if (await storage.get("accountAddingMethod") == "oauth") {
-				// Add categories at end of dropdown
-				labels.push({id:GmailAPI.labels.CATEGORY_PERSONAL, name:getMessage("primary")});
-				labels.push({id:GmailAPI.labels.CATEGORY_SOCIAL, name:getMessage("social")});
-				labels.push({id:GmailAPI.labels.CATEGORY_PROMOTIONS, name:getMessage("promotions")});
-				labels.push({id:GmailAPI.labels.CATEGORY_UPDATES, name:getMessage("updates")});
-				labels.push({id:GmailAPI.labels.CATEGORY_FORUMS, name:getMessage("forums")});
-			}
-
-            for (const labelObj of labels) {
-                const $checkbox = initTemplate(labelsTemplate).firstElementChild;
-				$changeLabelsWrapper.appendChild($checkbox);
-				$checkbox.querySelector("input").checked = await mail.hasLabel(labelObj.id);
-				
-				$checkbox.addEventListener("change", function(e) {
-                    if (e.target.checked) {
-                        // add label
-                        executeMailAction(mail, "applyLabel", {actionParams: labelObj.id}).then(() => {
-                            showToast(getMessage("labelAdded"));
-                        });
-                    } else {
-                        // remove labels
-                        executeMailAction(mail, "removeLabel", {actionParams: labelObj.id}).then(() => {
-                            showToast(getMessage("labelRemoved"));
-                        });
-                    }
-                });
-				$checkbox.querySelector(".label-name").textContent = labelObj.name;
-			}
-			
-			openDialogWithSearch($changeLabelsDialog, $changeLabelsDialog.querySelector("#changeLabelSearch"), $changeLabelsWrapper, $changeLabelsDialog.querySelectorAll(".changeLabel"));
-		}).catch(error => {
-			hideLoading();
-			showError("error: " + error);
-		});
-		
+        openChangeLabelsDialog(getOpenEmail());
 	});
-	
+
 	onClick("#markAsSpam, #markAsSpam-menu-item", function() {
         executeMailActionAndHide(getOpenEmail(), "markAsSpam", {autoAdvance: true});
 	});
@@ -1319,6 +1617,61 @@ function initOpenEmailEventListeners() {
         }
         byId("openEmail").classList.toggle("resized");
 	});
+
+    onClick("#menu-allow-style", async function(e) {
+        const popover = e.currentTarget.closest("[popover]");
+        if (popover) {
+            popover.hidePopover();
+        }
+
+        const mail = getOpenEmail();
+        const message = mail?.messages.last();
+        const $messageBody = Array.from(selectorAll("#openEmailMessages .messageBody")).at(-1);
+        if (!message || !$messageBody) {
+            return;
+        }
+
+        setSafeHTML($messageBody, message.content, {allowStyle: true}); // one time only, not persisted
+        fixRelativeLinks($messageBody, mail);
+        $messageBody.classList.toggle("light-preview", messageBodyLightPreviewActive);
+
+        // re-rendering from message.content resets any previously restored images, so restore them again the same way the initial render does
+        if (await storage.get("alwaysDisplayExternalContent") || (mail.forceDisplayImages && accountAddingMethod == "oauth")) {
+            showImages($messageBody);
+        }
+    });
+
+    onClick("#menu-copy-html", function(e) {
+        const popover = e.currentTarget.closest("[popover]");
+        if (popover) {
+            popover.hidePopover();
+        }
+
+        const mail = getOpenEmail();
+        const message = mail?.messages.last();
+        if (!message) {
+            return;
+        }
+
+        navigator.clipboard.writeText(message.content); // raw content, before setSafeHTML sanitizes it
+        showToast(getMessage("htmlCopiedToClipboard"));
+    });
+
+    onClick("#menu-view-preview-light", function(e) {
+        const popover = e.currentTarget.closest("[popover]");
+        if (popover) {
+            popover.hidePopover();
+        }
+
+        if (!isEmailView()) {
+            return;
+        }
+
+        messageBodyLightPreviewActive = !messageBodyLightPreviewActive;
+        storage.set("messageBodyLightPreviewActive", messageBodyLightPreviewActive);
+        applyMessageBodyLightPreview();
+		refreshPreviewThemeToggleMenuItem();
+    });
 
     /*
 	onClick("#translateMessage", async function() {
@@ -1344,18 +1697,23 @@ function initOpenEmailEventListeners() {
                 hideToast();
 			}
 		});
-        
+
         const response = await chrome.runtime.sendMessage({command: "chromeTTS", text: await mail.getLastMessageText()});
         hideToast();
 	});
-	
+
 	byId("openEmailInBrowser").addEventListener("mouseup", event => {
 		const mail = getOpenEmail();
 		openMailInBrowser(mail, event);
 		event.preventDefault();
         event.stopPropagation();
 	});
-	
+
+	onClick("#print", async function() {
+		const mail = getOpenEmail();
+		openUrl(await mail.getPrintUrl());
+	});
+
 	onClick("#openEmailClose", function() {
 		closeWindow();
 	});
@@ -1372,7 +1730,7 @@ function initOpenEmailEventListeners() {
             }
         });
     }
-	
+
 	onClick(".close", function() {
 		window.close();
 	});
@@ -1387,7 +1745,7 @@ async function maxHeightOfPopup() {
         if (MAX_POPUP_HEIGHT < screen.availHeight - CHROME_HEADER_HEIGHT) {
             document.body.style.height = `${MAX_POPUP_HEIGHT / zoomFactor}px`;
         } else {
-            document.body.style.height = `${screen.availHeight - CHROME_HEADER_HEIGHT}px`;
+            document.body.style.height = `${(screen.availHeight - CHROME_HEADER_HEIGHT) / zoomFactor}px`;
         }
 	}
 }
@@ -1401,7 +1759,7 @@ async function resizePopup() {
         } else {
             if (accounts.length) {
                 var allUnreadMails = getAllUnreadMail(accounts);
-                
+
                 var mailHeight;
                 const displayDensity = await storage.get("displayDensity");
                 if (displayDensity == "compact") {
@@ -1411,12 +1769,12 @@ async function resizePopup() {
                 } else {
                     mailHeight = 107;
                 }
-                
+
                 var newBodyHeight = HEADER_HEIGHT + (accounts.length * ACCOUNT_HEADER_HEIGHT) + (allUnreadMails.length * mailHeight) + FAB_HEIGHT + 25;
                 if (newBodyHeight > MAX_POPUP_HEIGHT) {
                     newBodyHeight = MAX_POPUP_HEIGHT;
                 }
-                
+
                 console.log("resizePopup2");
                 // only need to set the height if it will be larger than exsiting, because we can't shrink the popup window - it will cause scrollbars
                 if (document.body.clientHeight < newBodyHeight) {
@@ -1444,7 +1802,7 @@ async function openEmail(params) {
     if ($mail) {
         $mail.classList.add("active");
     }
-    
+
     if (params.mail) {
         try {
             await openEmailPromise(params);
@@ -1462,9 +1820,9 @@ async function openEmail(params) {
 }
 
 function initPrevNextButtons($mail) {
-	const hasPrevMail = getNodeIndex($mail, ".mail") >= 1;
+	const hasPrevMail = getNodeIndex($mail, ".mails > .mail") >= 1;
 	byId("prevMail").classList.toggle("visible", hasPrevMail);
-	const hasNextMail = getNodeIndex($mail, ".mail") < selectorAll(".mail").length - 1;
+	const hasNextMail = getNodeIndex($mail, ".mails > .mail") < selectorAll(".mails > .mail").length - 1;
 	byId("nextMail").classList.toggle("visible", hasNextMail);
 }
 
@@ -1477,58 +1835,58 @@ function processMessage(mail, $messageBody, index) {
 		} );
 		$messageBody.innerHTML = linkedText;
 	}
-	
+
+	// intercept non-DTH links immediately so the email is interactive right away
+	interceptClicks($messageBody.querySelectorAll("a:not(.DTH)"));
+
 	if (highlightDates && mail.messages.length == (index+1)) {
-        console.time("DateTimeHighlighter");
-        
         if (!window.loadedDateTimeHighlighter) {
             DateTimeHighlighter();
             window.loadedDateTimeHighlighter = true;
         }
-		
-		var highlighterDetails;
-		
-		// only parse if not too big or else it hangs
-		// .html() can be null !!
-		if ($messageBody?.innerHTML.length < 10000) {
-			highlighterDetails = DateTimeHighlighter.highlight($messageBody.innerHTML, function(myDateRegex) {
-				console.log(myDateRegex);
-				var obj = JSON.stringify(myDateRegex);
-				obj = encodeURIComponent(obj);
-				
-				return "<a class='DTH' href='#' object=\"" + obj + "\">" + myDateRegex.match + "</a>";
-			});
-			console.log("highlighterDetails", highlighterDetails);
-			console.timeEnd("DateTimeHighlighter");
-		}
-		
-		if (highlighterDetails?.matchCount) {
-			$messageBody.innerHTML = highlighterDetails.highlightedText;
-			$messageBody.querySelectorAll(".DTH[object]").forEach(el => {
-				el.title = getMessage("addToGoogleCalendar");
 
-				onClick(el, function(event) {
-					showProgress();
-					let newEvent = this.getAttribute("object");
-					newEvent = decodeURIComponent(newEvent);
-					newEvent = JSON.parse(newEvent);
-					
-					newEvent.summary = mail.title;
-					newEvent.source = {title:mail.title, url:mail.getUrl()};
-					newEvent.description = mail.messages.last().content;
+		// Defer the CPU-intensive highlight work until after any slideDown animations (default 500ms) have completed
+		setTimeout(() => requestIdleCallback(() => {
+			// only parse if not too big or else it hangs
+			// .html() can be null !!
+			if ($messageBody?.innerHTML.length < 10000) {
+				console.time("DateTimeHighlighter");
+				const highlighterDetails = DateTimeHighlighter.highlight($messageBody.innerHTML, function(myDateRegex) {
+					console.log(myDateRegex);
+					var obj = encodeURIComponent(JSON.stringify(myDateRegex));
+					return "<a class='DTH' href='#' object=\"" + obj + "\">" + myDateRegex.match + "</a>";
+				});
+				console.log("highlighterDetails", highlighterDetails);
+				console.timeEnd("DateTimeHighlighter");
 
-                    createCalendarEvent(newEvent);
+				if (highlighterDetails?.matchCount) {
+					$messageBody.innerHTML = highlighterDetails.highlightedText;
+					$messageBody.querySelectorAll(".DTH[object]").forEach(el => {
+						el.title = getMessage("addToGoogleCalendar");
 
-                    event.preventDefault();
-                    event.stopPropagation();
-				})
-			});
-		}
+						onClick(el, function(event) {
+							showProgress();
+							let newEvent = this.getAttribute("object");
+							newEvent = decodeURIComponent(newEvent);
+							newEvent = JSON.parse(newEvent);
+
+							newEvent.summary = mail.title;
+							newEvent.source = {title:mail.title, url:mail.getUrl()};
+							newEvent.description = mail.messages.last().content;
+
+                            createCalendarEvent(newEvent);
+
+                            event.preventDefault();
+                            event.stopPropagation();
+						});
+					});
+					// innerHTML was replaced so re-attach interceptClicks on the remaining (non-DTH) links
+					interceptClicks($messageBody.querySelectorAll("a:not(.DTH)"));
+				}
+			}
+		}, { timeout: 5000 }), 600);
 	}
 
-	// must do this after DateTimeHighlighter
-	interceptClicks($messageBody.querySelectorAll("a:not(.DTH)"));
-	
 	onClickReplace(".showTrimmedContent", function(event) {
 		slideToggle(event.target.nextElementSibling, 200);
 	});
@@ -1546,10 +1904,10 @@ function setMailMessage($openEmailMessages, mail, message) {
 	if (!message.bcc) {
 		message.bcc = [];
 	}
-	
+
     const $message = initTemplate('openEmailMessageTemplate').firstElementChild;
 	$openEmailMessages.append($message);
-	
+
 	$message._message = message;
 
 	// sender
@@ -1562,9 +1920,9 @@ function setMailMessage($openEmailMessages, mail, message) {
 			$message.querySelector(".openEmailSenderEmailAddress").textContent = `<${message.from.email}>`;
 		}
 	});
-	
+
 	// date
-	let dateStr;						
+	let dateStr;
 	if (message.date) {
 		dateStr = message.date.displayDate({relativeDays: true, long: true});
 		$message.querySelector(".date").title = message.date.toLocaleStringJ();
@@ -1573,12 +1931,12 @@ function setMailMessage($openEmailMessages, mail, message) {
     }
 
 	$message.querySelector(".date").textContent = dateStr;
-	
+
     const $toCC = document.createElement("span");
     $toCC.textContent = `${getMessage("to")}: `;
     const $toCCFullDetails = document.createElement("span");
     $toCCFullDetails.append(`${getMessage("from").toLowerCase()}: ${message.from.email}`, document.createElement("br"));
-	
+
 	var firstTo = true;
 	var firstCC = true;
 
@@ -1590,12 +1948,12 @@ function setMailMessage($openEmailMessages, mail, message) {
 				$toCCFullDetails.append(", ");
 			}
 			firstTo = false;
-			
+
 			$toCC.append(pretifyRecipientDisplay(to, mail.account.getEmail()));
 			$toCCFullDetails.append(pretifyRecipientDisplay(to, mail.account.getEmail(), true));
 		});
 	}
-	
+
 	if (message.cc.length) {
 		if (message.to.length) {
 			$toCCFullDetails.append(document.createElement("br"));
@@ -1610,12 +1968,12 @@ function setMailMessage($openEmailMessages, mail, message) {
 				$toCCFullDetails.append(", ");
 			}
 			firstCC = false;
-			
+
 			$toCC.append(pretifyRecipientDisplay(cc, mail.account.getEmail()));
 			$toCCFullDetails.append(pretifyRecipientDisplay(cc, mail.account.getEmail(), true));
 		});
 	}
-	
+
 	if (message.bcc.length) {
 		if (message.to.length || message.cc.length) {
             $toCC.append(", ");
@@ -1623,7 +1981,7 @@ function setMailMessage($openEmailMessages, mail, message) {
         }
 		$toCC.append("bcc: ");
 		$toCC.append(pretifyRecipientDisplay(message.bcc.first(), mail.account.getEmail()));
-        
+
 		$toCCFullDetails.append("bcc: ", pretifyRecipientDisplay(message.bcc.first(), mail.account.getEmail(), true));
 	}
 
@@ -1633,26 +1991,51 @@ function setMailMessage($openEmailMessages, mail, message) {
 		event.preventDefault();
         event.stopPropagation();
 	});
-	
+
+    const $unsubscribe = $message.querySelector(".unsubscribe");
+    if (message === mail.messages.last() && mail.canUnsubscribe()) {
+        show($unsubscribe);
+        onClick($unsubscribe, async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+                const response = await mail.unsubscribe();
+                if (response.method != "url") { // url opens a tab for the user to confirm, so no need for a toast
+                    hide($unsubscribe);
+                    showToast(getMessage("done"));
+                }
+            } catch (error) {
+                showError(error);
+            }
+        });
+    } else {
+        hide($unsubscribe);
+    }
+
     emptyAppend($message.querySelector(".to"), $toCC);
 	emptyAppend($message.querySelector(".messageDetails"), $toCCFullDetails);
 	$message.querySelector(".snippet").textContent = message.textContent.htmlToText();
-	
+
 	const $messageBody = $message.querySelector(".messageBody");
-	$messageBody.innerHTML = message.content;
+
+    // Remove everything before the DOCTYPE or HTML tag or <BT Email Template 133>
+	const cleanedContent = message.content.replace(/^[\s\S]*?(?=(<!DOCTYPE|<html))/i, "");
+	setSafeHTML($messageBody, cleanedContent);
+
 	fixRelativeLinks($messageBody, mail);
-	
+	$messageBody.classList.toggle("light-preview", messageBodyLightPreviewActive);
+
 	return $message;
 }
 
 function previewVideo(source) {
 	const $content = initTemplate("videoDialogTemplate");
 	const video = $content.querySelector("video");
-	
+
 	video.src = source;
 	video.load();
 	video.play();
-	
+
 	onClickReplace(video, function() {
 		if (video.paused == false) {
 			video.pause();
@@ -1660,10 +2043,10 @@ function previewVideo(source) {
 			video.play();
 		}
 	});
-	
+
     //video.pause();
     //video.currentTime = 0;
-	
+
 	openDialog($content, {
         closeButton: true,
         ok: false
@@ -1679,7 +2062,64 @@ function expandMessages(params = {}) {
     // timeout required to show progress bar
     setTimeout(() => {
         openEmail(params);
-    }, params.mail.messages.length < 10 ? 1 : 200); // smaller then 10 messages then no timeout needed 
+    }, params.mail.messages.length < 10 ? 1 : 200); // smaller then 10 messages then no timeout needed
+}
+
+function activatePage($page, fnAfterTransition, disableTransition) {
+    // detect if already active or else causing incomplete transition when using back to inbox button
+    if (!$page.classList.contains("active")) {
+
+        if (disableTransition) {
+            selectorAll(".page").forEach(el => el.classList.add("disableTransition"));
+        }
+        selectorAll(".page").forEach(el => el.classList.remove("active"));
+
+        $page.classList.add("active");
+        $page.addEventListener("transitionend", function(e) {
+            // #openEmail must have a tabindex for this focus to work
+            requestAnimationFrame(() => {
+                selectorAll(".page").forEach(el => el.classList.remove("disableTransition"));
+                if (fnAfterTransition) {
+                    fnAfterTransition();
+                }
+            });
+        }, {once: true});
+    }
+}
+
+function showOpenEmailSection(fnAfterTransition) {
+    aiPromptController?.abort();
+    const $openEmailSection = byId("openEmailSection");
+    console.log("$openEmailSection", $openEmailSection);
+    activatePage($openEmailSection, fnAfterTransition);
+}
+
+const setFocusOnReplyTextarea = async (mail) => {
+    const $replyArea = byId("replyArea");
+    const textarea = /** @type {HTMLTextAreaElement} */ (getReplyTextArea());
+
+    if (!$replyArea.classList.contains("clicked")) {
+        if (await canReply(mail)) {
+            $replyArea.classList.add("clicked");
+            textarea.focus();
+        } else {
+            return;
+        }
+    }
+
+    // Dealing with Textarea Height
+    function calcHeight() {
+        console.log("calcHeight", textarea.scrollHeight);
+        const MIN_HEIGHT = 32;
+        return Math.max(textarea.scrollHeight, MIN_HEIGHT);
+    }
+
+    textarea.style.height = "auto";
+    textarea.style.height = calcHeight() + "px"; // set initial height
+
+    replaceEventListeners(textarea, "keyup", () => {
+        textarea.style.height = calcHeight() + "px";
+    });
 }
 
 function openEmailPromise(params) {
@@ -1687,23 +2127,14 @@ function openEmailPromise(params) {
 
 		const mail = params.mail;
 		console.log("open email", mail);
-		
-        const $openEmailSection = byId("openEmailSection");
+
 		const openEmailSectionLayout = initTemplate("openEmailSectionLayoutTemplate", true);
         console.log("openEmailSectionLayout", openEmailSectionLayout);
         openEmailSectionLayout.id = "openEmailSectionLayout";
-        console.log("$openEmailSection", $openEmailSection);
 
-        // detect if already active or else causing incomplete transition when using back to inbox button
-        if (!$openEmailSection.classList.contains("active")) {
-            selectorAll(".page").forEach(el => el.classList.remove("active"));
-            $openEmailSection.classList.add("active");
-            console.log("$openEmailSection", $openEmailSection);
-            $openEmailSection.addEventListener("transitionend", function(e) {
-                // #openEmail must have a tabindex for this focus to work
-                byId("openEmail").focus();
-            }, {once: true});
-        }
+        showOpenEmailSection(() => {
+            byId("openEmail").focus();
+        });
 
         //addMyScrollbars($openEmailSection, document.querySelector("#openEmailSection app-header-layout")?.shadowRoot);
 
@@ -1713,44 +2144,17 @@ function openEmailPromise(params) {
         $openEmail._mail = mail;
         $openEmail.classList.add("resized");
 		$openEmail.classList.toggle("facebook", mail.authorMail.includes("facebookmail.com"));
-		
+
 		selector(".u-url").textContent = mail.getUrl();
         const openEmailSubject = selector(".openEmailSubject");
         openEmailSubject.textContent = mail.title ? mail.title : `(${getMessage("noSubject")})`;
 		replaceEventListeners(openEmailSubject, "mouseup", e => {
             openMailInBrowser(mail, e);
         });
-		
-		// labels
-		const labelsTemplate = byId("openEmailLabelsTemplate");
-		const $labels = byId("openEmailLabels");
-        removeAllNodes($labels.querySelectorAll(".label"));
-		
-        const labelsFragment = new DocumentFragment();
-		const labels = mail.getDisplayLabels();
-		labels.forEach(labelObj => {
-			const $label = initTemplate(labelsTemplate).firstElementChild;
-			$label.querySelector(".labelName").textContent = labelObj.name;
 
-			if (labelObj.color) {
-				css($label.querySelectorAll(".labelName, .removeLabel"), {
-					"color": labelObj.color.textColor,
-					"background-color": labelObj.color.backgroundColor
-				});
-			}
+		// labels - use updateOpenEmailLabels function to render them
+		updateOpenEmailLabels();
 
-			onClick($label.querySelector(".removeLabel"), function() {
-                executeMailAction(mail, "removeLabel", {actionParams: labelObj.id}).then(() => {
-					showToast(getMessage("labelRemoved"));
-				});
-				$label.remove();
-			});
-
-            labelsFragment.append($label);
-		});
-
-        $labels.append(labelsFragment);
-		
 		initStar(selector("#openEmail .star"), mail);
 
         if (mail.messages.length >= 2) {
@@ -1777,10 +2181,10 @@ function openEmailPromise(params) {
 		}
 
 		const $mail = getMailNode(mail);
-		
+
 		removeAllNodes(".message");
 		byId("messageExpander")?.remove();
-		
+
 		//byId("openEmailProgress").classList.add("visible");
         showProgress();
 
@@ -1790,7 +2194,7 @@ function openEmailPromise(params) {
 
 		mail.getThread({forceDisplayImages:mail.forceDisplayImages}).then(async response => {
             const mail = response;
-            
+
             const lastAccountEmailPreviewDates = shallowClone(await storage.get("_lastAccountEmailPreviewDates"));
             lastAccountEmailPreviewDates[mail.account.getEmail()] = new Date();
             storage.set("_lastAccountEmailPreviewDates", lastAccountEmailPreviewDates);
@@ -1809,7 +2213,7 @@ function openEmailPromise(params) {
                 } else {
                     hide("#markAsSpam");
                 }
-				
+
 				const markAsReadSetting = await storage.get("previewing_marks_as_read");
 				if (markAsReadSetting) {
 					hide("#markAsRead");
@@ -1821,11 +2225,12 @@ function openEmailPromise(params) {
                         hide("#markAsNotSpam");
                     }
 
-					if ($mail.classList.contains("unread")) {
+					if ($mail?.classList.contains("unread")) {
+                        maybeShowPreviewingMarksAsReadNotice();
                         executeMailActionAndHide(mail, "markAsRead", {keepInInboxAsRead: true});
 					}
 				} else {
-					if ($mail.classList.contains("unread")) {
+					if ($mail?.classList.contains("unread")) {
 						show("#markAsRead");
 						hide("#markAsUnread");
 					} else {
@@ -1833,7 +2238,7 @@ function openEmailPromise(params) {
 						show("#markAsUnread");
 					}
 				}
-				
+
 				const $openEmailMessages = byId("openEmailMessages");
 				var totalHiddenMessages = 0;
 
@@ -1872,7 +2277,7 @@ function openEmailPromise(params) {
                                }
                             }
                         }
-                        
+
                         // hide middle messages
                         if (mail.messages.length >=4 && messageIndex >= 1 && messageIndex < mail.messages.length-1) {
                             // might not have been viewed yet (ie. not collapsed) so let's NOT hide it
@@ -1880,13 +2285,13 @@ function openEmailPromise(params) {
                                 mustHide = true;
                             }
                         }
-                        
+
                         // if should be hidden but user has clicked to expandMessages so don't hide them
                         if (mustHide && (params.expandMessages || !autoCollapseConversations)) {
                             mustHide = false;
                         }
                     }
-					
+
 					// for performance, let's not create hidden thread message nodes
 					if (mustHide) {
 						totalHiddenMessages++;
@@ -1894,7 +2299,7 @@ function openEmailPromise(params) {
 							return;
 						}
 					}
-					
+
 					const $message = setMailMessage($openEmailMessages, mail, message);
 					const $messageBody = $message.querySelector(".messageBody");
 
@@ -1917,7 +2322,7 @@ function openEmailPromise(params) {
 								el.removeAttribute("background");
 								externalContentHidden = true;
 							});
-							
+
 							$messageBody.querySelectorAll("*[style*='background:'], *[style*='background-image:']").forEach(el => {
 								var style = el.getAttribute("style");
 								style = style.replace(/background/ig, "backgroundDISABLED");
@@ -1927,9 +2332,10 @@ function openEmailPromise(params) {
 						} else if (mail.forceDisplayImages && accountAddingMethod == "oauth") {
 							showImages($messageBody);
 						}
-						
+
 						if (externalContentHidden) {
 							showToast("", {
+                                id: "display-external-content-toast",
                                 duration: seconds(20),
                                 buttons: [{
                                     text: getMessage("displayImages"),
@@ -1943,33 +2349,33 @@ function openEmailPromise(params) {
                                     }
                                 }]
                             });
-							
+
                             async function displayImages(always) {
 								// in autodetect - img is always converted to imghidden (refer to patch 101) so we must refetch the thread
 								if (accountAddingMethod == "autoDetect") {
 									mail.messages = [];
 								}
-								
+
 								mail.forceDisplayImages = true;
 								openEmail({mail:mail});
-								
+
 								if (always) {
 									await storage.set("alwaysDisplayExternalContent", true);
 								}
-								
+
 								hideToast();
                             }
 						}
 					}
-					
+
 					if (mustCollapse && autoCollapseConversations) {
 						$message.classList.add("collapsed");
 					}
-					
+
 					if (mustHide) {
 						$message.classList.add("hide");
 					}
-					
+
 					// last message
 					if (messageIndex == mail.messages.length-1) {
 						// just do this for last message for now - optimize
@@ -1989,9 +2395,17 @@ function openEmailPromise(params) {
                                     } else {
                                         const lang = await storage.get("language");
                                         if (lang !== detectedLang) {
+                                            // Translator supports language codes, while browser preferences may include a region.
+                                            const getTranslatorLanguage = language => {
+                                                const subtags = language.replaceAll("_", "-").split("-");
+                                                const script = subtags.find(subtag => /^[A-Z][a-z]{3}$/.test(subtag));
+                                                return script ? `${subtags[0]}-${script}` : subtags[0];
+                                            };
+                                            const translatorSourceLanguage = getTranslatorLanguage(detectedLang);
+                                            const translatorTargetLanguage = getTranslatorLanguage(lang);
                                             const availability = await Translator.availability({
-                                                sourceLanguage: detectedLang,
-                                                targetLanguage: lang,
+                                                sourceLanguage: translatorSourceLanguage,
+                                                targetLanguage: translatorTargetLanguage,
                                             });
 
                                             console.log("availability:", availability);
@@ -2011,16 +2425,25 @@ function openEmailPromise(params) {
                                                     if (availability == "downloadable") {
                                                         show("#download-translation");
                                                     }
-                                                    const translator = await Translator.create({
-                                                        sourceLanguage: detectedLang,
-                                                        targetLanguage: lang,
-                                                        monitor(m) {
-                                                            m.addEventListener('downloadprogress', (e) => {
-                                                                console.log(`Downloaded ${e.loaded * 100}%`);
-                                                                byId("download-translation-progress").value = e.loaded;
-                                                            });
-                                                        },
-                                                    });
+                                                    let translator;
+                                                    try {
+                                                        translator = await Translator.create({
+                                                            sourceLanguage: translatorSourceLanguage,
+                                                            targetLanguage: translatorTargetLanguage,
+                                                            monitor(m) {
+                                                                m.addEventListener('downloadprogress', (e) => {
+                                                                    console.log(`Downloaded ${e.loaded * 100}%`);
+                                                                    byId("download-translation-progress").value = e.loaded;
+                                                                });
+                                                            },
+                                                        });
+                                                    } catch (error) {
+                                                        console.error("Unable to create translator", error);
+                                                        byId("translate-button").removeAttribute("disabled");
+                                                        hideProgress();
+                                                        hide("#download-translation");
+                                                        return;
+                                                    }
                                                     hide("#download-translation");
 
                                                     let translation;
@@ -2039,13 +2462,13 @@ function openEmailPromise(params) {
                                                     translation = await translationPromise;
                                                     clearTimeout(timeout);
                                                     console.log(translation);
-                                                    $message.querySelector(".messageBody").innerHTML = translation;
+                                                    setSafeHTML($message.querySelector(".messageBody"), translation);
                                                     hideProgress();
 
                                                     selector("#show-original-text").classList.remove("invisible");
                                                     onClickReplace("#show-original-text", async () => {
                                                         selector(".openEmailSubject").textContent = mail.title;
-                                                        $message.querySelector(".messageBody").innerHTML = mail.messages.last().content;
+                                                        setSafeHTML($message.querySelector(".messageBody"), mail.messages.last().content);
                                                         selector("#show-original-text").classList.add("invisible");
                                                         byId("translate-button").removeAttribute("disabled");
                                                     });
@@ -2066,7 +2489,7 @@ function openEmailPromise(params) {
                                                             const value = event.target.getAttribute("name");
                                                             dontTranslateLangs[detectedLang] = value;
                                                             storage.set("translationSettings", dontTranslateLangs);
-                                                            dialog.close();
+                                                            event.target.closest("dialog")?.close();
 
                                                             if (value == "dont-translate") {
                                                                 slideUp("#message-translate");
@@ -2074,7 +2497,7 @@ function openEmailPromise(params) {
                                                         });
                                                     });
 
-                                                    dialog = openDialog(translateOptions);
+                                                    dialog = await openDialog(translateOptions);
                                                 });
 
                                                 if (availability == "available" && dontTranslateLangs[detectedLang] == "automatically") {
@@ -2098,16 +2521,16 @@ function openEmailPromise(params) {
 							}
 						});
 					}
-					
+
 					// if last child is block quote then hide else keep it
 					Array.from($message.querySelectorAll("[class$=gmail_extra], blockquote:not(.gmail_quote):last-child")).some($trimmedContent => { // blockquote[type='cite'], [class$=gmail_quote], blockquote:not(.gmail_quote)
-						
+
 						// this is possibly a real quote inside the body so ignore it
 						//if (this.nodeName == "BLOCKQUOTE" && this.className && this.className.includes("gmail_quote")) {
 							// continue loop
 							//return true;
 						//}
-						
+
 						hide($trimmedContent);
                         const $elipsis = document.createElement("div");
                         $elipsis.classList.add("showTrimmedContent");
@@ -2119,13 +2542,13 @@ function openEmailPromise(params) {
 						});
 						*/
 						$trimmedContent.before($elipsis);
-						
+
 						// if gmail_extra found then stop embedding any other ...
 						if ($trimmedContent.className?.includes("gmail_extra")) {
 							return true;
 						}
 					});
-					
+
 					// auto-detect files
 					$message.querySelectorAll(".att > tbody > tr").forEach(el => {
 						const $soundImage = el.querySelector("img[src*='sound']");
@@ -2179,14 +2602,44 @@ function openEmailPromise(params) {
 							el.append($videoWrapper);
 						}
 					});
-					
+
 					// manual files
 					if (message.files?.length) {
-						
+
 						const $attachmentsWrapper = $message.querySelector(".attachmentsWrapper");
                         const uniqueFiles = {};
 
+                        // Some senders include the same ICS twice (multipart/alternative + attachment).
+                        // For same-sized calendar parts, prefer the explicit attachment disposition.
+                        const preferredCalendarFileBySize = {};
+                        message.files.forEach(file => {
+                            if (!file.mimeType?.includes("application/ics") && !file.mimeType?.includes("text/calendar")) {
+                                return;
+                            }
+
+                            const sizeKey = file.size;
+                            const contentDisposition = MyGAPIClient.getHeaderValue(file.headers, "Content-Disposition") || "";
+                            const hasAttachmentDisposition = /attachment\;/i.test(contentDisposition);
+                            const existing = preferredCalendarFileBySize[sizeKey];
+
+                            if (!existing || (!existing.hasAttachmentDisposition && hasAttachmentDisposition)) {
+                                preferredCalendarFileBySize[sizeKey] = {
+                                    file,
+                                    hasAttachmentDisposition
+                                };
+                            }
+                        });
+
 						message.files.forEach((file, fileIndex) => {
+
+                            const isCalendarFile = file.mimeType?.includes("application/ics") || file.mimeType?.includes("text/calendar");
+                            if (isCalendarFile) {
+                                const preferredCalendarFile = preferredCalendarFileBySize[file.size]?.file;
+                                if (preferredCalendarFile && preferredCalendarFile !== file) {
+                                    console.warn("duplicate calendar file so ignoring it", file.filename);
+                                    return;
+                                }
+                            }
 
                             const UNIQUE_FILE_INDEX = `${file.filename}_${file.size}`;
                             if (uniqueFiles[UNIQUE_FILE_INDEX]) {
@@ -2204,22 +2657,22 @@ function openEmailPromise(params) {
 								// remove any < or > from start or end
 								contentId = contentId.replace(/^</, "").replace(/>$/, "");
 							}
-							
+
 							if (contentId && !/attachment\;/.test(contentDisposition)) {
 								// means we have an inline image etc.
                                 // see if we already queued this file for fetching
                                 // we couldn't use attachmentid or even content id because they seemed always unique
 								let queuedFile = mail.allFiles.find(allFile => allFile.filename == file.filename && allFile.size == file.body.size);
-								
+
 								// if not then added it to the queue
 								if (!queuedFile) {
 									queuedFile = mail.queueFile(message.id, file);
 								}
-								
+
 								queuedFile.fetchPromise.then(response => {
 									// $messageBody context is not lost because we are inside the loop function above... $.each(response.mail.messages, function(index, message)
 									const blobUrl = generateBlobUrl(response.data, file.mimeType);
-									
+
 									$messageBody.querySelectorAll("img").forEach(el => {
 										if (el.src?.includes(FOOL_SANITIZER_CONTENT_ID_PREFIX + contentId)) {
 											el.src = blobUrl; // "data:" + file.mimeType + ";base64," + response.data
@@ -2234,7 +2687,7 @@ function openEmailPromise(params) {
 							} else {
                                 const $attachmentDiv = initTemplate('attachmentTemplate').firstElementChild;
 								$attachmentsWrapper.append($attachmentDiv);
-								
+
 								var attachmenutImageUrl;
 								var attachmentType;
 								if (file.mimeType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
@@ -2256,7 +2709,7 @@ function openEmailPromise(params) {
 								} else {
 									attachmenutImageUrl = "/images/driveIcons/generic.png";
 								}
-								
+
                                 const $attachmentIcon = $attachmentDiv.querySelector(".attachmentIcon");
                                 $attachmentIcon.src = attachmenutImageUrl;
                                 $attachmentIcon.title = file.mimeType;
@@ -2273,7 +2726,7 @@ function openEmailPromise(params) {
                                     });
                                 }
 
-								
+
                                 onClick($attachmentDiv.querySelector(".downloadIcon"), function(e) {
 									showLoading();
 									mail.account.fetchAttachment({messageId:message.id, attachmentId:file.body.attachmentId, size:file.body.size, noSizeLimit:true}).then(response => {
@@ -2283,16 +2736,16 @@ function openEmailPromise(params) {
 										console.error(error);
 										showError(error);
 									});
-									
+
 									e.preventDefault();
 									e.stopPropagation();
 								});
-								
+
                                 onClick($attachmentDiv, function() {
 									showLoading();
 									mail.account.fetchAttachment({messageId:message.id, attachmentId:file.body.attachmentId, size:file.body.size, noSizeLimit:true}).then(function(response) {
 										hideLoading();
-										
+
 										if (attachmentType == "audio") {
 											const $content = initTemplate("audioDialogTemplate");
 											$content.querySelector("source").src = `data:${file.mimeType};base64,${response.data}`;
@@ -2300,10 +2753,10 @@ function openEmailPromise(params) {
 											const audio = $content.querySelector("audio");
 											audio.load();
 											audio.play();
-											
+
                                             //audio.pause();
                                             //audio.currentTime = 0;
-											
+
 											openDialog($content);
 										} else if (attachmentType == "video") {
 											previewVideo(`data:${file.mimeType};base64,${response.data}`);
@@ -2320,7 +2773,7 @@ function openEmailPromise(params) {
 								});
 							}
 						});
-						
+
 						show($attachmentsWrapper);
 					}
 
@@ -2331,7 +2784,7 @@ function openEmailPromise(params) {
 					setContactPhoto(contactPhotoParams, $imageNode);
 
 				});
-				
+
 				const $hiddenMessages = selectorAll(".message.hide");
 				if ($hiddenMessages.length) {
                     $hiddenMessages.forEach(el => {
@@ -2353,11 +2806,14 @@ function openEmailPromise(params) {
                     });
 				}
 
-                const attachmentNameNode = $openEmailMessages?.querySelector(".att b");
-                if (attachmentNameNode?.textContent.includes(".ics")) {
-                    const a = $openEmailMessages.querySelector("a[href*='view=att']");
-                    let icsUrl = a.getAttribute("href");
-            
+                const icsAttachmentLink = Array.from($openEmailMessages?.querySelectorAll("a[href*='view=att']") || []).find(a => {
+                    const attachmentText = `${a.textContent || ""} ${a.closest("tr")?.textContent || ""}`.toLowerCase();
+                    return attachmentText.includes(".ics");
+                });
+
+                if (icsAttachmentLink) {
+                    let icsUrl = icsAttachmentLink.getAttribute("href");
+
                     if (!icsUrl.startsWith("https")) {
                         icsUrl = mail.account.getMailUrl({ urlParams: icsUrl });
                     }
@@ -2390,17 +2846,21 @@ function openEmailPromise(params) {
                             }
                         }
                     });
-                }            
+                }
 
 				// reply area
 				const $replyArea = byId("replyArea");
-				
+
 				// reset
 				hide($replyArea);
-				
+
+                if (await storage.get("showCheckerPlusComposeInPopup")) {
+                    $replyArea.classList.add("show-checker-plus-compose");
+                }
+
 				function initReply() {
 					$replyArea.classList.remove("clicked", "sending", "sendingComplete");
-					
+
 					//$replyArea.querySelector("#send").textContent = getMessage("send");
 
                     const $sendAndArchive = $replyArea.querySelector("#sendAndArchive");
@@ -2410,7 +2870,7 @@ function openEmailPromise(params) {
 
                     const sendAndArchivePlus = document.createElement("j-icon");
                     sendAndArchivePlus.setAttribute("icon", "add");
-                    
+
                     const $archiveIcon = document.createElement("j-icon")
                     $archiveIcon.setAttribute("icon", "archive");
 
@@ -2428,7 +2888,7 @@ function openEmailPromise(params) {
                     $deleteIcon.setAttribute("icon", "delete");
 
                     emptyAppend($sendAndDelete, sendIconForDelete, sendAndDeletePlus, $deleteIcon);
-                    
+
 					getReplyTextArea().value = "";
 
 					var totalRecipients = 0;
@@ -2438,49 +2898,21 @@ function openEmailPromise(params) {
 					if (mail.messages.last().cc) {
 						totalRecipients += mail.messages.last().cc.length;
 					}
-					
+
 					if (totalRecipients <= 1) {
 						$replyArea.removeAttribute("replyAll");
-						byId("replyPlaceholder").textContent = getMessage("reply");
+						hide("#reply-all-button");
 					} else {
 						console.log("show reply all")
 						$replyArea.setAttribute("replyAll", "true");
-						byId("replyPlaceholder").textContent = getMessage("replyToAll");
+						show("#reply-all-button");
 					}
 				}
-				
+
 				initReply();
 
-                onClickReplace("#reply-textarea-wrapper", async function() {
-                    console.log("replyTextarea clicked");
-					if (!$replyArea.classList.contains("clicked")) {
-                        if (await canReply(mail)) {
-                            $replyArea.classList.add("clicked");
-                            getReplyTextArea().focus();
-
-                            // Dealing with Textarea Height
-                            function calcHeight(value) {
-                                let numberOfLineBreaks = (value.match(/\n/g) || []).length;
-                                // min-height + lines x line-height + padding + border
-                                let newHeight = 20 + numberOfLineBreaks * 20 + 12 + 0;
-                                return Math.min(newHeight, 100);
-                            }
-
-                            let textarea = getReplyTextArea();
-                            textarea.addEventListener("keyup", () => {
-                                textarea.style.height = calcHeight(textarea.value) + "px";
-                            });
-                        }
-					}
-				});
-
 				// reply only to sender
-				onClickReplace("#replyOnlyToSender", function() {
-					$replyArea.removeAttribute("replyAll");
-				});
-
-				// reply only to sender
-                addEventListeners("#forward", "mouseup", event => {
+                replaceEventListeners("#forward", "mouseup", event => {
 					openMailInBrowser(mail, event);
 					event.preventDefault();
                     event.stopPropagation();
@@ -2491,7 +2923,8 @@ function openEmailPromise(params) {
                     const emoji = event.target.textContent;
                     emojiPopover.hidePopover();
 
-                    $replyArea.click();
+                    replyButtonClickHandler();
+
                     const $replyTextArea = getReplyTextArea();
                     $replyTextArea.value += emoji;
                     $replyTextArea.focus();
@@ -2504,7 +2937,7 @@ function openEmailPromise(params) {
                 });
 
 				var replyObj;
-				
+
 				// MUST USE .off() for every event
 
                 replaceEventListeners(getReplyTextArea(), "keydown", function(e) {
@@ -2518,24 +2951,21 @@ function openEmailPromise(params) {
                             $button = byId("send");
                         }
                         console.log("button focus click");
-                        
+
                         $button.focus();
                         $button.click();
                         e.preventDefault();
                         e.stopPropagation();
                     }
                 });
-				
-                replaceEventListeners(getReplyTextArea(), "focus", async function(event) {
-                    console.log("focus")
 
+                globalThis.replyButtonClickHandler = async function() {
                     const mail = getOpenEmail();
-                    
                     const $replyTo = byId("replyTo");
                     if ($replyArea.getAttribute("replyAll")) {
                         replyObj = await mail.generateReplyObject({replyAllFlag:true});
                         console.log(replyObj);
-                        
+
                         emptyAppend($replyTo, `${getMessage("to")} `);
 
                         let firstTo = true;
@@ -2546,7 +2976,7 @@ function openEmailPromise(params) {
                             firstTo = false;
                             $replyTo.append( pretifyRecipientDisplay(to, mail.account.getEmail()) );
                         });
-                        
+
                         replyObj.ccs?.forEach(cc => {
                             if (!firstTo) {
                                 $replyTo.append(", ");
@@ -2588,20 +3018,34 @@ function openEmailPromise(params) {
                         return false;
                     });
 
-                    $replyArea.classList.add("clicked");
                     replyingToMail = mail;
-                    
+
+                    setFocusOnReplyTextarea(mail);
+
                     clearInterval(autoSaveInterval);
                     autoSaveInterval = setInterval(function() {
                         autoSave();
                     }, seconds(3));
+                }
+
+                replaceEventListeners("#reply-all-button", "click", async function(event) {
+                    $replyArea.setAttribute("replyAll", "true");
+                    replyButtonClickHandler();
+                });
+
+                replaceEventListeners("#reply-button", "click", async function(event) {
+                    if (isVisible("#reply-all-button")) {
+                        $replyArea.removeAttribute("replyAll");
+                    }
+
+                    replyButtonClickHandler();
                 });
 
                 replaceEventListeners(getReplyTextArea(), "blur", function(e) {
                     console.log("blur", e);
 
                     const mail = getOpenEmail();
-                    
+
                     if (!$replyArea.classList.contains("sendingComplete") && !getReplyTextArea().value) {
                         // if button is clicked inside reply area (ie Send) then don't reset reply area
                         if (e.relatedTarget?.nodeName == "J-BUTTON" && e.relatedTarget.closest("#replyArea")) {
@@ -2614,7 +3058,7 @@ function openEmailPromise(params) {
                         autoSave();
                     }
                 });
-				
+
 				if (showSendAndArchiveButton) {
 					show($replyArea.querySelector("#sendAndArchive"));
 				} else {
@@ -2632,32 +3076,29 @@ function openEmailPromise(params) {
 					const $sendButtonClicked = event.target;
 					const sendAndArchive = $sendButtonClicked.id == "sendAndArchive";
 					const sendAndDelete = $sendButtonClicked.id == "sendAndDelete";
-					
+
 					const replyMessageText = getReplyTextArea().value;
-					
+
 					$replyArea.classList.add("sending");
-					
-					// use Polymer.dom because in Firefox the paper-spinner was not instantianting
-                    //const $previousSendButton = $sendButtonClicked.cloneNode(true);
 
                     showSpinner();
                     $sendButtonClicked.setAttribute("disabled", "true");
-					//emptyAppend($sendButtonClicked, $spinner);
-					
+
+                    const resetSending = () => {
+                        clearTimeout(globalThis.replyTimeout);
+                        hideToast();
+                        hideSpinner();
+                        $replyArea.classList.remove("sending");
+                        $sendButtonClicked.removeAttribute("disabled");
+                    }
+
                     showToast(`${getMessage("sending")}...`, {
                         id: "sending-email",
                         duration: seconds(999),
                         text: getMessage("undo"),
                         onClick: function() {
                             sendMessageToBG("cancelReply");
-
-                            clearTimeout(globalThis.replyTimeout);
-                            hideToast();
-
-                            $replyArea.classList.remove("sending");
-                            hideSpinner();
-                            $sendButtonClicked.removeAttribute("disabled");
-                            //$sendButtonClicked.replaceWith($previousSendButton);
+                            resetSending();
                         }
                     });
 
@@ -2670,32 +3111,26 @@ function openEmailPromise(params) {
                         clearInterval(autoSaveInterval);
                         storage.remove("autoSave");
                     }, 200);
-                    
+
                     globalThis.replyTimeout = setTimeout(() => {
                         selector("#sending-email .j-toast-action").style.visibility = "hidden";
                     }, seconds(SEND_DELAY_SECONDS));
-                    
+
                     executeMailAction(mail, "postReply", {
                         actionParams: {
                             messages: mail.messages, // for generateing reply object specifically to find from alias if used
                             message: replyMessageText,
                             replyAllFlag: $replyArea.getAttribute("replyAll"),
-                            markAsRead: replyingMarksAsRead && $mail.classList.contains("unread"),
+                            markAsRead: replyingMarksAsRead && $mail?.classList.contains("unread"),
                             delay: SEND_DELAY_SECONDS,
                             sendAndArchive: sendAndArchive,
                             sendAndDelete: sendAndDelete
                         },
                         rejectOnError: true
                     }).then(response => {
-                        $replyArea.classList.remove("sending");
+                        resetSending();
 
-                        /*
-                        if (sendAndArchive) {
-                            executeMailAction(mail, "archive");
-                        } else if (sendAndDelete) {
-                            executeMailAction(mail, "deleteEmail");
-                        }
-                        */
+                        showToast(getMessage("sent"));
 
                         // append message to top
                         const newMessage = {
@@ -2715,23 +3150,19 @@ function openEmailPromise(params) {
                                 email: mail.account.getEmail()
                             };
                         }
-                        
+
                         mail.messages.push(newMessage);
-                        
+
                         const $message = setMailMessage($openEmailMessages, mail, newMessage);
-                        
+
                         $message.querySelector(".contactPhoto").setAttribute("src", $replyArea.querySelector(".contactPhoto").getAttribute("src"));
 
                         // scroll to bottom
                         getOpenEmailScrollTarget().scrollTop = getOpenEmailScrollTarget().scrollHeight;
-                        
-                        hideToast();
-                        hideSpinner();
-                        showToast(getMessage("sent"));
-                        
+
                         setTimeout(function() {
                             if (replyingMarksAsRead) {
-                                if ($mail.classList.contains("unread")) {
+                                if ($mail?.classList.contains("unread")) {
                                     let keepInInboxAsRead;
                                     let autoAdvance;
                                     if (sendAndArchive || sendAndDelete) {
@@ -2749,16 +3180,16 @@ function openEmailPromise(params) {
                                     }
                                     hide("#markAsRead");
                                     show("#markAsUnread");
-                                } else {
+                                } else if ($mail) {
                                     if (sendAndArchive || sendAndDelete) {
                                         hideMail($mail, true);
                                     }
                                 }
                             }
                         }, 1000);
-                        
+
                         initReply();
-                        
+
                     }).catch(error => {
                         console.error("in reply", error);
                         $replyArea.classList.remove("sending");
@@ -2768,15 +3199,34 @@ function openEmailPromise(params) {
                         } else {
                             showError(error);
                         }
-                    });                        
+                    });
                 }
+
+                onClickReplace(".ai-compose-button", async () => {
+                    if (await canReply(mail)) {
+                        let replyMessageAndQuotations = "";
+                        mail.messages.forEach(message => {
+                            replyMessageAndQuotations += message.textContent + "\n\n";
+                        });
+                        const replyMessageOnlyHTML = Array.from(selectorAll("#openEmailMessages .messageBody")).at(-1).innerHTML;
+
+                        openAICompose({
+                            composeType: "reply",
+                            subject: mail.title || "",
+                            replyMessageAndQuotations: replyMessageAndQuotations,
+                            replyMessageOnlyHTML: replyMessageOnlyHTML,
+                            draft: getReplyTextArea().value,
+                            promptIdentity: JSON.stringify([mail.account.getEmail(), mail.threadId || mail.id])
+                        });
+                    }
+                });
 
                 onClickReplace($replyArea.querySelector("#send"), sendButton);
                 onClickReplace($replyArea.querySelector("#sendAndArchive"), sendButton);
                 onClickReplace($replyArea.querySelector("#sendAndDelete"), sendButton);
 
 				show($replyArea);
-				
+
 				// set message photo, use profile first, else use contacts
 				const $imageNode = $replyArea.querySelector(".contactPhoto");
 				const profileInfo = await mail.account.getSetting("profileInfo");
@@ -2807,36 +3257,36 @@ function openEmailPromise(params) {
                 requestIdleCallback(async () => {
                     const otpCode = await mail.getOTPCode();
                     if (otpCode) {
-                        // if any paper-toast element is already visible, then don't show this one
-                        if (!Array.from(selectorAll(".j-toast")).some(el => isVisible(el))) {
-                            showToast(otpCode, {
-                                text: getMessage("copy"),
-                                duration: seconds(3),
-                                onClick: async function() {
-                                    const hiddenText = byId("hiddenText");
-                                    hiddenText.value = otpCode;
-                                    hiddenText.focus();
-                                    hiddenText.select();
-                                    document.execCommand('Copy');
-                                    showToast(getMessage("done"));
+                        const otpCodeDisplay = mail.otpCodeUsesFullContent
+                            ? `${otpCode} - Full message scan (local)`
+                            : otpCode;
+                        showToast(otpCodeDisplay, {
+                            text: getMessage("copy"),
+                            duration: seconds(3),
+                            onClick: async function() {
+                                const hiddenText = byId("hiddenText");
+                                hiddenText.value = otpCode;
+                                hiddenText.focus();
+                                hiddenText.select();
+                                document.execCommand('Copy');
+                                showToast(getMessage("done"));
 
-                                    if ($mail.classList.contains("unread")) {
-                                        hide("#markAsRead");
-                                        show("#markAsUnread");
+                                if ($mail?.classList.contains("unread")) {
+                                    hide("#markAsRead");
+                                    show("#markAsUnread");
 
-                                        await executeMailActionAndHide(mail, "markAsRead", {keepInInboxAsRead: true});
-                                    }
-
-                                    if (await storage.get("deleteAfterOTP")) {
-                                        executeMailActionAndHide(mail, "deleteEmail", {autoAdvance:true});
-                                    }
+                                    await executeMailActionAndHide(mail, "markAsRead", {keepInInboxAsRead: true});
                                 }
-                            });
-                        }
+
+                                if (await storage.get("deleteAfterOTP")) {
+                                    executeMailActionAndHide(mail, "deleteEmail", {autoAdvance:true});
+                                }
+                            }
+                        });
                     }
                 });
             });
-			
+
 			// need just a 1ms timeout apparently so that transitions starts ie. core-animated-pages-transition-prepare before detecting it
             // wait for certain events before processing message
             sleep(300).then(() => {
@@ -2849,23 +3299,27 @@ function openEmailPromise(params) {
                     renderMoreAccountMails({mailsToRender:1});
                 })
             });
-			
+
 			hideProgress();
 		}).catch(error => {
-            showError(error + ", please try again later!");
+            if (error?.cause == ErrorCause.MUST_UPDATE_BROWSER) {
+                showError(error?.error || error.message || "Your browser is not supported. Please update your browser to the latest version.");
+            } else {
+                showError(error + ", please try again later!");
+            }
             console.trace(error);
 			logError("error in getThread: " + error);
 			reject(error);
 		});
-		
+
 		if (!initOpenEmailEventListenersLoaded) {
 			initOpenEmailEventListeners();
 		}
-		
+
 		byId("archive").setAttribute("icon", "archive");
-		
+
 		resolve();
-	});		
+	});
 }
 
 function observe($node, className, processor) {
@@ -2878,9 +3332,9 @@ function observe($node, className, processor) {
 						processor(mutation.addedNodes[a]);
 					}
 				}
-			});    
+			});
 		});
-		
+
 		var config = { childList: true, subtree:true };
 		observer.observe($node[0], config);
 	}
@@ -2901,11 +3355,11 @@ chrome.runtime.onConnect.addListener(function(port) {
 		tabletFramePort = port;
 		if (tabletFramePort.name == "popupWindowAndTabletFrameChannel") {
 			console.log("onconnect")
-			
+
 			if (window.darkInvertedTheme) {
 				tabletFramePort.postMessage({action: "invert"});
 			}
-			
+
 			tabletFramePort.onMessage.addListener(function(message) {
 				//console.log("onMessage: " + message.action);
 				if (message.action == "tabletViewUrlChanged") {
@@ -2967,6 +3421,11 @@ if (chrome.runtime.onMessage) {
                 repeatLogic();
             }
             sendResponse();
+        } else if (message.command === "aiPromptData") {
+            console.log("message", message);
+            message.source = "gmail-page";
+            openAICompose(message);
+            sendResponse("success");
         }
         /*
         } else if (message.command == "newEmailUpdate") {
@@ -2982,7 +3441,7 @@ if (chrome.runtime.onMessage) {
         */
 	});
 }
-	
+
 if (chrome.runtime.onMessageExternal) {
 	chrome.runtime.onMessageExternal.addListener(function(message, sender, sendResponse) {
 		// MUST declare this same action "getEventDetails" in the backbround so that it does not sendresponse before we sendresponse here
@@ -3003,12 +3462,12 @@ if (chrome.runtime.onMessageExternal) {
 		}
 	});
 }
-		
+
 function showImages($node) {
 	var html = $node.innerHTML;
 	html = html.replaceAll(IMAGE_REPLACED_OPENER, IMAGE_RESTORED_OPENER);
 	html = html.replaceAll(IMAGE_REPLACED_CLOSER, IMAGE_RESTORED_CLOSER);
-	$node.innerHTML = html;
+    setSafeHTML($node, html);
 }
 
 function resetOpenEmailScrollTop() {
@@ -3028,14 +3487,14 @@ function getOpenEmailScrollTarget() {
 
 function openInbox() {
 	history.replaceState({openInbox:true}, "", "#inbox");
-	selectorAll(".page").forEach(el => el.classList.remove("active"));
-	byId("inboxSection").classList.add("active");
+
+    activatePage(byId("inboxSection"));
 
 	// need a slight pause or else the render would not work
 	setTimeout(function() {
 		renderMoreAccountMails();
 	}, 10);
-	
+
 	setTimeout(function() {
 		resetOpenEmailScrollTop();
 	}, 100)
@@ -3044,11 +3503,709 @@ function openInbox() {
     emptyNode(".messageBody");
 }
 
+function openAICompose(params = {}) {
+    const AI_PROMPT_DAILY_LIMIT = 2; // may 2026 reduced from 3 to 2
+    const AI_PROMPT_DAILY_HARD_LIMIT = 100;
+    const AI_PROMPT_DAILY_QUOTA_STORAGE_KEY = "_aiPromptDailyQuota";
+
+    if (aiPromptController) {
+        aiPromptController.abort();
+    }
+
+    if (!aiPromptController || aiPromptController.signal.aborted) {
+        aiPromptController = new AbortController();
+    }
+
+    document.body.classList.remove("prompted", "prompting", "draft-with-no-prompts-yet");
+    byId("emailContextSection").open = true;
+
+    maxHeightOfPopup();
+    history.replaceState({openInbox:true}, "", "#AICompose");
+
+    const $aiComposeSection = byId("AIComposeSection");
+
+    activatePage($aiComposeSection, async () => {
+        if (!await storage.get("checkerPlusComposeAgree")) {
+            const response = await openDialog(getMessage("checkerPlusComposeIntro"), {
+                cancel: true,
+                buttons: [
+                    {
+                        text: getMessage("moreInfo"),
+                        onClick: async function() {
+                            openUrl("https://jasonsavard.com/wiki/Checker_Plus_Compose?ref=firstTimeAICompose");
+                        }
+                    },
+                    {
+                        text: getMessage("acceptAndContinue"),
+                        primary: true,
+                        onClick: async function(dialog) {
+                            await storage.setDate("checkerPlusComposeAgree");
+                            dialog.close();
+                            byId("replyPromptTextarea").focus();
+                        }
+                    }
+                ]
+            });
+
+            if (response == "cancel") {
+                if (params.source == "gmail-page") {
+                    closeWindow();
+                } else {
+                    backForCheckerPlusCompose();
+                }
+            }
+        } else {
+            if (await canUsePrompt()) {
+                byId("replyPromptTextarea").focus();
+            } else {
+                byId("replyPromptTextarea").setAttribute("disabled", "true");
+            }
+        }
+    }, params.source == "gmail-page");
+
+    /*
+    // my page transitions bugged if focus on an input was set during animation
+	$aiComposeSection.addEventListener("transitionend", function(e) {
+        byId("replyPromptTextarea").focus();
+        selectorAll(".page").forEach(el => el.classList.remove("disableTransition"));
+	}, {once: true});
+    */
+
+    const $textarea = document.getElementById("replyPromptTextarea");
+    const $sendButton = document.getElementById("send-prompt");
+    const $stopButton = document.getElementById("stop-prompt");
+    const $stopAudioButton = byId("stop-ai-prompt-audio");
+    const $listenToPromptResponseToggle = byId("ai-compose-listen-toggle");
+    const $listenToPromptResponseToggleState = byId("ai-compose-listen-toggle-state");
+    const $draft = document.getElementById("draft");
+
+    $textarea.value = "";
+    $sendButton.classList.remove("colored");
+    $sendButton.classList.add("filled");
+
+    const setSendPromptButtonReady = () => {
+        $sendButton.classList.add("colored");
+        $sendButton.classList.remove("filled");
+    };
+
+    let conversationHistory = [];
+    let historyIndex = -1;
+    let sendAIRequestAbortController = null;
+    let currentPrompt = "";
+    let aiPromptAudioStateInterval;
+    const promptIdentity = params.promptIdentity;
+    const promptStorageKey = promptIdentity ? Alarms.EXPIRE_AI_PROMPT_DRAFT_PREFIX + encodeURIComponent(promptIdentity) : null;
+    let promptSaveTimer;
+    let promptExpiryTimer;
+    let promptSavePromise = Promise.resolve();
+    let promptNeedsSave = false;
+    let promptViewActive = true;
+
+    const clearPromptExpiryTimer = () => {
+        clearTimeout(promptExpiryTimer);
+        promptExpiryTimer = null;
+    };
+
+    const expirePromptDraft = async savedAt => {
+        const latestDraft = await storage.get(promptStorageKey);
+        if (latestDraft?.savedAt === savedAt && Date.now() - latestDraft.savedAt >= AI_PROMPT_DRAFT_MAX_AGE) {
+            await storage.remove(promptStorageKey);
+            const restorePromptDialog = byId("restorePromptDialog");
+            if (restorePromptDialog?.open) {
+                restorePromptDialog.close("escape-key");
+            }
+        }
+    };
+
+    const schedulePromptExpiry = savedAt => {
+        clearPromptExpiryTimer();
+        promptExpiryTimer = setTimeout(() => {
+            expirePromptDraft(savedAt).catch(error => {
+                console.error("Error expiring AI prompt draft:", error);
+            });
+        }, Math.max(0, AI_PROMPT_DRAFT_MAX_AGE - (Date.now() - savedAt)));
+    };
+
+    const savePromptDraft = prompt => {
+        if (!promptStorageKey) {
+            return Promise.resolve();
+        }
+
+        const savedAt = Date.now();
+        promptSavePromise = promptSavePromise.then(async () => {
+            if (prompt.trim()) {
+                await chrome.alarms.create(promptStorageKey, {when: savedAt + AI_PROMPT_DRAFT_MAX_AGE});
+                await storage.set(promptStorageKey, {prompt, savedAt});
+                if (promptViewActive) {
+                    schedulePromptExpiry(savedAt);
+                }
+            } else {
+                await storage.remove(promptStorageKey);
+                await chrome.alarms.clear(promptStorageKey);
+                clearPromptExpiryTimer();
+            }
+        }).catch(error => {
+            console.error("Error saving AI prompt draft:", error);
+        });
+        return promptSavePromise;
+    };
+
+    const clearPromptDraft = async () => {
+        clearTimeout(promptSaveTimer);
+        promptSaveTimer = null;
+        promptNeedsSave = false;
+        await promptSavePromise;
+        clearPromptExpiryTimer();
+        if (promptStorageKey) {
+            await storage.remove(promptStorageKey);
+            await chrome.alarms.clear(promptStorageKey);
+        }
+    };
+
+    const schedulePromptDraftSave = () => {
+        if (!promptSaveTimer) {
+            promptSaveTimer = setTimeout(() => {
+                promptSaveTimer = null;
+                promptNeedsSave = false;
+                savePromptDraft($textarea.value);
+            }, 300);
+        }
+    };
+
+    const loadPromptDraft = async () => {
+        if (!promptStorageKey) {
+            return;
+        }
+
+        const savedDraft = await storage.get(promptStorageKey);
+        if (!savedDraft || !promptViewActive) {
+            return;
+        }
+
+        const age = Date.now() - savedDraft.savedAt;
+        if (typeof savedDraft.prompt !== "string" || !Number.isFinite(savedDraft.savedAt) || age < 0 || age > AI_PROMPT_DRAFT_MAX_AGE) {
+            await storage.remove(promptStorageKey);
+            return;
+        }
+
+        schedulePromptExpiry(savedDraft.savedAt);
+        if (!$textarea.value) {
+            openDialog(getMessage("restorePreviousPromptOffer"), {
+                id: "restorePromptDialog",
+                cancel: true,
+                buttons: [{
+                    text: getMessage("restorePreviousPrompt"),
+                    primary: true,
+                    onClick: async dialog => {
+                        try {
+                            const latestDraft = await storage.get(promptStorageKey);
+                            if (!promptViewActive || !dialog.open) {
+                                return;
+                            }
+                            const latestAge = latestDraft && Date.now() - latestDraft.savedAt;
+                            if (!latestDraft || typeof latestDraft.prompt !== "string" || !Number.isFinite(latestDraft.savedAt) || latestAge < 0 || latestAge > AI_PROMPT_DRAFT_MAX_AGE) {
+                                await storage.remove(promptStorageKey);
+                                dialog.close("cancel");
+                                return;
+                            }
+
+                            $textarea.value = latestDraft.prompt;
+                            setSendPromptButtonReady();
+                            promptNeedsSave = true;
+                            schedulePromptDraftSave();
+                            dialog.close();
+                            $textarea.focus();
+                        } catch (error) {
+                            console.error("Error restoring AI prompt draft:", error);
+                            showError(error);
+                        }
+                    }
+                }]
+            }).catch(error => {
+                console.error("Error showing AI prompt restore dialog:", error);
+            });
+        }
+    };
+
+    aiPromptController.signal.addEventListener("abort", () => {
+        promptViewActive = false;
+        const restorePromptDialog = byId("restorePromptDialog");
+        if (restorePromptDialog?.open) {
+            restorePromptDialog.close("escape-key");
+        }
+        clearTimeout(promptSaveTimer);
+        promptSaveTimer = null;
+        if (promptNeedsSave) {
+            promptNeedsSave = false;
+            savePromptDraft($textarea.value);
+        }
+        clearPromptExpiryTimer();
+    }, {once: true});
+
+    const updatePromptAudioButton = () => {
+        if (!$stopAudioButton) {
+            return;
+        }
+
+        $stopAudioButton.hidden = !globalThis?.ChromeTTS?.isSpeaking?.();
+    };
+
+    const clearPromptAudioStateInterval = () => {
+        clearInterval(aiPromptAudioStateInterval);
+        aiPromptAudioStateInterval = null;
+    };
+
+    const stopPromptAudioPlayback = () => {
+        globalThis?.ChromeTTS?.stop?.();
+        clearPromptAudioStateInterval();
+        updatePromptAudioButton();
+    };
+
+    const startPromptAudioStateSync = () => {
+        clearPromptAudioStateInterval();
+        updatePromptAudioButton();
+        aiPromptAudioStateInterval = setInterval(() => {
+            updatePromptAudioButton();
+
+            if (!globalThis?.ChromeTTS?.isSpeaking?.()) {
+                clearPromptAudioStateInterval();
+            }
+        }, 250);
+    };
+
+    const refreshListenToPromptResponseToggle = async () => {
+        if (!$listenToPromptResponseToggleState) {
+            return;
+        }
+
+        $listenToPromptResponseToggleState.textContent = await storage.get("aiComposeListenToPromptResponse") ? "On" : "Off";
+    };
+
+    const shouldPlayPromptResponseAudio = async () => {
+        return await storage.get("aiComposeListenToPromptResponse") && await storage.get("notificationVoice");
+    };
+
+    function getLocalDateKey() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }
+
+    async function canUsePrompt(promptAttempted) {
+        let canUse = false;
+
+        const currentDateKey = getLocalDateKey();
+        const quotaObj = await storage.get(AI_PROMPT_DAILY_QUOTA_STORAGE_KEY) || {};
+
+        let promptCount = 0;
+        if (quotaObj.dateKey === currentDateKey && Number.isFinite(quotaObj.count)) {
+            promptCount = quotaObj.count;
+        }
+
+        const paymentInfo = await storage.get("paymentInfo");
+        if (paymentInfo?.subscription) {
+            canUse = true;
+        } else {
+            if (promptCount >= AI_PROMPT_DAILY_LIMIT) {
+                const response = await openContributeDialog("ai-prompt-quota", { aiPrompt: true });
+                if (response == "cancel") {
+                    if (params.source == "gmail-page") {
+                        if (conversationHistory.length == 0) {
+                            closeWindow();
+                        }
+                    } else {
+                        backForCheckerPlusCompose();
+                    }
+                }
+            } else if (promptCount >= AI_PROMPT_DAILY_HARD_LIMIT) {
+                showToast(getMessage("checkerPlusComposeHardLimit"), {
+                    duration: seconds(10)
+                });
+            } else {
+                canUse = true;
+            }
+        }
+
+        if (promptAttempted) {
+            promptCount++;
+
+            await storage.set(AI_PROMPT_DAILY_QUOTA_STORAGE_KEY, {
+                dateKey: currentDateKey,
+                count: promptCount
+            });
+        }
+
+        return canUse;
+    }
+
+    aiPromptData = params;
+
+    const $emailContextLabel = byId("emailContextLabel");
+    if (aiPromptData.subject) {
+        $emailContextLabel.textContent = aiPromptData.subject;
+    } else {
+        $emailContextLabel.textContent = getMessage("emailContext");
+    }
+
+    const emailContextEl = byId("emailContext");
+    setSafeHTML(emailContextEl, aiPromptData.replyMessageOnlyHTML);
+    emailContextEl.style.height = 'auto';
+
+    if (aiPromptData.composeType === "new") {
+        document.body.classList.add("new-composition");
+    }
+
+    if (aiPromptData.draft && aiPromptData.draft.htmlToText()) {
+        setSafeHTML($draft, aiPromptData.draft);
+        document.body.classList.add("draft-with-no-prompts-yet");
+        byId("emailContextSection").open = false;
+    } else {
+        aiPromptData.draft = null;
+    }
+
+    const sanitizeForAI = (data) => {
+        if (typeof data !== 'string') {
+            data = JSON.stringify(data);
+        }
+
+        const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const replaceSensitiveValue = (input, key, replacement = '[REDACTED]') => {
+            const pattern = new RegExp(`\\b${escapeRegExp(key)}\\b\\s*[:=]\\s*[^\\s,;]+`, 'gi');
+            return input.replace(pattern, `${key}:${replacement}`);
+        };
+
+        // Remove email addresses
+        // The (?<!\\) negative lookbehind asserts that the email pattern is not preceded by a backslash, so \na@b.com won't match the n as part of the email address.
+        data = data.replace(/(?<!\\)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]');
+
+        // Remove common sensitive tokens (simple key/value patterns)
+        data = replaceSensitiveValue(data, 'password');
+        data = replaceSensitiveValue(data, 'pwd');
+        data = replaceSensitiveValue(data, 'apiKey');
+        data = replaceSensitiveValue(data, 'token');
+        data = replaceSensitiveValue(data, 'secret');
+
+        // Remove phone numbers (basic pattern)
+        data = data.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]');
+
+        // Remove social security numbers
+        data = data.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]');
+
+        // Remove credit card patterns
+        data = data.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CC]');
+
+        return data;
+    }
+
+    async function sendToAI(prompt) {
+        try {
+            const MAX_SUBJECT_LENGTH = 500;
+            const MAX_REPLY_AND_QUOTATIONS_LENGTH = 5000;
+
+            sendAIRequestAbortController = new AbortController();
+
+            let data = JSON.stringify({
+                composeType: aiPromptData.composeType,
+                subject: aiPromptData.subject?.substring(0, MAX_SUBJECT_LENGTH),
+                replyMessageAndQuotations: aiPromptData.replyMessageAndQuotations?.substring(0, MAX_REPLY_AND_QUOTATIONS_LENGTH),
+                prompt: prompt,
+                conversationHistory: conversationHistory
+            });
+
+            data = sanitizeForAI(data);
+            data = encodeBase64UrlSafe(data);
+            data = eStr(data);
+
+            const response = await fetchJSON(Urls.AICompose,
+                data,
+                {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    'X-Misc': 'japp',
+                },
+                signal: sendAIRequestAbortController.signal
+            });
+
+            return response;
+        } catch (error) {
+            // catch fetchJSON error
+            if (error.originalError?.name === 'AbortError') {
+                console.log("aborted by user");
+                return null;
+            } else if (error.name === 'AbortError') { // catch native fetch abort (not using right now)
+                console.log('Request cancelled');
+                return null;
+            }
+
+            console.error('Error calling AI:', error);
+            throw error;
+        }
+    }
+
+    async function executePrompt(prompt) {
+        if (!prompt) {
+            prompt = $textarea.value.trim();
+        }
+        if (prompt) {
+            stopPromptAudioPlayback();
+
+            try {
+                if (!await canUsePrompt(true)) {
+                    return;
+                }
+
+                await clearPromptDraft();
+
+                document.body.classList.add("prompting");
+
+                $textarea.value = "";
+                $textarea.placeholder = getMessage("thinkingdotdotdot");
+
+                $sendButton.classList.remove("colored");
+                $sendButton.classList.add("filled");
+
+                if (aiPromptData.draft && conversationHistory.length === 0) {
+                    prompt = `Draft: ${aiPromptData.draft}\n\nTask: ${prompt}`;
+                }
+
+                // Add user message to conversation history
+                conversationHistory.push({
+                    role: 'user',
+                    parts: [{ text: prompt }]
+                });
+
+                const data = await sendToAI(prompt);
+
+                // Only process response if not cancelled
+                if (data && data.response) {
+                    conversationHistory.push({
+                        role: 'model',
+                        parts: [{ text: data.response }]
+                    });
+
+                    // Display the response (you can modify this to show in UI)
+                    console.log('AI Response:', data.response);
+                    if ($draft) {
+						setSafeHTML($draft, convertPlainTextToInnerHtml(data.response));
+                        document.body.classList.add("prompted");
+                        document.body.classList.remove("draft-with-no-prompts-yet");
+                        byId("emailContextSection").open = false;
+
+                        if (await shouldPlayPromptResponseAudio()) {
+                            ChromeTTS();
+                            ChromeTTS.queue(data.response);
+                            startPromptAudioStateSync();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showError('Error: ' + (error.error || error.message || error) + " - " + getMessage("tryAgainLater"));
+                $textarea.value = prompt;
+            } finally {
+                document.body.classList.remove("prompting");
+                $textarea.placeholder = getMessage("brieflyWriteWhatYouWantToSay");
+            }
+        }
+    }
+
+    const backForCheckerPlusCompose = () => {
+        document.body.classList.remove("prompting");
+        clearPromptAudioStateInterval();
+        updatePromptAudioButton();
+
+        showOpenEmailSection(() => {
+            byId("openEmail").focus();
+        });
+    }
+
+    updatePromptAudioButton();
+
+    $stopAudioButton?.addEventListener("click", () => {
+        stopPromptAudioPlayback();
+    }, {signal: aiPromptController.signal});
+
+    byId("ai-compose-back").addEventListener("click", () => {
+        stopPromptAudioPlayback();
+        if (params.source == "gmail-page") {
+            openInbox();
+        } else {
+            backForCheckerPlusCompose();
+        }
+    }, {signal: aiPromptController.signal});
+
+    $sendButton?.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); // keep focus on textarea
+        $textarea.focus();
+        executePrompt();
+    }, {signal: aiPromptController.signal, passive: false});
+
+    $textarea.addEventListener("input", () => {
+        promptNeedsSave = true;
+        schedulePromptDraftSave();
+    }, {signal: aiPromptController.signal});
+    window.addEventListener("pagehide", () => {
+        clearTimeout(promptSaveTimer);
+        promptSaveTimer = null;
+        if (promptNeedsSave) {
+            promptNeedsSave = false;
+            savePromptDraft($textarea.value);
+        }
+    }, {signal: aiPromptController.signal, once: true});
+
+    $listenToPromptResponseToggle?.addEventListener("click", async () => {
+        await storage.set("aiComposeListenToPromptResponse", !await storage.get("aiComposeListenToPromptResponse"));
+        refreshListenToPromptResponseToggle();
+    }, {signal: aiPromptController.signal});
+
+    refreshListenToPromptResponseToggle();
+    loadPromptDraft().catch(error => {
+        console.error("Error loading AI prompt draft:", error);
+    });
+
+    $stopButton?.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); // keep focus on textarea
+        // Abort the fetch request
+        if (sendAIRequestAbortController) {
+            sendAIRequestAbortController.abort();
+            sendAIRequestAbortController = null;
+        }
+
+        // Clear conversation history (remove last user message if it was added)
+        if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === 'user') {
+            conversationHistory.pop();
+        }
+
+        // Reset UI
+        document.body.classList.remove("prompting");
+
+        $textarea.focus();
+    }, {signal: aiPromptController.signal, passive: false});
+
+    $textarea.addEventListener("keydown", async (event) => {
+
+        setSendPromptButtonReady();
+
+        const hasTextareaContent = $textarea.value.length > 0;
+        const caretAtStart = $textarea.selectionStart === 0 && $textarea.selectionEnd === 0;
+        const caretAtEnd =
+            $textarea.selectionStart === $textarea.value.length &&
+            $textarea.selectionEnd === $textarea.value.length;
+        const shouldKeepNativeArrowUp = hasTextareaContent && historyIndex === -1 && !caretAtStart;
+        const shouldKeepNativeArrowDown = hasTextareaContent && historyIndex === -1 && !caretAtEnd;
+
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            await executePrompt();
+        } else if (event.key === "ArrowUp") {
+            if (shouldKeepNativeArrowUp) {
+                return;
+            }
+
+            event.preventDefault();
+
+            // Get all user prompts from conversation history
+            const userPrompts = conversationHistory
+                .filter(msg => msg.role === 'user')
+                .map(msg => msg.parts[0]?.text || '');
+
+            if (userPrompts.length === 0) return;
+
+            // If not in history mode, save current textarea value
+            if (historyIndex === -1) {
+                currentPrompt = $textarea.value;
+            }
+
+            // Move back in history
+            if (historyIndex < userPrompts.length - 1) {
+                historyIndex++;
+                $textarea.value = userPrompts[userPrompts.length - 1 - historyIndex];
+            }
+        } else if (event.key === "ArrowDown") {
+            if (shouldKeepNativeArrowDown) {
+                return;
+            }
+
+            event.preventDefault();
+
+            // Get all user prompts from conversation history
+            const userPrompts = conversationHistory
+                .filter(msg => msg.role === 'user')
+                .map(msg => msg.parts[0]?.text || '');
+
+            if (userPrompts.length === 0) return;
+
+            // Move forward in history
+            if (historyIndex > 0) {
+                historyIndex--;
+                $textarea.value = userPrompts[userPrompts.length - 1 - historyIndex];
+            } else if (historyIndex === 0) {
+                // Return to current prompt
+                historyIndex = -1;
+                $textarea.value = currentPrompt;
+            }
+        }
+    }, {signal: aiPromptController.signal});
+
+    const attachQuickPromptListener = (buttonId, prompt) => {
+        const button = byId(buttonId);
+        button?.addEventListener("click", async () => {
+            executePrompt(prompt);
+        }, {signal: aiPromptController.signal});
+    };
+
+    attachQuickPromptListener("quickReply", "write a quick reply to this email");
+    attachQuickPromptListener("respondAccept", "accept");
+    attachQuickPromptListener("respondDecline", "decline");
+
+    attachQuickPromptListener("polishDraft", "polish this");
+    attachQuickPromptListener("formalizeDraft", "formalize this");
+    attachQuickPromptListener("shortenDraft", "shorten this");
+    attachQuickPromptListener("lengthenDraft", "lengthen this");
+
+    const $insertDraft = document.getElementById("insertDraft");
+    $insertDraft?.addEventListener("click", async () => {
+        const responseText = conversationHistory.at(-1)?.parts[0]?.text || "";
+        if (responseText) {
+            if (params.source == "gmail-page") {
+                console.log("send ai draft");
+
+                // get sender info was added to message
+                chrome.tabs.sendMessage(params.sender.tab.id, {
+                    command: "insertAIDraft",
+                    responseText: responseText
+                }).then(() => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error inserting response:', chrome.runtime.lastError);
+                        alert('Error inserting response: ' + chrome.runtime.lastError.message);
+                    } else {
+                        window.close();
+                    }
+                });
+            } else {
+                const $replyTextArea = getReplyTextArea();
+                $replyTextArea.value = responseText;
+                showOpenEmailSection(() => {
+                    replyButtonClickHandler();
+                });
+            }
+        }
+    }, {signal: aiPromptController.signal});
+
+    aiPromptController.signal.addEventListener("abort", () => {
+        clearPromptAudioStateInterval();
+        updatePromptAudioButton();
+    }, {once: true});
+}
+
 function getMailNode(mail) {
-    const mailNodes = Array.from(selectorAll(".mail"));
+    const mailNodes = Array.from(selectorAll(".mails > .mail"));
 
     let $node = mailNodes.find(el => el._mail.id == mail.id);
-	
+
 	if (!$node) {
         $node = mailNodes.find(el => el._mail.threadId == mail.id);
 	}
@@ -3058,6 +4215,40 @@ function getMailNode(mail) {
 
 function getOpenEmail() {
 	return byId("openEmail")?._mail;
+}
+
+function updateOpenEmailLabels() {
+	const mail = getOpenEmail();
+	if (!mail) return;
+
+	const labelsTemplate = byId("openEmailLabelsTemplate");
+	const $labels = byId("openEmailLabels");
+	removeAllNodes($labels.querySelectorAll(".label"));
+
+	const labelsFragment = new DocumentFragment();
+	const labels = mail.getDisplayLabels();
+	labels.forEach(labelObj => {
+		const $label = initTemplate(labelsTemplate).firstElementChild;
+		$label.querySelector(".labelName").textContent = labelObj.name;
+
+		if (labelObj.color) {
+			css($label.querySelectorAll(".labelName, .removeLabel"), {
+				"color": labelObj.color.textColor,
+				"background-color": labelObj.color.backgroundColor
+			});
+		}
+
+		onClick($label.querySelector(".removeLabel"), function() {
+            executeMailAction(mail, "removeLabel", {actionParams: labelObj.id}).then(() => {
+				showToast(getMessage("labelRemoved"));
+				updateOpenEmailLabels();
+			});
+		});
+
+        labelsFragment.append($label);
+	});
+
+    $labels.append(labelsFragment);
 }
 
 function openPrevMail($mail) {
@@ -3074,7 +4265,7 @@ function openOtherMail($mail, direction) {
 	console.log("openOtherMail");
 	let $nextMail;
 
-    const $allMail = selectorAll(".mail");
+    const $allMail = selectorAll(".mails > .mail");
 	const mailIndex = getNodeIndex($mail, $allMail);
 
 	if (direction == "prev" && mailIndex >= 1) {
@@ -3082,7 +4273,7 @@ function openOtherMail($mail, direction) {
 	} else if (direction == "next" && mailIndex+1 < $allMail.length) {
 		$nextMail = $allMail[mailIndex+1];
 	}
-    
+
     const mail = $mail._mail;
     const nextMail = $nextMail?._mail;
 
@@ -3122,10 +4313,8 @@ async function refresh(hardRefresh) {
     }
 
     globalThis.refreshPromise = new Promise((resolve, reject) => {
-        showLoading({
-            modal: false
-        });
-        
+        showSpinner();
+
         sendMessageToBG("refreshAccounts", {hardRefreshFlag: hardRefresh, source: isSidePanel ? "sidepanel" : "popup"}).then(async () => {
             await initAllAccounts();
             resizePopup();
@@ -3178,17 +4367,17 @@ async function prepareMarkAllAsX($account, account, action) {
             showError(error);
         });
     }
-	
+
 	if (await storage.get("usedMarkAllAsReadButton")) {
 		if (account.unreadCount > MAX_EMAILS_TO_ACTION) {
             await openDialog(getMessage("tooManyUnread", MAX_EMAILS_TO_ACTION), {
                 cancel: true,
                 ok: false,
                 buttons: [{
-                    label: `${tooManyAlternativeButton} (${MAX_EMAILS_TO_ACTION}+)`,
-                    classList: ["filled"],
+                    label: `Other solutions`,
+                    //classList: ["filled"],
                     onClick: function() {
-                        openUrl("https://jasonsavard.com/wiki/Mark_all_unread_emails_as_read?ref=markAllAsReadDialog");
+                        openUrl("https://jasonsavard.com/wiki/Too_many_unread_emails?ref=markAllAsReadDialog");
                     }
                 }, {
                     label: `${tooManyMarkAsX} (< ${MAX_EMAILS_TO_ACTION})`,
@@ -3274,9 +4463,9 @@ function openComposeSection(params) {
 	var voiceEmail = params.voiceEmail;
 	var videoEmail = params.videoEmail;
 	var account = params.account;
-	
+
 	navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
-	
+
 	if (accountAddingMethod == "autoDetect") {
         openDialog(getMessage("switchToAddAccounts"), {
             cancel: true,
@@ -3291,14 +4480,14 @@ function openComposeSection(params) {
 
 		return;
 	}
-	
+
     removeAllNodes(".chip");
-	
+
 	maxHeightOfPopup();
-	
+
     const $composeSection = byId("composeSection");
 	initTemplate("composeSectionTemplate", true);
-	
+
 	if (voiceEmail) {
 		show(".recordSoundWrapper");
 		hide("#recordVideoWrapper");
@@ -3306,14 +4495,14 @@ function openComposeSection(params) {
 		hide(".recordSoundWrapper");
 		hide("#recordVideoWrapper");
 	}
-	
+
     onClickReplace($composeSection, function(e) {
 		if (!e.target.closest(".acSuggestions")) {
 			console.log("Hiding suggestions because clicked away");
 			hide($acSuggestions);
 		}
 	});
-	
+
 	onClickReplace("#composeBack", function() {
 		// stop microphone and camera
 		if (mediaStream) {
@@ -3321,11 +4510,10 @@ function openComposeSection(params) {
 				track.stop();
 			});
 		}
-		
-		selectorAll(".page").forEach(el => el.classList.remove("active"));
-		byId("inboxSection").classList.add("active");
+
+        activatePage(byId("inboxSection"));
 	});
-	
+
 	onClickReplace(".contacts", function() {
 		openUrl("https://contacts.google.com/u/" + account.id + "/");
 	});
@@ -3340,7 +4528,7 @@ function openComposeSection(params) {
 			hideProgress();
 		})
 	});
-	
+
 	onClickReplace($composeSection.querySelector(".close"), function() {
 		window.close();
 	});
@@ -3366,7 +4554,7 @@ function openComposeSection(params) {
 
 		var name;
 		var email;
-		
+
         const $selected = $acSuggestions.querySelector(".selected")
 		if (isVisible($acSuggestions) && $selected) {
 			const chipData = $selected._data;
@@ -3376,39 +4564,39 @@ function openComposeSection(params) {
 		} else {
 			email = $inputNode.value;
 		}
-		
+
 		$chip._data = {name:name, email:email};
-		
+
 		const data = {account:account, name:name, email:email};
 		setContactPhoto(data, $contactPhoto);
-		
+
         $chipName.textContent = name || email;
         $chipName.title = email;
-		
+
         onClick($removeChip, function() {
 			$chip.remove();
 			byId("composeTo").focus();
 		});
-		
+
 		selector(".chips").append($chip);
 		$inputNode.value = "";
         $inputNode.setAttribute("placeholder", "");
 	}
-	
+
 	const $fetchContacts = byId("fetchContacts");
     onClickReplace($fetchContacts, function() {
         requestPermissionForContacts(account);
 	});
-	
+
 	const MAX_SUGGESTIONS = 4;
 	const MAX_SUGGESTIONS_BY_CLICK = 8;
 	var performAutocomplete;
 	let suggestions = [];
 	let lastSuggestions = [];
-	
+
 	const $acSuggestions = selector(".acSuggestions");
 	let contacts = [];
-	
+
 	function addSuggestion(params) {
         const $acItem = document.createElement("div");
         $acItem.classList.add("acItem", "layout", "horizontal", "center");
@@ -3443,13 +4631,13 @@ function openComposeSection(params) {
             addChip(byId("composeTo"), $acSuggestions);
             byId("composeTo").focus();
         });
-		
+
 		params.delay = 1; // I tried 100 before
 		setContactPhoto(params, $contactPhoto);
-		
+
 		$acSuggestions.append($acItem);
 	}
-	
+
 	function showSuggestions() {
 		suggestions.forEach(function(suggestion) {
 			addSuggestion(suggestion);
@@ -3457,18 +4645,18 @@ function openComposeSection(params) {
 		lastSuggestions.forEach(function(suggestion) {
 			addSuggestion(suggestion);
 		});
-		
+
 		$acSuggestions.querySelector(".acItem")?.classList.add("selected");
 		show($acSuggestions);
 	}
-	
+
 	function generateSuggestionDataFromContact(account, contact, emailIndex) {
 		var email = contact.emails[emailIndex].address;
 		var name = contact.name;
 		var updated = contact.updatedDate;
 		return { account: account, email: email, name: name, updated: updated };
 	}
-	
+
 	// prefetch for speed
 	getContacts({account:account}).then(thisContacts => {
         if (thisContacts) {
@@ -3501,7 +4689,7 @@ function openComposeSection(params) {
         event.preventDefault();
         event.stopPropagation();
     });
-	
+
     replaceEventListeners($composeTo, "keydown", function(e) {
         if (e.key == "Tab" || e.key == "Enter" && !e.isComposing) {
             if (e.target.value) {
@@ -3595,12 +4783,12 @@ function openComposeSection(params) {
                                 }
                             }
                         }
-                        
+
                         if (matchedContacts >= MAX_SUGGESTIONS) {
                             break;
                         }
                     }
-                    
+
                     showSuggestions();
                 } else {
                     hide($acSuggestions);
@@ -3610,7 +4798,7 @@ function openComposeSection(params) {
             }
         }
     });
-	
+
     const $composeSubject = byId("composeSubject");
     $composeSubject.value = voiceEmail ? getMessage("voiceMessage") : getMessage("videoMessage")
     replaceEventListeners($composeSubject, "focus", function() {
@@ -3618,28 +4806,19 @@ function openComposeSection(params) {
             addChip($composeTo, $acSuggestions);
         }
     });
-	
-	if (params.skipAnimation) {
-        selectorAll(".page").forEach(el => el.classList.add("disableTransition"));
-	}
 
-    selectorAll(".page").forEach(el => el.classList.remove("active"));
-	$composeSection.classList.add("active");
-
-	// my page transitions bugged if focus on an input was set during animation
-	$composeSection.addEventListener("transitionend", function(e) {
-		$composeTo.focus();
-        selectorAll(".page").forEach(el => el.classList.remove("disableTransition"));
-	}, {once: true});
+    activatePage($composeSection, () => {
+        $composeTo.focus();
+    }, params.skipAnimation);
 
 	var mediaStream;
 	var mediaRecorder;
 	var chunks = [];
 	var blob;
 	var base64Data;
-	
+
 	var recorder;
-	
+
 	var AUDIO_CONTENT_TYPE = "audio/wav";
 	var VIDEO_CONTENT_TYPE = "video/webm";
 
@@ -3650,40 +4829,40 @@ function openComposeSection(params) {
         VIDEO_CONTENT_TYPE = "video/webm";
     }
 
-	
+
 	var videoMimeTypeAndCodec;
-	
+
 	var $recordSoundWrapper = selector(".recordSoundWrapper");
 	var $recordSoundButton = byId("recordSoundButton");
-	
+
 	function ensureRecordingIsSaved(params = {}) {
 		console.log("ensureRecordingIsSaved");
 
 		return new Promise(function(resolve, reject) {
-			
+
 			if (voiceEmail) {
 				if ($recordSoundWrapper.classList.contains("recording")) {
-					
+
 					recorder.stop();
-					
+
 					recorder.exportWAV(function(blobFromExport) {
 						blob = blobFromExport;
 						blobToBase64(blob).then(function(response) {
-							
+
 							$recordSoundWrapper.querySelector("source").setAttribute("type", AUDIO_CONTENT_TYPE);
 							$recordSoundWrapper.querySelector("source").src = response;
-							
+
 							base64Data = response;
-							
+
 							$recordSoundWrapper.classList.remove("recording");
 							$recordSoundWrapper.classList.add("recordedSound");
-							
+
 							if (params.autoplay !== false) {
 								$recordSoundWrapper.querySelector("audio").load();
 								$recordSoundWrapper.querySelector("audio").play();
 							}
 							resolve();
-							
+
 						}).catch(error => {
 							reject(error);
 						});
@@ -3693,9 +4872,9 @@ function openComposeSection(params) {
 				}
 			} else {
 				if ($recordVideoWrapper.classList.contains("recording")) {
-					
+
 					mediaRecorder.stop();
-					
+
 					mediaRecorder.onstop = function(e) {
 
 						/*
@@ -3703,7 +4882,7 @@ function openComposeSection(params) {
 							track.stop();
 						});
 						*/
-					
+
 						blob = new Blob(chunks, { 'type' : VIDEO_CONTENT_TYPE });
 				        video.muted = false;
 						video.src = window.URL.createObjectURL(blob);
@@ -3747,7 +4926,7 @@ function openComposeSection(params) {
 						}).catch(error => {
 							reject(error);
 						});
-			        	
+
 				    }
 				} else {
 					resolve();
@@ -3755,20 +4934,20 @@ function openComposeSection(params) {
 			}
 		});
 	}
-	
+
 	// Video stuff
 	var $recordVideoWrapper = byId("recordVideoWrapper");
 	var $recordVideoButton = byId("recordVideoButton");
 	var mediaRecorder;
 	var chunks;
 	var video = byId("video");
-	
+
 	/*
 	navigator.mediaDevices.enumerateDevices().then(function(response) {
 		console.log("devices", response);
 	});
 	*/
-	
+
 	var userMediaParams = {};
 	if (voiceEmail) {
 		userMediaParams.audio = true;
@@ -3776,10 +4955,10 @@ function openComposeSection(params) {
 		userMediaParams.audio = true;
 		userMediaParams.video = { facingMode: "user" };
 	}
-	
+
 	navigator.mediaDevices.getUserMedia(userMediaParams).then(stream => {
 		mediaStream = stream;
-		
+
 		if (voiceEmail) {
             onClickReplace($recordSoundButton, function() {
 				if ($recordSoundWrapper.classList.contains("recording")) {
@@ -3792,9 +4971,9 @@ function openComposeSection(params) {
 				    // Uncomment if you want the audio to feedback directly
 				    //input.connect(audio_context.destination);
 				    //__log('Input connected to audio context destination.');
-				    recorder = new Recorder(input, {numChannels:1}); // bufferLen: 1024, 
+				    recorder = new Recorder(input, {numChannels:1}); // bufferLen: 1024,
 				    recorder.record();
-					
+
 					$recordSoundWrapper.classList.add("recording");
 				}
 			});
@@ -3802,7 +4981,7 @@ function openComposeSection(params) {
 			// Video
 			function initVideoStream() {
 			    $recordVideoWrapper.classList.remove("recordedVideo");
-				
+
 				video.srcObject = stream;
 				video.muted = true;
 				video.controls = false;
@@ -3818,7 +4997,7 @@ function openComposeSection(params) {
             onClickReplace(video, function() {
                 $recordVideoButton.click();
             });
-			
+
             onClickReplace($recordVideoButton, function() {
 				if ($recordVideoWrapper.classList.contains("recording")) {
 					ensureRecordingIsSaved({autoplay:false}).then(function() {
@@ -3828,9 +5007,9 @@ function openComposeSection(params) {
 					});
 				} else {
 					initVideoStream();
-				    
+
 					chunks = [];
-					
+
 					/*
 					videoMimeTypeAndCodec = VIDEO_CONTENT_TYPE + ";codecs=vp9,opus"; // codes=vp9 was very slow while recording
 					if (!MediaRecorder.isTypeSupported(videoMimeTypeAndCodec)) {
@@ -3840,7 +5019,7 @@ function openComposeSection(params) {
 						}
 					}
 					*/
-					
+
 					var options = {mimeType : VIDEO_CONTENT_TYPE}
 					mediaRecorder = new MediaRecorder(stream, options);
 					mediaRecorder.start();
@@ -3854,12 +5033,12 @@ function openComposeSection(params) {
 						console.error('mediarecord error: ' + e);
 						throw e;
 					};
-				    
+
 				    $recordVideoWrapper.classList.add("recording");
 				}
 			});
 		}
-		
+
 	}).catch(error => {
 		console.error("media error", error);
 		if (error.name == "PermissionDismissedError") {
@@ -3903,7 +5082,7 @@ function openComposeSection(params) {
 			showError(error.name);
 		}
 	});
-	
+
 	function resetSending() {
 		$composeSection.classList.remove("sending");
 
@@ -3914,21 +5093,21 @@ function openComposeSection(params) {
 
 		byId("sendComposeEmail").replaceWith($sendComposeEmail);
 	}
-	
+
 	resetSending();
-	
+
     onClickReplace("#sendComposeEmail", function(event) {
         if ($composeTo.value) {
             addChip($composeTo, $acSuggestions);
         }
-        
+
         const tos = Array.from(selectorAll(".chip")).map(el => el._data);
-        
+
         if (tos.length == 0) {
             openDialog("Please specify at least one recipient.");
             return;
         }
-        
+
         if (((voiceEmail && !$recordSoundWrapper.classList.contains("recording")) || (videoEmail && !$recordVideoWrapper.classList.contains("recording"))) && !base64Data) {
             openDialog("You forgot to record a message.");
             return;
@@ -3947,10 +5126,11 @@ function openComposeSection(params) {
                 sendEmailParams.tos = [{email:account.getEmail()}];
             }
             sendEmailParams.subject = $composeSubject.value;
-            
+
             sendEmailParams.htmlMessage = "";
             //sendEmailParams.htmlMessage += "<span style='color:gray;font-size:90%'>To play this message:<br>Download file > Select a program > Choose <b>Google Chrome</b> or any other browser. <a href='https://jasonsavard.com/wiki/Opening_email_attachments?ref=havingTrouble'>Having trouble?</a></span><br><br>";
-            
+            sendEmailParams.htmlMessage += "Sent via Gmail Checkr";
+
             sendEmailParams.attachment = {
                 filename: voiceEmail ? VOICE_MESSAGE_FILENAME_PREFIX + ".wav" : VIDEO_MESSAGE_FILENAME_PREFIX + (VIDEO_CONTENT_TYPE === VIDEO_FORMAT_MP4 ? ".mp4" : ".webm"),
                 contentType: voiceEmail ? AUDIO_CONTENT_TYPE : VIDEO_CONTENT_TYPE,
@@ -3959,9 +5139,9 @@ function openComposeSection(params) {
             if (voiceEmail) {
                 sendEmailParams.attachment.duration = parseFloat($recordSoundWrapper.querySelector("audio").duration).toFixed(2);
             }
-            
+
             sendGA('sendAttachment', 'start');
-            
+
             if (!await storage.get("donationClicked") && await storage.get("_sendAttachmentTested")) {
                 openContributeDialog("sendAttachment", {monthly: true});
                 resetSending();
@@ -3970,14 +5150,14 @@ function openComposeSection(params) {
                 setTimeout(async () => {
                     executeAccountAction(account, "sendEmail", {actionParams: sendEmailParams}).then(async () => {
                         showToast("Sent");
-                        
+
                         if (!await storage.get("donationClicked")) {
                             openContributeDialog("sendAttachment", {
                                 monthly: true,
                                 footerText: "<i style='color:gray'>For testing this message will be sent to yourself at " + account.getEmail() + "</i>"
                             });
                         }
-                        
+
                         await storage.setDate("_sendAttachmentTested");
                         setTimeout(function() {
                             byId("composeBack").click();
@@ -4002,7 +5182,7 @@ function openComposeSection(params) {
                         });
                     }).then(function() {
                         resetSending();
-                    });					
+                    });
                 }, 1);
             }
         }).catch(error => {
@@ -4013,7 +5193,7 @@ function openComposeSection(params) {
 }
 
 function initAccountHeaderClasses($account) {
-    $account.classList.toggle("hasMail", $account.querySelector(".mail"));
+    $account.classList.toggle("hasMail", $account.querySelector(".mails > .mail"));
 }
 
 function showBackToInboxMessage() {
@@ -4024,7 +5204,13 @@ function showBackToInboxMessage() {
             const accountsCheckingSpam = await storage.get("_accountsCheckingSpam");
             for (const email in accountsCheckingSpam) {
                 const account = accounts.find(account => account.getEmail().equalsIgnoreCase(email));
-                toggleSpamFolder(account);
+                await toggleSpamFolder(account);
+            }
+
+            const accountsCheckingTrash = await storage.get("_accountsCheckingTrash");
+            for (const email in accountsCheckingTrash) {
+                const account = accounts.find(account => account.getEmail().equalsIgnoreCase(email));
+                await toggleTrashFolder(account);
             }
 
             hideToast();
@@ -4034,37 +5220,38 @@ function showBackToInboxMessage() {
 
 function setAccountHeaderColor($account, color) {
     if (color) {
-        let accountHeaderStyle = $account.querySelector(".accountHeader").getAttribute("style");
-        if (accountHeaderStyle) {
-            accountHeaderStyle += `; `;
-        } else {
-            accountHeaderStyle = "";
-        }
-        accountHeaderStyle += `background-color: ${color}`;
-        accountHeaderStyle += " !important";
-        $account.querySelector(".accountHeader").setAttribute("style", accountHeaderStyle);
-        $account.querySelector(".accountHeader").classList.toggle("dark-bg", !isColorTooLight(color, 0.60));
+        $account.querySelector(".accountHeader").style.setProperty('background-color', color); // 'important'
     }
+    const computedBgColor = getComputedStyle($account.querySelector(".accountHeader")).backgroundColor;
+    $account.querySelector(".accountHeader").classList.toggle("dark-bg", !isColorTooLight(computedBgColor, 0.60));
 }
 
 async function toggleSpamFolder(account) {
+    return toggleTemporarySystemFolder(account, SYSTEM_SPAM, "_accountsCheckingSpam");
+}
+
+async function toggleTrashFolder(account) {
+    return toggleTemporarySystemFolder(account, SYSTEM_TRASH, "_accountsCheckingTrash");
+}
+
+async function toggleTemporarySystemFolder(account, systemLabel, storageKey) {
     const hardRefresh = accountAddingMethod == "oauth";
     const originalMonitoredLabels = await account.getMonitorLabels();
 
-    const accountsCheckingSpam = deepClone(await storage.get("_accountsCheckingSpam")) || {};
-    const accountCheckingSpamMonitoredLabels = accountsCheckingSpam[account.getEmail()];
+    const accountsCheckingFolder = deepClone(await storage.get(storageKey)) || {};
+    const originalLabels = accountsCheckingFolder[account.getEmail()];
 
-    if (accountCheckingSpamMonitoredLabels) {
-        await account.saveSetting("monitorLabel", accountCheckingSpamMonitoredLabels);
+    if (originalLabels) {
+        await account.saveSetting("monitorLabel", originalLabels);
 
-        delete accountsCheckingSpam[account.getEmail()];
-        await storage.set("_accountsCheckingSpam", accountsCheckingSpam);
+        delete accountsCheckingFolder[account.getEmail()];
+        await storage.set(storageKey, accountsCheckingFolder);
 
         await refresh(true); // using true here because had polymer error with cancel animation?
     } else {
-        await account.saveSetting("monitorLabel", [SYSTEM_SPAM]);
-        accountsCheckingSpam[account.getEmail()] = originalMonitoredLabels;
-        await storage.set("_accountsCheckingSpam", accountsCheckingSpam);
+        await account.saveSetting("monitorLabel", [systemLabel]);
+        accountsCheckingFolder[account.getEmail()] = originalMonitoredLabels;
+        await storage.set(storageKey, accountsCheckingFolder);
         try {
             await refresh(hardRefresh);
             showBackToInboxMessage();
@@ -4080,14 +5267,14 @@ async function renderAccounts() {
     await cacheContactsData();
 
 	const $inbox = byId("inbox");
-	
+
     removeAllNodes($inbox.querySelectorAll(".account"));
     removeAllNodes(".accountAvatar");
 
     globalThis.allAccountsInDND = await areAllAccountsInDND();
-	
+
 	const $accountAvatars = byId("accountAvatars");
-    
+
     for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
         const account = accounts[accountIndex];
 		if (accountIndex != 0 && accountIndex == (accounts.length-1) && !account.hasBeenIdentified()) {
@@ -4099,9 +5286,9 @@ async function renderAccounts() {
                 $account.querySelectorAll("[contribute]").forEach(el => el.removeAttribute("contribute"));
                 removeAllNodes($account.querySelectorAll("[contribute-tooltip]"));
             }
-			
+
 			$inbox.append($account);
-			
+
 			$account.setAttribute("email", account.getEmail());
 			$account._account = account;
 
@@ -4119,10 +5306,10 @@ async function renderAccounts() {
 			} else {
 				$accountErrorWrapper.setAttribute("hidden", "");
 			}
-            
+
             const accountColor = await account.getSetting("accountColor");
             setAccountHeaderColor($account, accountColor);
-			
+
 			const accountTitleArea = $account.querySelector(".accountTitleArea");
             accountTitleArea.title = getMessage("open");
             addEventListeners(accountTitleArea, "mouseup", async event => {
@@ -4146,7 +5333,7 @@ async function renderAccounts() {
                     prepareMarkAllAsX($account, account, "markAsSpam");
                 });
             }
-            
+
 			addEventListeners($account.querySelector(".markAllAsReadButton"), "mouseup", () => {
                 prepareMarkAllAsX($account, account, "markAsRead");
             });
@@ -4165,7 +5352,7 @@ async function renderAccounts() {
                 await executeAccountAction(account, "openCompose");
                 closeWindow();
             });
-			
+
 			addEventListeners($account.querySelector(".voiceEmail"), "mouseup", () => {
                 openComposeSection({voiceEmail:true, account:account});
                 sendGA('accountBar', 'voiceEmail');
@@ -4185,7 +5372,7 @@ async function renderAccounts() {
             // associated account menu button to it's options
             $account.querySelector(".accountOptionsMenuButton").setAttribute("popovertarget-id", "accountOptionsMenu-" + accountIndex);
             $account.querySelector(".accountOptionsMenu").id = "accountOptionsMenu-" + accountIndex;
-			
+
 			$account.querySelector(".accountOptionsMenuButton").addEventListener("mouseup", async function() { // MUST use .one because mousedown will also be called when menu items *inside the dropdown all are also clicked
                 //this.closest(".accountHeader").classList.remove("sticky");
 
@@ -4199,7 +5386,7 @@ async function renderAccounts() {
                 if (window.revealImage) {
                     selectorAll("#inbox .account").forEach(el => el.style["backdrop-filter"] = "initial");
                 }
-                
+
                 maxHeightOfPopup();
 
                 /*
@@ -4213,12 +5400,12 @@ async function renderAccounts() {
 
                 $account.querySelector(".markAllAsSpamButton").title = getMessage("markAllAsSpam");
                 $account.querySelector(".markAllAsReadButton").title = getMessage("markAllAsRead");
-                
+
                 onClick($account.querySelector(".markAllAsRead"), function(event) {
                     closeMenu(this);
                     prepareMarkAllAsX($account, account, "markAsRead");
                 });
-                
+
                 onClick($account.querySelector(".sendPageLink"), event => {
                     getActiveTab().then(async tab => {
                         sendGA("inboxLabelArea", "sendPageLink");
@@ -4247,7 +5434,7 @@ async function renderAccounts() {
                     await account.saveSetting("alias", alias);
                     $account.querySelector(".accountTitle").textContent = await account.getEmailDisplayName();
                 }
-                
+
                 onClick($account.querySelector(".alias"), async function() {
                     closeMenu(this);
                     if (await donationClicked("alias")) {
@@ -4279,7 +5466,7 @@ async function renderAccounts() {
                         setAccountAvatar($account, $accountAvatar);
                     }
                 });
-                
+
                 const profileInfo = await account.getSetting("profileInfo");
                 if (profileInfo) {
                     onClick($account.querySelector(".setAccountIcon"), function() {
@@ -4307,7 +5494,7 @@ async function renderAccounts() {
                         $account.querySelector(".showContactPhotos j-icon").setAttribute("icon", "check");
                     }
                 });
-                
+
                 onClick($account.querySelector(".showContactPhotos"), function() {
                     closeMenu(this);
                     // hard coded to useGoogleAccountsSignIn because Chrome sign in can only use default account
@@ -4325,6 +5512,17 @@ async function renderAccounts() {
                     toggleSpamFolder(account);
                 });
 
+                const accountsCheckingTrash = await storage.get("_accountsCheckingTrash");
+                if (accountsCheckingTrash && accountsCheckingTrash[account.getEmail()]) {
+                    $account.querySelector(".checkTrash j-icon").setAttribute("icon", "check");
+                }
+
+                onClick($account.querySelector(".checkTrash"), async function() {
+                    closeMenu(this);
+
+                    toggleTrashFolder(account);
+                });
+
                 if (accounts.length <= 1) {
                     hide($account.querySelector(".ignore"));
                 } else {
@@ -4335,7 +5533,7 @@ async function renderAccounts() {
                 onClick($account.querySelector(".ignore"), async function() {
                     showLoading();
                     await executeAccountAction(account, "remove");
-                    
+
                     try {
                         await sendMessageToBG("pollAccounts", {showNotification:true});
                         location.reload();
@@ -4354,14 +5552,14 @@ async function renderAccounts() {
 			// avatars
 			const $accountAvatar = initTemplate("accountAvatarTemplate").firstElementChild;
 			$accountAvatars.append($accountAvatar);
-			
+
             $accountAvatar._account = account;
             console.log("$accountAvatar", $accountAvatar);
             console.log($accountAvatar._account);
             $accountAvatar.title = await account.getEmailDisplayName();
-			
+
             setAccountAvatar($account, $accountAvatar);
-            
+
             // place this below setaccountavatar because of fouc when no avatar
 			$account.querySelector(".accountTitle").textContent = await account.getEmailDisplayName();
 
@@ -4375,8 +5573,8 @@ async function renderAccounts() {
 						renderMoreAccountMails({renderAll:true});
 						scrollAccountIntoView($account);
 
-                        selector("div.mail.active")?.classList.remove("active");
-                        $account.querySelector("div.mail")?.classList.add("active");
+                        selector(".mails > .mail.active")?.classList.remove("active");
+                        $account.querySelector(".mails > .mail")?.classList.add("active");
 
 						hideProgress();
 					}, 50);
@@ -4402,7 +5600,7 @@ async function renderAccounts() {
 					}
 				}
             });
-            
+
             const renderMailsParams = {
                 $account: $account
             }
@@ -4410,18 +5608,19 @@ async function renderAccounts() {
                 renderMailsParams.renderAll = true;
             }
 
-            renderMails(renderMailsParams);
-            
+            // added await because of race issue with "Open in Popup" and isDND checks when account not selected for dnd, ref: douglas.rauda@gmail.com
+            await renderMails(renderMailsParams);
+
             initAccountHeaderClasses($account);
 		}
 	}
-	
+
 	// used to keep a skeleton scrollbar (windows only) there so the action buttons don't shift when the scrollbar normally disappear
     if (hasVerticalScrollbar(getInboxScrollTarget(), 8)) {
         byId("inbox").classList.add("hasVerticalScrollbars");
     }
 
-	setContactPhotos(accounts, selectorAll(".mail"));
+	setContactPhotos(accounts, selectorAll(".mails > .mail"));
 }
 
 function showUndo(params) {
@@ -4436,11 +5635,11 @@ function showUndo(params) {
 		showToast(params.text, {
             id: "undo-toast",
             position: position,
-            duration: seconds(5), 
+            duration: seconds(5),
             text: getMessage("undo"),
             onClick: function() {
                 clearCloseWindowTimeout();
-                showLoading();
+                showSpinner();
                 executeMailAction(params.mail, params.undoAction).then(async response => {
                     const hiddenMailIndex = hiddenMails.indexOf(params.mail.id);
                     if (hiddenMailIndex != -1) {
@@ -4451,7 +5650,7 @@ function showUndo(params) {
                         // seems the polling logic would not resurface the deleted email so had to delete historyid
                         await executeAccountAction(params.mail.account, "reset");
                     }
-                    
+
                     refresh().then(() => {
                         hideLoading();
                         resolve();
@@ -4467,7 +5666,7 @@ function initInboxMailActionButtons($mail) {
 	if ($mail) {
 		const mail = $mail._mail;
 		const account = mail.account;
-		
+
 		// paper-icon-button were slow to initially load so decided to dynamically load them via template and mouseover
 		const $inboxMailActionButtonsTemplate = $mail.querySelector(".inboxMailActionButtonsTemplate");
 		if ($inboxMailActionButtonsTemplate) {
@@ -4495,7 +5694,7 @@ function initInboxMailActionButtons($mail) {
 
             initButton(".markAsSpam", "reportSpam", "markAsSpam", "hide");
             initButton(".markAsNotSpam", "notSpam", "markAsNotSpam", "hide");
-            
+
             initButton(".delete", "delete", "deleteEmail", "hide", () => {
                 if (accountAddingMethod == "oauth") {
                     showUndo({mail: mail, text: getMessage("movedToTrash"), undoAction: "untrash"});
@@ -4541,7 +5740,7 @@ async function renderMails(params) {
     if (!globalThis.allAccountsInDND && await isDND({account: account})) {
         return;
     }
-	
+
 	mails.sort(function (a, b) {
 	   if (a.issued > b.issued)
 		   return -1;
@@ -4549,12 +5748,12 @@ async function renderMails(params) {
 		   return 1;
 	   return 0;
 	});
-	
+
 	const $mails = $account.querySelector(".mails");
-	
+
 	var mailNodesBelowFold = 0;
 	var newlyRenderedMails = 0;
-	
+
 	if (skinsSettings) {
 		window.buttonsAlwaysShow = skinsSettings.some(function(skin) {
 			// [Buttons] Always show
@@ -4573,17 +5772,17 @@ async function renderMails(params) {
 			}
 		});
 	}
-	
-	const existingMailsCount = selectorAll(".mail").length;
+
+	const existingMailsCount = selectorAll(".mails > .mail").length;
 
     globalThis.vpH = getInboxViewportHeight(); // Viewport Height
-	
+
 	console.time("renderMails");
 
     // Get existing mail IDs already in DOM
-    // after removing polymer i duplicate issue refer to https://jasonsavard.com/forum2/d/8528-duplicate-email-displays-v34/28
+    // after removing polymer i duplicate issue refer to https://jasonsavard.com/forum/d/8528-duplicate-email-displays-v34/28
     const existingMailIds = new Set(
-        Array.from($account.querySelectorAll('.mail'))
+        Array.from($account.querySelectorAll('.mails > .mail'))
             .map(node => node._mail?.id)
             .filter(Boolean)
     );
@@ -4600,8 +5799,8 @@ async function renderMails(params) {
 			console.log("exclude: " + mail.title);
 			return false;
 		}
-		
-		const $lastMail = Array.from(selectorAll(".mail")).last();
+
+		const $lastMail = Array.from(selectorAll(".mails > .mail")).last();
         /*
 		if ($lastMail && !isVisibleInScrollArea($lastMail, byId("inbox"), vpH)) {
             console.log("not visible adding belowfolder++: ", $lastMail._mail.title);
@@ -4616,7 +5815,7 @@ async function renderMails(params) {
         }
 
         console.log("mailNodesBelowFold", mailNodesBelowFold);
-		
+
 		// skip mails that have newer then the max issued date
 		if (maxIssuedDate && mail.issued >= maxIssuedDate) {
             // same as "continue" ie. to skip this mail
@@ -4640,7 +5839,7 @@ async function renderMails(params) {
 		} else {
 			console.log("jmail", mail.title + " " + maxIssuedDate + " " + mail.issued);
 		}
-		
+
 		if (!params.showMore && mailIndex+1 > maxEmailsToShowPerAccount) {
 			if (!$mails.querySelector(".showMoreEmails")) {
                 const $showMoreEmails = document.createElement("div");
@@ -4652,21 +5851,28 @@ async function renderMails(params) {
                 $expandMore.classList.add("filled");
 
                 $showMoreEmails.append($expandMore);
-				onClick($expandMore, function() {
+				onClick($expandMore, async function() {
                     this.remove();
                     // had to resassign $account because params.$account was always referencing last account
                     params.$account = $account;
 					params.showMore = true;
 					params.mailsToRender = 20;
-					renderMoreMails(params);
+
+                    showSpinner();
+                    requestIdleCallback(async function() {
+					    await renderMoreMails(params);
+                        hideSpinner();
+                    }, {
+                        timeout: 500
+                    });
 				});
 				$mails.append( $showMoreEmails );
 			}
 			return true;
 		}
-		
+
 		newlyRenderedMails++;
-		
+
 		const $mail = initTemplate($account.querySelector(".mailTemplate")).firstElementChild;
         console.log("mailnode", $mail);
         $mail._mail = mail;
@@ -4674,42 +5880,42 @@ async function renderMails(params) {
 		$mails.append($mail);
 
         existingMailIds.add(mail.id);
-        
+
 		// sender
 		let sender = mail.generateAuthorsNode();
 		if (!sender) {
 			sender = getMessage("unknownSender");
 		}
-		
+
         const $sender = $mail.querySelector(".sender");
         emptyAppend($sender, sender);
-		
+
 		if (mail.issued) {
             $mail.querySelector(".date").textContent = mail.getDate();
 			$mail.querySelector(".date").title = mail.issued.toLocaleStringJ();
 		}
-		
+
 		$mail.querySelector(".subject").textContent = mail.title;
-		
+
 		// snippet
 		var maxSummaryLetters;
-		
+
 		if ($mail.getBoundingClientRect().width == 0) { // sometimes happens then use default
 			maxSummaryLetters = 180;
 		} else {
 			maxSummaryLetters = $mail.getBoundingClientRect().width / (drawerIsVisible ? 4.2 : 4);
 		}
-		
+
         const $EOM_Message = document.createElement("span");
         $EOM_Message.classList.add("eom");
         $EOM_Message.title = getMessage("EOMToolTip");
         $EOM_Message.textContent = `[${getMessage("EOM")}]`;
-		
+
 		mail.getLastMessageText({maxSummaryLetters:maxSummaryLetters, htmlToText:true, targetNode:$mail.querySelector(".snippet"), EOM_Message:$EOM_Message});
-		
+
 		// labels
 		const labelsTemplate = $mail.querySelector(".labelsTemplate");
-		
+
 		if (labelsTemplate?.content) {
             const labelsFragment = new DocumentFragment();
 
@@ -4731,23 +5937,23 @@ async function renderMails(params) {
             const $labels = $mail.querySelector(".labels");
             $labels.append(labelsFragment);
         }
-        
+
         mail.hasLabel(SYSTEM_SPAM).then(spam => {
             if (spam) {
                 $mail.classList.add("is-spam");
             }
         });
-		
+
 		initStar($mail.querySelector(".star"), mail);
 
 		if (mail.hasAttachments()) {
 			show($mail.querySelector(".attachment-icon"));
 		}
-		
+
 		if (buttonsAlwaysShow) {
 			initInboxMailActionButtons($mail);
 		}
-		
+
 		// click
         addEventListeners($mail, "mouseup", event => {
             if (emailPreview && !isCtrlPressed(event) && (!event.button || event.button == MouseButton.MAIN)) {
@@ -4758,6 +5964,10 @@ async function renderMails(params) {
                 event.preventDefault();
                 event.stopPropagation();
             }
+        });
+
+        addEventListeners($mail, "contextmenu", event => {
+            openEmailListContextMenu(event, mail);
         });
 
         addEventListeners($mail, "mouseenter", function() {
@@ -4777,38 +5987,38 @@ async function renderMails(params) {
         if (enableSwiping) {
             gesturedZone.addEventListener('touchstart', function(event) {
                 gesturedZone.classList.add("swiping");
-    
+
                 initInboxMailActionButtons($mail);
-    
+
                 console.log("start", event)
                 touchstartX = event.changedTouches[0].screenX;
                 touchstartY = event.changedTouches[0].screenY;
             }, false);
-            
+
             gesturedZone.addEventListener('touchmove', function(event) {
                 console.log("move", event)
                 const touchmoveX = event.changedTouches[0].screenX;
                 const touchmoveY = event.changedTouches[0].screenY;
-    
+
                 const factor = 1.2;
                 let xmove = Math.abs(touchmoveX - touchstartX);
                 xmove = Math.pow(xmove, factor);
                 if (touchmoveX < touchstartX) {
                     xmove *= -1;
                 }
-    
+
                 const transform = `translate(${xmove}px)`;
                 console.log(transform);
                 this.style.transform = transform;
             }, false);
-    
+
             gesturedZone.addEventListener('touchend', function(event) {
                 console.log("end", event)
                 touchendX = event.changedTouches[0].screenX;
                 touchendY = event.changedTouches[0].screenY;
-                
+
                 const BUFFER = 50;
-    
+
                 if (touchendX + BUFFER < touchstartX) {
                     gesturedZone.querySelector(".delete").dispatchEvent(new Event("mouseup"));
                     this.style.transform = `translate(-${this.clientWidth + 10}px)`;
@@ -4825,11 +6035,11 @@ async function renderMails(params) {
                     gesturedZone.classList.remove("swiping");
                     this.style.transform = `translate(0px)`;
                 }
-    
+
             }, false);
         }
 	});
-	
+
 	console.timeEnd("renderMails");
 }
 
@@ -4859,15 +6069,15 @@ function renderMoreAccountMails(params = {}) {
 
 function renderMoreMails(params) {
 	var maxIssuedDate;
-	const $lastMail = Array.from(params.$account.querySelectorAll(".mail")).last();
+	const $lastMail = Array.from(params.$account.querySelectorAll(".mails > .mail")).last();
 	if ($lastMail) {
 		maxIssuedDate = $lastMail._mail.issued;
 	}
-	
+
 	params.maxIssuedDate = maxIssuedDate;
 
 	renderMails(params);
-	setContactPhotos(accounts, selectorAll(".mail"));
+	setContactPhotos(accounts, selectorAll(".mails > .mail"));
 }
 
 function getInboxTop() {
@@ -4891,7 +6101,7 @@ function getInboxViewportHeight() {
 
 function resizeNodes() {
 	console.log("resizeNodes: " + window.outerHeight);
-	
+
 	if (isSidePanel || isDetached) { // isSidePanel || isDetached
 		if (popupView == POPUP_VIEW_CHECKER_PLUS) {
 			renderMoreAccountMails();
@@ -4928,11 +6138,11 @@ function addSkin(skin, id) {
     byId(id)?.remove();
 
     const $body = document.body;
-    
+
     $body.classList.add(id);
-	
+
 	let css = "";
-	
+
 	if (skin.image) {
 		$body.classList.add("background-skin");
 
@@ -4956,17 +6166,14 @@ function addSkin(skin, id) {
         */
 
 		var resizedImageUrl;
-		// Check if it's a local path (relative path starting with skins/)
-		if (skin.image.startsWith("skins/")) {
-			resizedImageUrl = chrome.runtime.getURL(skin.image);
-		} else if (/blogspot\./.test(skin.image) || /googleusercontent\./.test(skin.image)) {
+		if (/blogspot\./.test(skin.image) || /googleusercontent\./.test(skin.image)) {
 			resizedImageUrl = skin.image.replace(/\/s\d+\//, "\/s" + parseInt($body.clientWidth) + "\/");
         } else if (skin.image.includes("unsplash.com")) {
             resizedImageUrl = setUrlParam(skin.image, "w", parseInt($body.clientWidth));
 		} else {
 			resizedImageUrl = skin.image;
 		}
-		
+
 		//| += "[main] {background-size:cover;background-image:url('" + resizedImageUrl + "');background-position-x:50%;background-position-y:50%} [main] paper-toolbar {background-color:transparent} .accountHeader {background-color:transparent}";
 		// Loading the background image "after" initial load for 2 reasons: 1) make sure it loads after the mails. 2) to trigger opacity transition
         // note that addskinpiece uses domReady() so this gets done after the css style is added below
@@ -4981,6 +6188,7 @@ function addSkin(skin, id) {
                 height: 100%;
                 position: fixed;
                 opacity: 1;
+                z-index: -1;
             }
         `);
 
@@ -5005,7 +6213,7 @@ function addSkin(skin, id) {
 	if (skin.css) {
 		css += " " + skin.css;
 	}
-	
+
 	addCSS(id, css);
 
     initDarkFlags();
@@ -5072,8 +6280,398 @@ function addNightModeIcon($paperItem) {
 }
 
 function showSkinsDialog() {
-	// Redirect to options page Skins & Themes tab
-	chrome.tabs.create({ url: chrome.runtime.getURL("options.html#skinsAndThemes") });
+	showSpinner();
+
+	Controller.getSkins().then(async skins => {
+        const donationClickedFlag = await storage.get("donationClicked");
+		const $dialog = initTemplate("skinsDialogTemplate");
+		const $availableSkins = $dialog.querySelector("#availableSkins");
+        emptyNode($availableSkins);
+
+		attemptedToAddSkin = false;
+
+        if (!$availableSkins._attachedEvents) {
+            onDelegate($availableSkins, "click", ".addButton", function(e) {
+				const $addButton = e.target;
+				const $paperItem = $addButton.closest("j-item");
+				const skin = getSkin(skins, $paperItem);
+
+                removePreviewSkin();
+
+				if ($addButton.classList.contains("selected")) {
+					console.log("remove skin: ", skin);
+					$addButton.classList.remove("selected");
+					removeSkin(skin);
+					skinsSettings.some(function (thisSkin, index) {
+						if (skin.id == thisSkin.id) {
+							skinsSettings.splice(index, 1);
+							return true;
+						}
+					});
+
+					maybeRemoveBackgroundSkin(skinsSettings);
+
+					storage.set("skins", skinsSettings).then(() => {
+						Controller.updateSkinInstalls(skin.id, -1);
+					}).catch(error => {
+						showError(error);
+					});
+				} else if (donationClickedFlag) {
+                    console.log("add skin");
+                    $addButton.classList.add("selected");
+                    addSkin(skin);
+                    skinsSettings.push(skin);
+                    storage.set("skins", skinsSettings).then(() => {
+                        Controller.updateSkinInstalls(skin.id, 1);
+                    }).catch(error => {
+                        showError(error);
+                    });
+				} else {
+                    $addButton.checked = false;
+                    openContributeDialog("skins");
+                }
+
+                //$paperItem.removeAttribute("focused");
+                //$paperItem.blur();
+
+                //e.preventDefault();
+                e.stopImmediatePropagation();
+            });
+
+            onDelegate($availableSkins, "click", "j-item", function(e) {
+                attemptedToAddSkin = true;
+
+                maybeRemoveBackgroundSkin(skinsSettings);
+
+                const $paperItem = e.target.closest("j-item");
+                $paperItem.parentElement.querySelectorAll("j-item").forEach(item => {
+                    item.classList.remove("selected");
+                });
+                $paperItem.classList.add("selected");
+
+                // patch to remove highlighed gray
+                $paperItem.removeAttribute("focused");
+                $paperItem.blur();
+
+                byId("skinWatermark").classList.remove("visible");
+                const skin = getSkin(skins, $paperItem);
+                console.log("$paperItem", $paperItem);
+
+                addSkin(skin, "previewSkin");
+                setSkinDetails($dialog, skin);
+
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            $availableSkins._attachedEvents = true;
+        }
+
+        const nightModeSkin = await storage.get("nightModeSkin");
+
+        const availableSkinsFragment = new DocumentFragment();
+		skins.forEach(skin => {
+			const paperItem = document.createElement("j-item");
+            paperItem.setAttribute("skin-id", skin.id);
+
+			const skinAdded = skinsSettings.some(thisSkin => skin.id == thisSkin.id);
+
+			const addButton = document.createElement("input");
+            addButton.type = "checkbox";
+			let className = "addButton";
+			if (skinAdded) {
+				className += " selected";
+				addButton.checked = true;
+			} else {
+				addButton.checked = false;
+			}
+			addButton.setAttribute("class", className);
+			addButton.setAttribute("title", "Add it");
+			paperItem.appendChild(addButton);
+
+			const textNode = document.createTextNode(skin.name);
+			paperItem.appendChild(textNode);
+
+            if (nightModeSkin?.id == skin.id) {
+                addNightModeIcon(paperItem);
+            }
+
+			availableSkinsFragment.appendChild(paperItem);
+        });
+        $availableSkins.append(availableSkinsFragment);
+
+        openDialog($dialog, {
+            id: "skinsDialog",
+            modal: false,
+            buttons: [{
+                title: getMessage("reset"),
+                icon: "power-settings-new",
+                onClick: async function() {
+                    await storage.remove("skins");
+                    await storage.remove("customSkin");
+                    await storage.remove("popup-bg-color");
+                    await niceAlert(getMessage("reset"));
+                    location.reload();
+                }
+            },
+            {
+                title: getMessage("refresh"),
+                icon: "refresh",
+                onClick: async function() {
+                    skinsSettings.forEach(skinSetting => {
+                        skins.forEach(skin => {
+                            if (skinSetting.id == skin.id) {
+                                copyObj(skin, skinSetting);
+
+                                // refresh skin
+                                addSkin(skin);
+                            }
+                        });
+                    });
+                    await storage.set("skins", skinsSettings);
+
+                    const nightModeSkin = deepClone(await storage.get("nightModeSkin"));
+                    if (nightModeSkin) {
+                        const nightSkinFromDB = skins.find(skin => skin.id == nightModeSkin.id);
+                        if (nightSkinFromDB) {
+                            copyObj(nightSkinFromDB, nightModeSkin);
+                            addSkin(nightModeSkin);
+                            await storage.set("nightModeSkin", nightModeSkin);
+                        }
+                    }
+
+                    showToast(getMessage("done"));
+                }
+            }, {
+                title: getMessage("skin"),
+                icon: "code",
+                onClick: function() {
+                    const $textarea = document.createElement("textarea");
+                    $textarea.setAttribute("readonly", "");
+                    $textarea.setAttribute("no-outline", "")
+                    $textarea.style.cssText = "width:400px;height:200px";
+
+                    const $paperItem = selector("#skinsDialog #availableSkins j-item.selected");
+                    if ($paperItem) {
+                        const skin = getSkin(skins, $paperItem);
+                        $textarea.textContent = skin.css;
+                        openDialog($textarea, {
+                            title: "Skin details",
+                        });
+                    } else {
+                        niceAlert("Select a skin first to see the CSS.");
+                    }
+                }
+            }, {
+                title: getMessage("nightMode"),
+                icon: "watch-later",
+                onClick: async function() {
+                    if (donationClickedFlag) {
+                        attemptedToAddSkin = false;
+
+                        const $paperItem = selector("#skinsDialog #availableSkins j-item.selected");
+                        if ($paperItem) {
+                            const skin = getSkin(skins, $paperItem);
+                            const nightModeSkin = await storage.get("nightModeSkin");
+
+                            byId("nightModeIcon")?.remove();
+
+                            if (nightModeSkin?.id == skin.id) {
+                                storage.remove("nightModeSkin");
+                            } else {
+                                storage.set("nightModeSkin", skin);
+                                addNightModeIcon($paperItem);
+                            }
+                        } else {
+                            niceAlert("Select a theme first to set as night mode.");
+                        }
+                    } else {
+                        openContributeDialog("nightMode");
+                    }
+                }
+            }, {
+                title: getMessage("backgroundColor"),
+                icon: "format-color-fill",
+                onClick: async function() {
+                    const color = await openColorChooser();
+                    if (await donationClicked("background-color")) {
+                        setPopupBgColor(color);
+                        await storage.set("popup-bg-color", color);
+                        if (document.body.classList.contains("background-skin")) {
+                            showToast("Remove image to see background color.");
+                        }
+                    }
+                }
+            }, {
+                icon: "create",
+                label: getMessage("custom"),
+                onClick: async function() {
+                    removePreviewSkin();
+
+                    const $customContent = initTemplate("customSkinDialogTemplate");
+
+                    const textarea = $customContent.querySelector("textarea");
+
+                    textarea.addEventListener('keydown', (e) => {
+                        if (e.key === 'Tab') {
+                            e.preventDefault();
+                            // Insert a tab character at cursor position
+                            const start = e.target.selectionStart;
+                            const end = e.target.selectionEnd;
+                            const value = e.target.value;
+
+                            e.target.value = value.substring(0, start) + '\t' + value.substring(end);
+                            e.target.selectionStart = e.target.selectionEnd = start + 1;
+                        }
+                    });
+
+                    const customBackgroundImageUrl = $customContent.querySelector("#customBackgroundImageUrl");
+
+                    const customSkin = deepClone(await storage.get("customSkin"));
+
+                    function canLoadBackgroundImage() {
+                        const imageUrl = customBackgroundImageUrl.value;
+                        if (!imageUrl) {
+                            return true;
+                        }
+                        return new Promise((resolve, reject) => {
+                            const image = new Image();
+                            image.src = imageUrl;
+                            image.onload = resolve;
+                            image.onerror = reject;
+                        }).then(() => {
+                            return true;
+                        }).catch(error => {
+                            console.warn(error);
+                            niceAlert("Image could not be loaded - might require signing in, try a publicly available image.");
+                            return false;
+                        });
+                    }
+
+                    openDialog($customContent, {
+                        id: "customSkinDialog",
+                        modal: false,
+                        buttons: [{
+                            label: "Suggest it to Jason",
+                            onClick: function() {
+                                openUrl("https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=shareSkin");
+                            }
+                        }, {
+                            label: getMessage("testIt"),
+                            classList: ["filled"],
+                            onClick: async function() {
+                                if (await canLoadBackgroundImage()) {
+                                    byId("customSkin")?.remove();
+                                    addSkin({
+                                        id:"customSkin",
+                                        css: textarea.value,
+                                        image: customBackgroundImageUrl.value
+                                    });
+                                    if (!await storage.get("donationClicked")) {
+                                        showToast(getMessage("donationRequired"));
+                                    }
+                                }
+                            }
+                        }, {
+                            label: getMessage("ok"),
+                            primary: true,
+                            onClick: async function(dialog) {
+                                if (await canLoadBackgroundImage()) {
+                                    if (donationClickedFlag) {
+                                        customSkin.css = textarea.value;
+                                        customSkin.image = customBackgroundImageUrl.value;
+
+                                        addSkin(customSkin);
+                                        await storage.set("customSkin", customSkin);
+                                    } else {
+                                        textarea.value = "";
+                                        removeSkin(customSkin);
+                                        if (!donationClickedFlag) {
+                                            showToast(getMessage("donationRequired"));
+                                        }
+                                    }
+                                    dialog.close();
+                                }
+                            }
+                        }]
+                    });
+
+                    textarea.value = customSkin.css || "";
+                    customBackgroundImageUrl.value = customSkin.image || "";
+                }
+            }, {
+                label: getMessage("ok"),
+                primary: true,
+                onClick: function(dialog) {
+                    initNightMode();
+
+                    if (byId("previewSkin")) {
+                        removePreviewSkin();
+
+                        maybeRemoveBackgroundSkin(skinsSettings);
+
+                        if (attemptedToAddSkin) {
+                            const content = new DocumentFragment();
+
+                            const $checkbox = document.createElement("input");
+                            $checkbox.type = "checkbox";
+                            $checkbox.setAttribute("disabled", "");
+                            $checkbox.setAttribute("style", "margin-left:8px;vertical-align: middle;opacity: 1");
+
+                            content.append("Use the checkbox", $checkbox, "to add skins!");
+
+                            openDialog(content).then(response => {
+                                if (response == "ok") {
+                                    attemptedToAddSkin = false;
+                                }
+                            });
+                            const $addButton = selector("#skinsDialog #availableSkins j-item.selected .addButton");
+                            $addButton.scrollIntoViewIfNeeded?.();
+                            $addButton.addEventListener("transitionend", () => {
+                                $addButton.classList.toggle("highlight");
+                            }, {once: true});
+                            $addButton.classList.toggle("highlight");
+                        } else {
+                            dialog.close();
+                        }
+
+                    } else {
+                        dialog.close();
+                    }
+                }
+            }]
+        });
+
+        const skinDetails = document.createElement("div");
+        skinDetails.id = "skinAuthorWrapper";
+        skinDetails.classList.add("flex");
+
+        const skinAuthorInner = document.createElement("div");
+        skinAuthorInner.id = "skinAuthorInner";
+
+        const skinBy = document.createElement("span");
+        skinBy.classList.add("skin-by");
+
+        const skinText = document.createElement("span");
+        skinText.setAttribute("msg", "skin");
+        skinText.textContent = getMessage("skin") + " " + getMessage("by");
+
+        skinBy.appendChild(skinText);
+
+        const skinAuthor = document.createElement("a");
+        skinAuthor.id = "skinAuthor";
+        skinAuthor.target = "_blank";
+
+        skinAuthorInner.append(skinBy, skinAuthor);
+        skinDetails.append(skinAuthorInner);
+
+        selector("#skinsDialog #native-dialog-menu").prepend(skinDetails);
+	}).catch(error => {
+		console.error(error);
+		showError("There's a problem, try again later or contact the developer!");
+	}).finally(() => {
+        hideSpinner();
+    });
 }
 
 async function resizeInboxPatch() {
@@ -5091,7 +6689,7 @@ function clearCloseWindowTimeout(withDelay) {
 }
 
 function getActiveMail() {
-    return selector("div.mail.active") || selector("div.mail");
+    return selector(".mails > .mail.active") || selector(".mails > .mail");
 }
 
 function setNextPrevActiveMail($activeMail, prev) {
@@ -5202,13 +6800,13 @@ async function init() {
 			}
 		}
 	}
-    
+
     console.log("view: " + popupView);
 
     // resizepopup requires popupView to be declared is delcared
     // must use await, refer to this issue within resizePopup: "height of the window would be small when rendering and so not all emails would render"
     await resizePopup();
-    
+
 	const $body = document.body;
 
     // had to move this up in the code or else scrollbars were appearing regardless
@@ -5220,17 +6818,19 @@ async function init() {
         resolve();
     }).then(() => {
 		if (fromToolbar && zoomFactor > 1) {
-            css($body, {
-                "width": `${MAX_POPUP_WIDTH / zoomFactor}px`,
-                "height": `${MAX_POPUP_HEIGHT / zoomFactor}px`
-            });
+            if (MAX_POPUP_HEIGHT < screen.availHeight - CHROME_HEADER_HEIGHT) {
+                document.body.style.height = `${MAX_POPUP_HEIGHT / zoomFactor}px`;
+            } else {
+                document.body.style.height = `${(screen.availHeight - CHROME_HEADER_HEIGHT) / zoomFactor}px`;
+            }
+            document.body.style.width = `${MAX_POPUP_WIDTH / zoomFactor}px`;
 		}
     });
 
 	if (fromToolbar) {
 		htmlElement.classList.add("fromToolbar");
     }
-	
+
 	$body.classList.add(await storage.get("accountAddingMethod"));
 
 	if (DetectClient.isMac()) {
@@ -5240,7 +6840,7 @@ async function init() {
     if (DetectClient.isOpera()) {
         $body.classList.add("opera");
     }
-	
+
 	if (getMessage("dir") == "rtl") {
 		//selector("app-drawer").setAttribute("align", "start");
 
@@ -5277,7 +6877,11 @@ async function init() {
             byId("accountAvatars").classList.add("visible");
         }
     }
-    
+
+    if (isSidePanel) {
+        htmlElement.classList.add("side-panel");
+    }
+
 	if (isSidePanel || isDetached) {
 		htmlElement.classList.add("full-width-and-height");
 		resizeNodes();
@@ -5294,21 +6898,21 @@ async function init() {
 	} else if (location.href.includes("action=getUserMediaDenied") || location.href.includes("action=getUserMediaFailed")) {
         setTimeout(function() {
             const params = {};
-            
+
             const accountEmail = getUrlValue("accountEmail");
             params.account = getAccountByEmail(accountEmail);
             params.skipAnimation = true;
-            
+
             if (getUrlValue("mediaType") == "voiceEmail") {
                 params.voiceEmail = true;
             } else {
                 params.videoEmail = true;
             }
-            
+
             openComposeSection(params);
         }, 1)
 	}
-	
+
     window.addEventListener("resize", function() {
 		console.log("window.resize: ", window.innerHeight, window.outerHeight, initialHeight);
         //globalThis.vpH = getInboxViewportHeight();
@@ -5323,7 +6927,7 @@ async function init() {
 			}
 		}
 	});
-	
+
 	resizeFrameInExternalPopup();
 
     [
@@ -5339,7 +6943,9 @@ async function init() {
         "showReply",
         "showOpen",
         "showAddToCalendar",
-        "showListenToEmail"
+        "showListenToEmail",
+        "showPrint",
+        "showAddToTasks"
     ].forEach(setting => {
         storage.get(setting).then(enabled => {
             if (!enabled) {
@@ -5362,12 +6968,12 @@ async function init() {
         if (e.key == "Escape") {
             const $dialog = e.target.closest("dialog");
             if ($dialog) {
-                $dialog.close();
+                $dialog.close("escape-key");
                 e.preventDefault();
             } else {
                 const openDialog = document.querySelector('dialog[open]');
                 if (openDialog) {
-                    openDialog.close();
+                    openDialog.close("escape-key");
                     e.preventDefault();
                 }
             }
@@ -5375,9 +6981,9 @@ async function init() {
             //return true;
         } else {
             const $activeMail = getActiveMail();
-            
+
             initInboxMailActionButtons($activeMail);
-            
+
             if (e.key == 'c' && !isCtrlPressed(e)) {
                 selector("#inbox .account").querySelector(".compose").dispatchEvent(new Event("mouseup"));
             } else if (e.key == 'o' || e.key == "Enter") {
@@ -5462,8 +7068,8 @@ async function init() {
                         } else {
                             byId("replyArea").setAttribute("replyAll", "true");
                         }
-                        byId("replyArea").click();
-
+                        //setFocusOnReplyTextarea($activeMail._mail);
+                        replyButtonClickHandler();
                     }
 
                     if (isEmailView()) {
@@ -5513,16 +7119,16 @@ async function init() {
                     // ignore
                 }
             } else {
-                if (e.key == "Control" || e.key == "Alt" || e.key == "Shift" || e.key == "Meta") {
-                    // ignore modifier keys
+                if (e.key == "Control") {
+                    // ignore
                 } else {
                     console.warn("key not recognized: ", e);
                 }
             }
         }
     });
-	
-	onClick("#logo-and-title", async function() {
+
+	onClick(".logo-and-title", async function() {
 		if (await storage.get("clickingCheckerPlusLogo") == "openHelp") {
 			openUrl("https://jasonsavard.com/wiki/Checker_Plus_for_Gmail?ref=GmailChecker");
 		} else {
@@ -5531,7 +7137,51 @@ async function init() {
 		}
 	});
 
-    hide(".share-button");
+	if (await storage.get("removeShareLinks")) {
+        hide(".share-button");
+	}
+
+    const $shareButton = selector(".share-button");
+    if ($shareButton) {
+        $shareButton.addEventListener("mouseup", function() {
+            maxHeightOfPopup();
+        });
+
+        $shareButton.addEventListener("click", async function() {
+            await storage.enable("followMeClicked");
+
+            const shareMenu = byId("share-menu");
+
+            onClickReplace("#share-menu j-icon-item", event => {
+                const value = event.currentTarget.id;
+                sendGA('shareMenu', value);
+
+                if (value == "facebook") {
+                    //openUrl("https://www.facebook.com/thegreenprogrammer");
+                    openUrl(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
+                } else if (value == "twitter") {
+                    //openUrl("https://twitter.com/JasonSavard");
+                    openUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent("Check out Gmail Checkr")}&url=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
+                } else if (value == "linkedin") {
+                    //openUrl("https://www.linkedin.com/in/jasonsavard");
+                    openUrl(`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent("https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu")}`);
+                } else if (value == "email-subscription") {
+                    openUrl("https://jasonsavard.com/blog/?show-email-subscription=true");
+                } else if (value == "share-by-email") {
+                    const params = {
+                        subject: "Check out Gmail Checkr",
+                        message: "https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu",
+                    };
+                    accounts[0].openCompose(params);
+                } else if (value == "copy-link") {
+                    const url = "https://jasonsavard.com/Checker-Plus-for-Gmail?ref=shareMenu";
+                    navigator.clipboard.writeText(url);
+                    showToast(getMessage("done"));
+                    shareMenu.hidePopover();
+                }
+            });
+        });
+    }
 
 	onClick("#refresh", function() {
         hideToast();
@@ -5602,13 +7252,13 @@ async function init() {
 			closeWindow({source:"maximize"});
 		}
 	});
-	
+
 	if (await storage.get("quickComposeEmail")) {
 		const quickComposeEmailAlias = await storage.get("quickComposeEmailAlias");
 		if (quickComposeEmailAlias) {
             byId("quickContactLabel").textContent = quickComposeEmailAlias;
 		}
-		
+
 		const contactPhotoParams = {
             useNoPhoto: true,
             account: accounts[0],
@@ -5617,167 +7267,175 @@ async function init() {
 		const $imageNode = byId("quickContactPhoto");
 		setContactPhoto(contactPhotoParams, $imageNode);
 	}
-	
+
 	onClick("#quickContact", async function() {
         await openQuickCompose();
         closeWindow();
 	});
-	
+
     onClick("#compose", function() {
         selector("#inbox .account").querySelector(".compose").dispatchEvent(new Event("mouseup"));
     });
-	
+
     addEventListeners("#mainOptions", "mouseup", function() {
 		maxHeightOfPopup();
 	});
-	
+
 	// must use .one because we don't want to queue these .click inside (was lazy and didn't want to code .off .on :)
 	byId("mainOptions").addEventListener("click", function() {
 		maxHeightOfPopup();
-		
-		onClick(".switchView", async function() {
-            closeMenu(this);
-        
-            const permissionsObj = {permissions: ["webRequest"]};
-            const granted = await chrome.permissions.request(permissionsObj);
-            if (granted) {
-                reversePopupView(true);
-                renderMoreAccountMails();
-            } else {
-                showError("Problem with permission for inbox view")
-            }
-		});
-		
-		initSwitchMenuItem();
-		
-		onClick(".popout", function() {
-			openUrl(getPopupFile());
-		});
-		
-		onClick(".dnd", function() {
-            const $dialog = initTemplate("dndDialogTemplate");
-            const $radioButtons = $dialog.querySelectorAll("input[name='dnd-option']");
-            
-            $radioButtons.forEach((el, index) => {
-                replaceEventListeners(el, "change", function(event) {
-                    const value = event.target.value;
-                    if (value == "today") {
-                        setDND_today();
-                    } else if (value == "indefinitely") {
-                        setDND_indefinitely();
-                    } else {
-                        setDND_minutes(value);
-                    }
-                    setTimeout(() => {
-                        closeWindow();
-                    }, 200);
-                });
-            });
-
-            openDialog($dialog, {
-                closeButton: true,
-                ok: false,
-                buttons: [{
-                        label: getMessage("schedule"),
-                        onClick: function() {
-                            openDNDScheduleOptions();
-                        }
-                    }, {
-                        label: getMessage("options"),
-                        onClick: function() {
-                            openDNDOptions();
-                        }
-                    }
-                ]
-            });
-            
-            closeMenu(this);
-        });
-		
-        onClick(".dndOff", function() {
-            setDND_off();
-            
-            // wait for message sending to other extension to sync dnd option
-            setTimeout(() => {
-                closeWindow();
-            }, 10);
-        });
-
-		isDNDbyDuration().then(DNDflag => {
-            if (DNDflag) {
-                hide(".dnd");
-            } else {
-                hide(".dndOff");
-            }
-        });
-			
-		onClick(".displayDensity", async function() {
-			closeMenu(this);
-			
-			const $dialog = initTemplate("displayDensityDialogTemplate");
-			const $radioButtons = $dialog.querySelectorAll("input[name='display-density']");
-			
-			$dialog.querySelector(`input[value='${await storage.get("displayDensity")}']`).checked = true;
-			
-            $radioButtons.forEach((el, index) => {
-                replaceEventListeners(el, "change", function(event) {
-                    const value = event.target.value;
-                    storage.set("displayDensity", value);
-                    
-                    document.body.classList.remove("comfortable", "cozy", "compact")
-                    document.body.classList.add(value);
-                    
-                    resizeInboxPatch();
-                });
-            });
-			
-			openDialog($dialog);
-		});
-		
-		onClick(".skins", function() {
-            closeMenu(this);
-            showSkinsDialog();
-            sendGA('topbar', 'skins');
-        });
-
-		onClick("#options-button", function() {
-			openUrl("options.html?ref=popup");
-		});
-
-		onClick(".changelog", async function() {
-            await storage.remove("_lastBigUpdate");
-            openChangelog("GmailCheckerOptionsMenu");
-		});
-
-		onClick(".contribute", function() {
-			openUrl("contribute.html?ref=GmailCheckerOptionsMenu");
-		});
-
-		onClick(".discoverMyApps", function() {
-			openUrl("https://jasonsavard.com?ref=GmailCheckerOptionsMenu");
-		});
-
-		onClick(".feedback", function() {
-			openUrl("https://jasonsavard.com/forum/categories/checker-plus-for-gmail-feedback?ref=GmailCheckerOptionsMenu");
-		});
-
-		onClick(".followMe", function() {
-			openUrl("https://jasonsavard.com/?followMe=true&ref=GmailCheckerOptionsMenu");
-		});
-
-		onClick(".aboutMe", function() {
-			openUrl("https://jasonsavard.com/about?ref=GmailCheckerOptionsMenu");
-		});
-
-		onClick(".help", function() {
-			openUrl("https://jasonsavard.com/wiki/Checker_Plus_for_Gmail?ref=GmailCheckerOptionsMenu");
-		});
 	}, {once: true});
-	
+
+    onClick(".switchView", async function() {
+        closeMenu(this);
+
+        const permissionsObj = {permissions: ["webRequest"]};
+        const granted = await chrome.permissions.request(permissionsObj);
+        if (granted) {
+            reversePopupView(true);
+            renderMoreAccountMails();
+        } else {
+            showError("Problem with permission for inbox view")
+        }
+    });
+
+    initSwitchMenuItem();
+
+    onClick(".popout", function() {
+        openUrl(getPopupFile());
+    });
+
+    onClick(".dnd", function() {
+        const $dialog = initTemplate("dndDialogTemplate");
+        const $radioButtons = $dialog.querySelectorAll("input[name='dnd-option']");
+
+        $radioButtons.forEach((el, index) => {
+            replaceEventListeners(el, "change", function(event) {
+                const value = event.target.value;
+                if (value == "today") {
+                    setDND_today();
+                } else if (value == "indefinitely") {
+                    setDND_indefinitely();
+                } else {
+                    setDND_minutes(value);
+                }
+                setTimeout(() => {
+                    closeWindow();
+                }, 200);
+            });
+        });
+
+        openDialog($dialog, {
+            closeButton: true,
+            ok: false,
+            buttons: [{
+                    label: getMessage("schedule"),
+                    onClick: function() {
+                        openDNDScheduleOptions();
+                    }
+                }, {
+                    label: getMessage("options"),
+                    onClick: function() {
+                        openDNDOptions();
+                    }
+                }
+            ]
+        });
+
+        closeMenu(this);
+    });
+
+    onClick(".dndOff", function() {
+        setDND_off();
+
+        // wait for message sending to other extension to sync dnd option
+        setTimeout(() => {
+            closeWindow();
+        }, 10);
+    });
+
+    isDNDbyDuration().then(DNDflag => {
+        if (DNDflag) {
+            hide(".dnd");
+        } else {
+            hide(".dndOff");
+        }
+    });
+
+    onClick(".displayDensity", async function() {
+        closeMenu(this);
+
+        const $dialog = initTemplate("displayDensityDialogTemplate");
+        const $radioButtons = $dialog.querySelectorAll("input[name='display-density']");
+
+        $dialog.querySelector(`input[value='${await storage.get("displayDensity")}']`).checked = true;
+
+        $radioButtons.forEach((el, index) => {
+            replaceEventListeners(el, "change", function(event) {
+                const value = event.target.value;
+                storage.set("displayDensity", value);
+
+                document.body.classList.remove("comfortable", "cozy", "compact")
+                document.body.classList.add(value);
+
+                resizeInboxPatch();
+            });
+        });
+
+        openDialog($dialog);
+    });
+
+    onClick(".skins", function() {
+        closeMenu(this);
+        showSkinsDialog();
+        sendGA('topbar', 'skins');
+    });
+
+    onClick(".options", function() {
+        openUrl("options.html?ref=popup");
+    });
+
+    onClick(".changelog", async function() {
+        await storage.remove("_lastBigUpdate");
+        openChangelog("GmailCheckerOptionsMenu");
+    });
+
+    onClick(".contribute", function() {
+        openUrl("contribute.html?ref=GmailCheckerOptionsMenu");
+    });
+
+    onClick(".discoverMyApps", function() {
+        openUrl("https://jasonsavard.com?ref=GmailCheckerOptionsMenu");
+    });
+
+    onClick(".feedback", function() {
+        openUrl("https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=GmailCheckerOptionsMenu");
+    });
+
+    onClick(".followMe", function() {
+        openUrl("https://jasonsavard.com/?followMe=true&ref=GmailCheckerOptionsMenu");
+    });
+
+    onClick(".aboutMe", function() {
+        openUrl("https://jasonsavard.com/about?ref=GmailCheckerOptionsMenu");
+    });
+
+    onClick(".checker-plus-compose-options", function() {
+        openUrl("options.html#compose");
+    });
+
+    onClick(".checker-plus-compose-help", function() {
+        openUrl("https://jasonsavard.com/wiki/Checker_Plus_Compose?ref=AIComposeOptionsMenu");
+    });
+
+    onClick(".help", function() {
+        openUrl("https://jasonsavard.com/wiki/Checker_Plus_for_Gmail?ref=GmailCheckerOptionsMenu");
+    });
+
 	onClick(".close", function() {
 		window.close();
 	});
-	
+
 	if (await daysElapsedSinceFirstInstalled() >= UserNoticeSchedule.DAYS_BEFORE_SHOWING_FOLLOW_ME && !await storage.get("followMeClicked")) {
         let expired = false;
         const followMeShownDate = await storage.get("followMeShownDate");
@@ -5811,7 +7469,9 @@ async function init() {
         });
         show($newsNotification);
         Controller.getMinimumPayment().then(minPaymentObj => {
-            $newsNotificationReducedDonationMessage.innerHTML = getMessage("reducedDonationAd_popup", [getMessage("extraFeatures"), formatCurrency(minPaymentObj.getOneTimeReducedPayment())]).replace(/([!?])/g, '$1<br>');
+            const reducedDonationLine1 = getMessage("reducedDonationAd_popup_line1");
+            const reducedDonationLine2 = getMessage("reducedDonationAd_popup_line2", [getMessage("extraFeatures"), formatCurrency(minPaymentObj.getOneTimeReducedPayment())]);
+            setSafeHTML($newsNotificationReducedDonationMessage, `${reducedDonationLine1}<br>${reducedDonationLine2}`);
             show($newsNotificationReducedDonationMessage);
         });
     } else if (await storage.get("_lastBigUpdate")) {
@@ -5840,15 +7500,13 @@ async function init() {
             }
 		}
     });
-    
-    if (await isAnAccountCheckingSpam()) {
+
+    if (await isAnAccountCheckingSpam() || await isAnAccountCheckingTrash()) {
         showBackToInboxMessage();
     }
-	
-	document.body.removeAttribute("jason-unresolved");
 
     sendMessageToBG("stopAllSounds");
-	
+
     if (isDetached
         && !isRequestingPermission
         && !await storage.get("popoutMessage")
@@ -5883,7 +7541,7 @@ async function init() {
             storage.set("drawer", "open");
         }
 	});
-	
+
     addEventListeners("#searchInput", "blur", function() {
         htmlElement.classList.remove("searchInputVisible");
     });
@@ -5891,7 +7549,6 @@ async function init() {
     addEventListeners("#searchInput", "keydown", async function(e) {
         if (e.key == "Enter" && !e.isComposing) {
             const account = e.target._account;
-            return;
             await executeAccountAction(account, "openSearch", {actionParams: e.target.value});
             closeWindow({source:"onlyMailAndInPreview"});
         }
@@ -5903,7 +7560,7 @@ async function init() {
 
             const mustUseAddAccount = accounts.some(account => account.errorCode == JError.CANNOT_ENSURE_MAIN_AND_INBOX_UNREAD);
             const accountsSummary = await getAccountsSummary(accounts);
-    
+
             if (!DetectClient.isFirefox() && !chrome.runtime.getContexts) {
                 await niceAlert("You must update your browser to continue using Checker Plus.");
                 openUrl("https://jasonsavard.com/wiki/Unstable_browser_channel?ref=no-contexts-api-from-popup");
@@ -5918,7 +7575,7 @@ async function init() {
                     } else {
                         $dialog = initTemplate("addAccountTemplate");
                     }
-        
+
                     let message;
                     if (accounts.length == 1 && accounts.first().error) {
                         if (accounts.first().getError().niceError && !/error/i.test(accounts.first().getError().niceError)) {
@@ -5943,7 +7600,7 @@ async function init() {
                             message = "Must add an account!";
                         }
                     }
-        
+
                     if (accountAddingMethod == "autoDetect" && !mustUseAddAccount) {
                         openDialog(message, {
                             ok: false,
@@ -6018,11 +7675,16 @@ async function init() {
             await sleep(1);
             resizeInboxPatch();
         }
-		
+
 		if (previewMailId && (browserButtonAction != BrowserButtonAction.GMAIL_INBOX && browserButtonAction != BrowserButtonAction.GMAIL_INBOX_POPOUT && browserButtonAction != BrowserButtonAction.GMAIL_INBOX_SIDE_PANEL)) {
 			const mail = findMailById(previewMailId);
 			openEmail({mail:mail});
-		}
+		} else if (await storage.get("refreshWhenOpeningPopup")) {
+            // cached emails are already rendered, so refresh in the background without blocking init
+            refresh().catch(error => {
+                console.warn("refreshWhenOpeningPopup failed", error);
+            });
+        }
 	}
 
 	// patch for mac issue popup clipped at top ref: https://bugs.chromium.org/p/chromium/issues/detail?id=428044
@@ -6045,7 +7707,7 @@ async function init() {
             sendMessageToBG("stopAllSounds");
         }
 	});
-	
+
     document.body.addEventListener("mousemove", function () {
         userHasInteractedWithPopupDate = new Date();
 
@@ -6060,7 +7722,7 @@ async function init() {
     document.body.addEventListener("mouseout", function () {
 		mouseInPopup = false;
 	}, {passive: true});
-	
+
     let currentlyRenderingMails = false;
     // patch need to add (#inboxSection app-drawer-layout) because when i set the hasVerticalScrollbars ... {overflow-y:scroll} then the polymer scroll event does not trigger anymore so default
     getInboxScrollTarget().addEventListener("scroll", function(e) {
@@ -6084,12 +7746,12 @@ async function init() {
 		// template-bound event is called when an auto-binding element is ready
 		accountsTemplate.addEventListener('template-bound', function () {
 			console.log("accounts template-bound")
-			
+
 			setMailDetails(accounts, $(".mail"));
 		});
-		
+
 		syncMails();
-		
+
 		accountsTemplate.accounts = accounts;
 	}
 	*/
@@ -6100,7 +7762,7 @@ async function init() {
 			const $dialog = initTemplate("draftSavedTemplate");
 			const $draftSavedTextarea = $dialog.querySelector("#draftSavedTextarea");
 			$draftSavedTextarea.value = autoSaveObj.message;
-			
+
             openDialog($dialog, {
                 title: getMessage("whileYouWereInterrupted"),
                 buttons: [{
@@ -6127,7 +7789,7 @@ async function init() {
             });
         });
     }
-    
+
     requestIdleCallback(() => {
         storage.setDate("_lastClickedButtonIcon").then(() => {
             sendMessageToBG("updateBadge");

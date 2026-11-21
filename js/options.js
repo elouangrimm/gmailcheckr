@@ -307,31 +307,34 @@ async function initPage(tabName) {
 				hide("#voiceOptions");
 			}
 
-            byId("notificationVoice").addEventListener("change", function (e) {
-                console.log("voice changed", e);
-                const voiceName = e.target.value;
+            const $notificationVoice = byId("notificationVoice");
+            if ($notificationVoice) {
+                    $notificationVoice.addEventListener("change", function (e) {
+                    console.log("voice changed", e);
+                    const voiceName = e.target.value;
 
-                storage.set("notificationVoice", voiceName);
-                if (voiceName) {
-                    if (voiceName == "addVoice") {
-                        openUrl("https://jasonsavard.com/wiki/Voice_Notifications");
-                    } else {
-
-                        if (voiceName.includes("Multilingual TTS Engine")) {
-                            byId("pitch").setAttribute("disabled", "true");
-                            byId("rate").setAttribute("disabled", "true");
+                    storage.set("notificationVoice", voiceName);
+                    if (voiceName) {
+                        if (voiceName == "addVoice") {
+                            openUrl("https://jasonsavard.com/wiki/Voice_Notifications");
                         } else {
-                            byId("pitch").removeAttribute("disabled");
-                            byId("rate").removeAttribute("disabled");
-                        }
 
-                        playVoice();
+                            if (voiceName.includes("Multilingual TTS Engine")) {
+                                byId("pitch").setAttribute("disabled", "true");
+                                byId("rate").setAttribute("disabled", "true");
+                            } else {
+                                byId("pitch").removeAttribute("disabled");
+                                byId("rate").removeAttribute("disabled");
+                            }
+
+                            playVoice();
+                        }
+                        fadeIn("#voiceOptions");
+                    } else {
+                        hide("#voiceOptions");
                     }
-                    fadeIn("#voiceOptions");
-                } else {
-                    hide("#voiceOptions");
-                }
-            });
+                });
+            }
 
 			onClick("#playVoice", async function () {
 				const isSpeaking = await chrome.runtime.sendMessage({command: "chromeTTS", isSpeaking:true});
@@ -367,7 +370,13 @@ async function initPage(tabName) {
 
             onClick("#moveIntoActionCenter", async function() {
                 if (this.checked) {
-                    await niceAlert("This will also set the option 'Close after' to 'never'.");
+                    let msg;
+                    if (DetectClient.isWindows()) {
+                        msg = "Make sure the Windows option is also set: System > Notifications > Google Chrome > Show notifications in action center.\n\n";
+                    }
+
+                    await niceAlert(`${msg}This will also set the option 'Close after' to 'never'.`);
+
                     if (await storage.get("notificationWakesUpScreenTemporarily")) {
                         storage.set("notificationWakesUpScreenTemporarily", false);
                         byId("notificationWakesUpScreenTemporarily").checked = false;
@@ -483,7 +492,7 @@ async function initPage(tabName) {
 				byId("showNotificationDuration_rich").value = e.target.value;
 			});
 
-			byId("showNotificationDuration_rich").addEventListener("change", function(e) {
+			byId("showNotificationDuration_rich").addEventListener("change", async function(e) {
                 const value = e.target.value;
 				byId("showNotificationDuration_text").value = value;
 
@@ -496,7 +505,11 @@ async function initPage(tabName) {
                         openUrl("https://jasonsavard.com/wiki/System_Notifications?ref=neverDisappear");
                     });
                 } else if (value == "infinite") {
-                    niceAlert("Note with this option: " + getMessage("notificationWakesUpScreenTemporarily"));
+                    if (await storage.get("moveIntoActionCenter")) {
+                        // ignore
+                    } else {
+                        niceAlert("Note with this option: " + getMessage("notificationWakesUpScreenTemporarily"));
+                    }
                 }
 			});
 
@@ -926,6 +939,11 @@ async function initPage(tabName) {
 					setTimeout(function () {
 						byId("quickComposeEmail").focus();
 					}, 200);
+                } else if (location.href.match("highlight=previewingMarksAsRead")) {
+                    byId("previewingMarksAsRead").closest("label").classList.add("highlight");
+                    setTimeout(function () {
+                        byId("previewingMarksAsRead").focus();
+                    }, 200);
                 }
 			}, 500);
 
@@ -1004,9 +1022,22 @@ async function initPage(tabName) {
 
             byId("appearance").value = await getColorSchemeSetting();
 
+            byId("appearance").addEventListener("click", function(e) {
+                e.target.dataset.previousValue = e.target.value;
+            });
+
             byId("appearance").addEventListener("change", async function (e) {
-                await storage.set("darkMode", e.target.value);
-                initColorScheme();
+                if (await donationClicked("darkMode")) {
+                    await storage.set("darkMode", e.target.value);
+                    initColorScheme();
+                } else {
+                    this.value = e.target.dataset.previousValue;
+                    try {
+                        var quotaText = await fetch(`https://jasonsavard.com/getQuotaText?space=${"gmail"}`).then(response => response.json());
+                    } catch (error) {
+                        console.error("Error fetching quota text", error);
+                    }
+                }
             });
 
 		} else if (tabName == "accounts") {
@@ -1059,12 +1090,18 @@ async function initPage(tabName) {
                 sendMessageToBG("restartCheckEmailTimer", true);
 			});
 			
+            // add this manually because it doesn't have a storage attribute to auto initiate previous value
+            byId("pollingInterval").addEventListener("click", function(e) {
+                e.target.dataset.previousValue = e.target.value;
+            });
+
             byId("pollingInterval").addEventListener("change", async function(e) {
 				const pollingInterval = e.target.value;
                 if (pollingInterval == "realtime" && !supportsRealtime()) {
 					niceAlert("Not available with this browser");
 				} else if (getSelectedRadioValue("accountAddingMethod") == "autoDetect" && pollingInterval == "realtime") {
 					e.preventDefault();
+                    e.target.value = e.target.dataset.previousValue;
 					highlightAddAccount();
 					niceAlert(getMessage("switchToAddAccounts"));
 				} else {
@@ -1150,123 +1187,15 @@ async function initPage(tabName) {
             
         } else if (tabName == "skinsAndThemes") {
 
-            const $skinsListing = byId("skinsAndThemesListing").querySelector("tbody") || byId("skinsAndThemesListing");
-            const $previewStyles = byId("skinPreviewStyles");
-
-            // Function to update preview
-            function updateSkinPreview() {
-                const $iframe = byId("skinPreviewFrame");
-                if ($iframe && $iframe.contentWindow) {
-                    $iframe.contentWindow.location.reload();
-                }
-            }
-
-            // Toolbar button handlers
-            onClick("#skinResetBtn", async () => {
-                if (confirm("Reset all skins, custom CSS, and background color?")) {
-                    await storage.remove("skins");
-                    await storage.remove("customSkin");
-                    await storage.remove("popup-bg-color");
-                    await storage.remove("nightModeSkin");
-                    
-                    // Reset UI
-                    $skinsListing.querySelectorAll(".addSkin").forEach($btn => {
-                        $btn.setAttribute("icon", "add");
-                        $btn.classList.add("filled");
-                    });
-                    
-                    updateSkinPreview();
-                    showToast(getMessage("done"));
-                }
-            });
-
-            onClick("#skinNightModeBtn", async () => {
-                const skins = await Controller.getSkins();
-                const nightModeSkin = await storage.get("nightModeSkin");
-                
-                // Create a simple selection dialog
-                const $dialog = document.createElement("div");
-                $dialog.innerHTML = `
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <div style="padding: 8px; cursor: pointer; border-radius: 4px;" data-skin-id="none">
-                            <strong>None</strong> - Disable night mode skin
-                        </div>
-                        ${skins.map(s => `
-                            <div style="padding: 8px; cursor: pointer; border-radius: 4px; ${nightModeSkin?.id == s.id ? 'background: var(--primary-color-light);' : ''}" data-skin-id="${s.id}">
-                                <strong>${s.name}</strong>
-                            </div>
-                        `).join("")}
-                    </div>
-                `;
-                
-                openDialog($dialog, {
-                    title: getMessage("nightMode"),
-                    closeButton: true
-                });
-
-                $dialog.querySelectorAll("[data-skin-id]").forEach($item => {
-                    onClick($item, async () => {
-                        const skinId = $item.getAttribute("data-skin-id");
-                        if (skinId === "none") {
-                            await storage.remove("nightModeSkin");
-                        } else {
-                            const selectedSkin = skins.find(s => s.id == skinId);
-                            if (selectedSkin) {
-                                await storage.set("nightModeSkin", selectedSkin);
-                            }
-                        }
-                        showToast(getMessage("done"));
-                        $dialog.closest("dialog")?.close();
-                    });
-                });
-            });
-
-            onClick("#skinBgColorBtn", async () => {
-                const color = await openColorChooser();
-                if (color) {
-                    await storage.set("popup-bg-color", color);
-                    updateSkinPreview();
-                    showToast(getMessage("done"));
-                }
-            });
-
-            onClick("#skinCustomCSSBtn", () => {
-                // Open custom CSS editor in a popup window
-                const width = 700;
-                const height = 500;
-                const left = (screen.width - width) / 2;
-                const top = (screen.height - height) / 2;
-                
-                window.open(
-                    chrome.runtime.getURL("custom-css-editor.html"),
-                    "customCSSEditor",
-                    `width=${width},height=${height},left=${left},top=${top},resizable=yes`
-                );
-            });
-
-            // Listen for custom CSS updates from editor popup
-            window.addEventListener("message", (event) => {
-                if (event.data?.type === "customSkinUpdated") {
-                    updateSkinPreview();
-                }
-            });
+            const $skinsListing = byId("skinsAndThemesListing");
 
             showSpinner();
 
             try {
                 const skins = await Controller.getSkins();
-                const activeSkins = await storage.get("skins") || [];
-                
                 skins.forEach(skin => {
                     const $row = document.createElement("tr");
                     $row.classList.add("skinLine");
-
-                    // Checkbox column
-                    const $checkboxTd = document.createElement("td");
-                    const $checkbox = document.createElement("input");
-                    $checkbox.type = "checkbox";
-                    $checkbox.checked = activeSkins.some(s => s.id == skin.id);
-                    $checkboxTd.append($checkbox);
 
                     const $name = document.createElement("td");
                     $name.classList.add("name");
@@ -1290,51 +1219,40 @@ async function initPage(tabName) {
                     const $installs = document.createElement("td");
                     $installs.textContent = skin.installs;
 
-                    $row.append($checkboxTd, $name, $skinImageWrapper, $author, $installs);
+                    const $addSkinWrapper = document.createElement("td");
+
+                    const $addSkin = document.createElement("j-button");
+                    $addSkin.classList.add("addSkin", "filled");
+                    $addSkin.setAttribute("icon", "add");
+
+                    $addSkinWrapper.append($addSkin);
+
+                    $row.append($name, $skinImageWrapper, $author, $installs, $addSkinWrapper);
+
                     $row._skin = skin;
 
                     if (skin.image) {
-                        const imageUrl = skin.image.startsWith("skins/") 
-                            ? chrome.runtime.getURL(skin.image) 
-                            : skin.image;
-                        $skinImage.src = imageUrl;
-                        $skinImageLink.href = imageUrl;
+                        $skinImage.src = skin.image;
+                        $skinImageLink.href = skin.image;
                         $skinImageLink.target = "_previewWindow";
                     }
-
+    
                     const $authorLink = document.createElement("a");
-                    $authorLink.textContent = skin.author || "";
+                    $authorLink.textContent = skin.author;
                     if (skin.author_url) {
                         $authorLink.href = skin.author_url;
                         $authorLink.target = "_preview";
+                        $skinImage.style["cursor"] = "pointer";
                     }
-                    $author.append($authorLink);
-                    
-                    // Handle checkbox change
-                    $checkbox.addEventListener("change", async () => {
-                        let currentSkins = await storage.get("skins") || [];
-                        // Create a mutable copy
-                        currentSkins = [...currentSkins];
-                        const index = currentSkins.findIndex(s => s.id == skin.id);
-                        
-                        if ($checkbox.checked && index == -1) {
-                            currentSkins.push(skin);
-                        } else if (!$checkbox.checked && index != -1) {
-                            currentSkins.splice(index, 1);
-                        }
-                        
-                        await storage.set("skins", currentSkins);
-                        updateSkinPreview();
+                    $author.append( $authorLink );
+                    onClick($addSkin, () => {
+                        window.open("https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab", "emptyWindow");
                     });
-
+    
                     $skinsListing.append($row);
                 });
-
-                // Initial preview update
-                updateSkinPreview();
-                
             } catch (error) {
-                $skinsListing.innerHTML = `<tr><td colspan="5">Problem loading skins: ${error}</td></tr>`;
+                $skinsListing.append("Problem loading skins: " + error);
             }
 
             hideLoading();
@@ -1413,11 +1331,21 @@ async function initPage(tabName) {
 					onVoiceInputLanguageChange();
 				});
 			}
-		} else if (tabName == "admin") {
-            onClick("#unlockFeatures", async function () {
-                await Controller.processFeatures();
-                showToast("Features Unlocked!");
+        } else if (tabName == "compose") {
+            byId("showCheckerPlusComposeInGmail").addEventListener("change", async (e) => {
+                if (e.target.checked) {
+                    registerAICompose();
+                } else {
+                    unregisterAICompose();
+                }
             });
+
+            byId("openCheckerPlusComposeInGmailAction").addEventListener("change", async (e) => {
+                await waitForStorageSync();
+                await sendMessageToBG("resetInitMiscWindowVars");
+                await sendMessageToBG("initMisc");
+            });
+		} else if (tabName == "admin") {
 			onClick("#deleteAllCustomSounds", async function () {
 				await storage.remove("customSounds");
 				location.reload();
@@ -1605,6 +1533,58 @@ async function initPage(tabName) {
 
             onClick("#reload-extension", async () => {
                 chrome.runtime.reload();
+            });
+
+            onClick("#debugSignInIssue", async () => {
+                showLoading();
+                try {
+                    const debugInfo = await sendMessageToBG("debugSignInInfo");
+                    hideLoading();
+
+                    const debugInfoText = JSON.stringify(debugInfo, null, 2);
+
+                    const pre = document.createElement("pre");
+                    pre.style.cssText = "white-space:pre-wrap;word-break:break-word;text-align:left;font-size:12px;max-height:60vh;overflow:auto";
+                    pre.textContent = debugInfoText;
+
+                    openDialog(pre, {
+                        title: "Sign-in debug info (also logged to the background service worker console)",
+                        closeButton: true,
+                        modal: false,
+                        buttons: [{
+                            label: "Copy to clipboard",
+                            icon: "content-copy",
+                            onClick: () => {
+                                navigator.clipboard.writeText(debugInfoText);
+                                showToast(getMessage("done"));
+                            }
+                        }]
+                    });
+                } catch (error) {
+                    hideLoading();
+                    niceAlert("Problem gathering debug info: " + error);
+                }
+            });
+
+            onClick("#reinitGmailSignIn", async () => {
+                showLoading();
+                try {
+                    const response = await sendMessageToBG("reinitGmailSignInViaOffscreen");
+                    hideLoading();
+
+                    if (response?.loaded) {
+                        await initAllAccounts();
+                        pollAndLoad({showNotification: false});
+                        niceAlert("mail.google.com was loaded in the background (offscreen document). Check the Accounts section or popup to see if sign-in was detected.");
+                    } else if (response?.timedOut) {
+                        niceAlert("Timed out waiting for mail.google.com to load in the offscreen document.");
+                    } else {
+                        niceAlert("Could not load mail.google.com in the offscreen document.");
+                    }
+                } catch (error) {
+                    hideLoading();
+                    niceAlert("Problem: " + error);
+                }
             });
 
 			onClick("#saveSyncOptions", function (event) {
@@ -1871,6 +1851,11 @@ async function showOptionsSection(tabName) {
             await waitForStorageSync();
             sendMessageToBG("updateBadge");
         });
+
+        addEventListeners("[indexdb-storage='onlyPreventNotificationsDuringDND']", "change", async function () {
+            await waitForStorageSync();
+            sendMessageToBG("updateBadge");
+        });
     }
 }
 
@@ -1979,7 +1964,7 @@ async function generateSoundOptions(account, labelValue) {
 
         async function notificationSoundListener(event) {
             const $paperMenu = event.target;
-            const soundName = event.target.value;
+            let soundName = event.target.value;
 
             if (DetectClient.isWindows() && !soundName) {
                 let showWarning;
@@ -2003,6 +1988,13 @@ async function generateSoundOptions(account, labelValue) {
                 } else {
                     hide("#soundOptions");
                 }
+            }
+
+            if (event.target.dataset.attemptedValue) {
+                soundName = event.target.dataset.attemptedValue;
+                delete event.target.dataset.attemptedValue;
+                playSound(soundName);
+                return;
             }
 
             if (soundName && soundName != "custom" && soundName != "record") {
@@ -2194,7 +2186,7 @@ async function generateMonitorLabelOptions(account, title, labelValue, icon) {
     $monitorLabelLine.classList.add("monitorLabelLine", "layout", "horizontal", "center");
 
     const $monitoredLabelCheckboxWrapper = document.createElement("label");
-    $monitoredLabelCheckboxWrapper.classList.add("flex");
+    $monitoredLabelCheckboxWrapper.classList.add("monitoredLabelCheckboxWrapper", "flex");
 
     const $monitoredLabelCheckbox = document.createElement("input");
     $monitoredLabelCheckbox.type = "checkbox";
@@ -2502,6 +2494,11 @@ async function loadAccountsOptions(loadAccountsParams = {}) {
 	}
 	
     const $accountsList = byId("accountsList");
+    if (!$accountsList) {
+        console.warn("Accounts not loaded yet");
+        return;
+    }
+
     removeAllNodes($accountsList.querySelectorAll("j-item[email]"));
 
 	var selectedAccount;
@@ -2762,11 +2759,15 @@ async function loadAccountsOptions(loadAccountsParams = {}) {
             var importantInInbox = values.includes(SYSTEM_IMPORTANT_IN_INBOX);
             var allMail = values.includes(SYSTEM_ALL_MAIL);
             var primary = values.includes(SYSTEM_PRIMARY);
+            var social = values.includes(SYSTEM_SOCIAL);
+            var promotions = values.includes(SYSTEM_PROMOTIONS);
+            var updates = values.includes(SYSTEM_UPDATES);
+            var forums = values.includes(SYSTEM_FORUMS);
             
             // warn if selecting more than more than one of the major labels
             var duplicateWarning = false;
             //alert(inbox + " " + allMail + " " + important + " " + importantInInbox + " " + primary);
-            if ((inbox || allMail) && (important || importantInInbox || primary)) {
+            if ((inbox || allMail) && (important || importantInInbox || primary || social || promotions || updates || forums)) {
                 duplicateWarning = true;
             } else if (important && importantInInbox) {
                 duplicateWarning = true;
@@ -2783,7 +2784,7 @@ async function loadAccountsOptions(loadAccountsParams = {}) {
                     title: getMessage("duplicateWarning"),
                 });
                 return;
-            } else if ((labelValue == SYSTEM_PRIMARY && event.target.checked) || (labelValue == SYSTEM_INBOX && !event.target.checked && primary) || hiddenTabUnchecked) {
+            } else if (event.target.checked && ((labelValue == SYSTEM_PRIMARY && event.target.checked) || (labelValue == SYSTEM_INBOX && !event.target.checked && primary) || hiddenTabUnchecked)) {
                 if (await account.hasHiddenTabs()) {
                     openDialog(getMessage("hiddenGmailTabsNote"), {
                         cancel: true,
@@ -3157,6 +3158,31 @@ async function maybePromptForHostPermissions() {
 (async () => {
 
     await initUI();
+
+        // patch for firefox select > option tag doesn't support embedded markup
+    if (DetectClient.isFirefox()) {
+        const processedOptions = new Set();
+
+        const processOptions = (root) => {
+            root.querySelectorAll("option").forEach(option => {
+                if (processedOptions.has(option)) {
+                    return;
+                }
+
+                processedOptions.add(option);
+
+                if (option.hasAttribute("msgFF")) {
+                    option.textContent = getMessage(option.getAttribute("msgFF"));
+                }
+            });
+        }
+
+        selectorAll("template").forEach(template => {
+            processOptions(template.content);
+        });
+
+        processOptions(document);
+    }
     
     donationClickedFlagForPreventDefaults = await storage.get("donationClicked");
 
@@ -3285,7 +3311,7 @@ async function maybePromptForHostPermissions() {
         loadVoices();
     });
     
-    addEventListeners("#logo", "dblclick", async function() {
+    addEventListeners(".logo", "dblclick", async function() {
         if (await storage.get("donationClicked")) {
             await storage.remove("donationClicked");
         } else {

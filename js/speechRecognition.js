@@ -1,23 +1,55 @@
 // Copyright Jason Savard
 
-if (globalThis.thisScriptLoaded) {
-    // do nothing
-} else {
-    globalThis.thisScriptLoaded = true;
+(() => {
+    // Generate a unique ID for THIS script execution
+    const SCRIPT_ID = Math.random().toString(36).substring(2, 9);
+    const SCRIPT_ATTR = 'gmailSpeechRecognitionContextId';
+    const listenerAbortController = new AbortController();
+    let addTalkButtonsInterval;
+    let attachFocusEventsToComposeAreaIntervals = [];
 
-    function docReady(fn) {
-        return new Promise((resolve, reject) => {
-            fn ||= resolve;
-            if (document.readyState === "interactive" || document.readyState === "complete") {
-                fn();
-            } else {
-                document.addEventListener("DOMContentLoaded", () => {
-                    fn();
-                });
-            }
+    function cleanUp() {
+        console.log("Cleaning speech recognition script...");
+        if (addTalkButtonsInterval) {
+            clearInterval(addTalkButtonsInterval);
+            addTalkButtonsInterval = null;
+        }
+
+        if (attachFocusEventsToComposeAreaIntervals.length) {
+            attachFocusEventsToComposeAreaIntervals.forEach(intervalId => clearInterval(intervalId));
+            attachFocusEventsToComposeAreaIntervals = [];
+        }
+
+        if (!listenerAbortController.signal.aborted) {
+            listenerAbortController.abort();
+        }
+    }
+
+    function handleInjection() {
+        const html = document.documentElement;
+        const existingId = html.dataset[SCRIPT_ATTR];
+
+        if (existingId) {
+            // We found a zombie! Send a signal to the old script to die.
+            console.log(`New script (${SCRIPT_ID}) replacing old script (${existingId})`);
+            window.dispatchEvent(new CustomEvent('EXT_CLEANUP_' + existingId));
+        }
+
+        // Set the DOM flag to THIS script's ID
+        html.dataset[SCRIPT_ATTR] = SCRIPT_ID;
+
+        // Set up a listener for when the NEXT reload happens
+        window.addEventListener('EXT_CLEANUP_' + SCRIPT_ID, () => {
+            console.log("Shutting down orphaned script...");
+            cleanUp();
+        }, {
+            once: true,
+            signal: listenerAbortController.signal
         });
     }
-    
+
+    handleInjection();
+
     function emptyNode(target) {
         parseTarget(target, el => {
             while(el.firstChild) el.removeChild(el.firstChild);
@@ -80,30 +112,58 @@ if (globalThis.thisScriptLoaded) {
     
     function addEventListeners(target, type, fn, namespace, listenerOptions) {
         parseTarget(target, el => {
-               let thisListenerOptions = false;
+            let thisListenerOptions;
             if (namespace) {
                 const abortControllerFnName = `_myAbortController_${namespace}_${type}`;
                 if (el[abortControllerFnName]) {
-                      console.log("abort")
-                      el[abortControllerFnName].abort();
+                    console.log("abort")
+                    el[abortControllerFnName].abort();
                 }
                 el[abortControllerFnName] = new AbortController();
-              
+
+                let signal;
+                if (typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function") {
+                    signal = AbortSignal.any([listenerAbortController.signal, el[abortControllerFnName].signal]);
+                } else {
+                    signal = el[abortControllerFnName].signal;
+                    listenerAbortController.signal.addEventListener("abort", () => {
+                        if (el[abortControllerFnName]) {
+                            el[abortControllerFnName].abort();
+                        }
+                    }, { once: true });
+                }
+
                 if (listenerOptions === true) {
                     thisListenerOptions = {
                         capture: true,
-                        signal: el[abortControllerFnName].signal
+                        signal
                     }
                 } else if (typeof listenerOptions === 'object') {
                     thisListenerOptions = Object.assign({}, listenerOptions);
-                    thisListenerOptions.signal = el[abortControllerFnName].signal;
+                    thisListenerOptions.signal = signal;
                 } else {
-                      thisListenerOptions = {
-                        signal: el[abortControllerFnName].signal
+                    thisListenerOptions = {
+                        signal
                     }
                 }
             } else if (listenerOptions) {
-                thisListenerOptions = listenerOptions;
+                if (listenerOptions === true) {
+                    thisListenerOptions = {
+                        capture: true,
+                        signal: listenerAbortController.signal
+                    };
+                } else if (typeof listenerOptions === 'object') {
+                    thisListenerOptions = Object.assign({}, listenerOptions);
+                    thisListenerOptions.signal = listenerAbortController.signal;
+                } else {
+                    thisListenerOptions = {
+                        signal: listenerAbortController.signal
+                    };
+                }
+            } else {
+                thisListenerOptions = {
+                    signal: listenerAbortController.signal
+                };
             }
             el.addEventListener(type, fn, thisListenerOptions);
         });
@@ -880,10 +940,12 @@ if (globalThis.thisScriptLoaded) {
                     var attachFocusEventsToComposeAreaInterval = setInterval(function() {
                         if (nodeFound) {
                             clearInterval(attachFocusEventsToComposeAreaInterval);
+                            attachFocusEventsToComposeAreaIntervals = attachFocusEventsToComposeAreaIntervals.filter(intervalId => intervalId !== attachFocusEventsToComposeAreaInterval);
                         } else {
                             nodeFound = attachFocusEvents($messageAndFooterArea.querySelector(COMPOSE_AREA_SELECTOR), "composeArea");
                         }
                     }, 500);
+                    attachFocusEventsToComposeAreaIntervals.push(attachFocusEventsToComposeAreaInterval);
                     
                     // hook key combos
                     replaceEventListeners($messageAndFooterArea, "keydown", function(e) {
@@ -1534,14 +1596,14 @@ if (globalThis.thisScriptLoaded) {
             //console.log("window blur: " + new Date());
             // cancel the abort because we want user to be able to keeping talking from another window!
             clearTimeout(listeningNodeBlurredTimer);
-        });
+        }, { signal: listenerAbortController.signal });
     
         window.addEventListener("focus", function() {
             //console.log("window focus: " + new Date());
-        });
+        }, { signal: listenerAbortController.signal });
     
-        setInterval(function() {
+        addTalkButtonsInterval = setInterval(function() {
             addTalkButtons();
         }, 1000);
     //});
-}
+})();

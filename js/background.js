@@ -1,4 +1,4 @@
-// Copyright Gmail Checkr
+// Copyright Jason Savard
 "use strict";
 
 console.log("background.js loaded: " + new Date());
@@ -6,8 +6,7 @@ console.log("background.js loaded: " + new Date());
 try {
     if (!globalThis.commonJSLoaded) {
         importScripts(
-            "lib/Autolinker.js",
-            "config.js",
+            "/lib/Autolinker.js",
             "common.js",
             "checkerPlusForGmail.js",
             "mime/addressparser.js",
@@ -16,10 +15,7 @@ try {
             "mime/encoding.js",
             "mime/mimelib.js",
             "account.js",
-            "mail.js",
-            "sanitizer/html4.js",
-            "sanitizer/uri.js",
-            "sanitizer/sanitizer.js"
+            "mail.js"
         );
     }
 } catch (error) {
@@ -89,7 +85,7 @@ async function maybeRegisterId() {
                         if (oldRegId) {
                             params.oldRegistrationId = oldRegId;
                         }
-    
+
                         const response = await linkEmailToRegistrationId(params);
                         console.info("migrated to new reg id: " + response);
                     }
@@ -104,12 +100,12 @@ async function maybeRegisterId() {
 chrome.runtime.onInstalled.addListener(async details => {
 	//console.log("onInstalled: " + details.reason);
 	await storagePromise;
-	
+
 	// patch: when extension crashes and restarts the reason is "install" so ignore if it installdate exists
 	if (details.reason == "install" && !await storage.get("installDate")) {
         // Note: Install dates only as old as implementation of this today, Dec 14th 2013
         await storage.initInstallationVars();
-        
+
         const managedItems = await getManagedStorage();
         if (!managedItems?.DoNotOpenWebsiteOnInstall) {
             const optionsUrl = chrome.runtime.getURL("options.html"); // i moved the "?action=install" to the redirect in the thankyouforinstalling page because siteground was giving me 403 forbidden whenever it found %3F (which is an encoded "?")
@@ -117,20 +113,9 @@ chrome.runtime.onInstalled.addListener(async details => {
                 url: `https://jasonsavard.com/thankYouForInstalling?app=gmail&optionsUrl=${encodeURIComponent(optionsUrl)}`
             });
         }
-        
+
         // commented because too many for quota
         //sendGA("installed", chrome.runtime.getManifest().version);
-
-        //some users might lose their settings lets help them out...
-		if (details.previousVersion) {
-			var previousVersionMajor = details.previousVersion.split(".")[0];
-			if (previousVersionMajor < 13) {
-				//
-			}
-		}
-		
-		await Controller.processFeatures();
-		console.log("Features unlocked on install");
 	} else if (details.reason == "update") {
 		// seems that Reloading extension from extension page will trigger an onIntalled with reason "update"
 		// so let's make sure this is a real version update by comparing versions
@@ -147,13 +132,13 @@ chrome.runtime.onInstalled.addListener(async details => {
 			// but let's wait about 60 minutes for (if) any new settings have been altered in this new extension version before saving syncing them
 			chrome.alarms.create(Alarms.EXTENSION_UPDATED_SYNC, {delayInMinutes:60});
 		}
-		
+
 		const previousVersionObj = parseVersionString(details.previousVersion);
         const currentVersionObj = parseVersionString(chrome.runtime.getManifest().version);
         const extensionUpdates = await storage.get("extensionUpdates");
 		if ((extensionUpdates == "all" && realUpdate) || (extensionUpdates == "interesting" && (previousVersionObj.major != currentVersionObj.major || previousVersionObj.minor != currentVersionObj.minor))) {
             storage.set("_lastBigUpdate", chrome.runtime.getManifest().version);
-        
+
             const options = {
                 type: "basic",
                 title: getMessage("extensionUpdated"),
@@ -162,7 +147,7 @@ chrome.runtime.onInstalled.addListener(async details => {
             }
 
             if (supportsNotificationButtons()) {
-                options.buttons = [{title: getMessage("seeUpdates") || "See Updates"}];
+                options.buttons = [{title: getMessage("seeUpdates")}];
             } else {
                 options.message += `\n${getMessage("seeUpdates")}`;
             }
@@ -188,7 +173,7 @@ chrome.runtime.onInstalled.addListener(async details => {
             });
 		}
     }
-    
+
     init("onInstalled");
 });
 
@@ -203,7 +188,10 @@ if (chrome.alarms) {
     chrome.alarms.onAlarm.addListener(async alarm => {
         try {
             console.log("alarm", alarm.name);
-            await initMisc();
+
+            await initMisc().catch(error => {
+                console.error("initMisc error in alarm: ", error);
+            });
 
             if (alarm.name == Alarms.EVERY_MINUTE) {
                 // for detecting and update the DND status to the user
@@ -247,10 +235,10 @@ if (chrome.alarms) {
                                 foundSomeDuplicateAccounts = true;
                                 duplicateAccountFlag = false;
                             } else {
-                                uniqueAccounts.unshift(accounts[a]);                            
+                                uniqueAccounts.unshift(accounts[a]);
                             }
                         }
-                        
+
                         if (foundSomeDuplicateAccounts) {
                             accounts = uniqueAccounts;
                         }
@@ -261,9 +249,10 @@ if (chrome.alarms) {
             } else if (alarm.name == Alarms.CHECK_EMAILS) {
                 await checkEmails("interval");
             } else if (alarm.name == Alarms.RESET_SPAM_CHECKING) {
-                if (await isAnAccountCheckingSpam()) {
-                    console.log("accountsListCheckingSpam so refresh");
+                if (await isAnAccountCheckingSpam() || await isAnAccountCheckingTrash()) {
+                    console.log("temporary system-folder view active so refresh");
                     await storage.remove("_accountsCheckingSpam");
+                    await storage.remove("_accountsCheckingTrash");
 
                     if (await storage.get("accountAddingMethod") == "oauth") {
                         await refreshAccounts({hardRefreshFlag: true});
@@ -329,15 +318,61 @@ if (chrome.alarms) {
                     await getEmailsFromFCMUpdate(account);
                 }
             } else if (alarm.name == Alarms.UPDATE_SKINS) {
-                // Disabled - skins are now local only
-                console.log("UPDATE_SKINS alarm disabled (local skins only)");
+                console.log("updateSkins...");
+
+                const skinsSettings = await storage.get("skins");
+                const skinsIds = skinsSettings.map(skin => skin.id);
+                const nightModeSkin = await storage.get("nightModeSkin");
+
+                if (skinsIds.length || nightModeSkin) {
+                    const skins = await Controller.getSkins(skinsIds, await storage.get("_lastUpdateSkins"));
+                    console.log("skins:", skins);
+
+                    let foundSkins = false;
+                    skins.forEach(skin => {
+                        skinsSettings.some(skinSetting => {
+                            if (skinSetting.id == skin.id) {
+                                foundSkins = true;
+                                console.log("update skin: " + skin.id);
+                                copyObj(skin, skinSetting);
+                                return true;
+                            }
+                        });
+                    });
+
+                    if (foundSkins) {
+                        storage.set("skins", skinsSettings);
+                    }
+
+                    if (nightModeSkin) {
+                        const nightSkinFromDB = skins.find(skin => skin.id == nightModeSkin.id);
+                        if (nightSkinFromDB) {
+                            copyObj(nightSkinFromDB, nightModeSkin);
+                            await storage.set("nightModeSkin", nightModeSkin);
+                        }
+                    }
+
+                    storage.setDate("_lastUpdateSkins");
+                }
             } else if (alarm.name == Alarms.UPDATE_UNINSTALL_URL) {
                 // do this every day so that the daysellapsed is updated in the uninstall url
-                //setUninstallUrl(getFirstEmail(accounts)); // Removed setUninstallUrl
+                setUninstallUrl(getFirstEmail(accounts));
             } else if (alarm.name == Alarms.CLEAR_SUBJECTS_SPOKEN) {
                 storage.remove("_subjectsSpoken");
             } else if (alarm.name == Alarms.AUTOMATIC_RESTART) {
                 chrome.runtime.reload();
+            } else if (alarm.name.startsWith(Alarms.EXPIRE_AI_PROMPT_DRAFT_PREFIX)) {
+                await storagePromise;
+                const draft = await storage.get(alarm.name);
+                if (draft) {
+                    const expiresAt = draft.savedAt + AI_PROMPT_DRAFT_MAX_AGE;
+                    if (!Number.isFinite(draft.savedAt) || Date.now() >= expiresAt) {
+                        await storage.remove(alarm.name);
+                    } else {
+                        await chrome.alarms.create(alarm.name, {when: expiresAt});
+                    }
+                }
+                return;
             }
         } catch (error) {
             console.error("error in alarm: ", error);
@@ -349,7 +384,7 @@ if (chrome.alarms) {
                 }
             }
         }
-    });    
+    });
 }
 
 async function getDisplayForWindow(window) {
@@ -373,7 +408,7 @@ chrome.windows.onCreated.addListener(async thisWindow => {
             const MAX_SECONDS_TO_AUTOMATICALLY_RESIZE = 10;
             if (launchWebAuthFlowDate?.diffInSeconds() > -MAX_SECONDS_TO_AUTOMATICALLY_RESIZE) {
                 storage.remove("_openOauthFlowDate");
-                
+
                 let height = 980;
                 try {
                     const displayFound = await getDisplayForWindow(thisWindow);
@@ -455,11 +490,11 @@ async function onRealtimeMessageReceived(rawMessage, source) {
 }
 
 if (chrome.gcm) {
-	
+
 	var MIN_SECONDS_BETWEEN_MODIFICATIONS_BY_EXTENSION_AND_GCM_MESSAGES = 15;
 	var MIN_SECONDS_BETWEEN_GET_EMAILS = 5;
 	var MIN_SECONDS_BETWEEN_PROCESSING_GCM_MESSAGES = 1;
-	
+
 	chrome.gcm.onMessage.addListener(async message => {
         console.log("gcm.onMessage", new Date(), message);
         await initMisc();
@@ -496,12 +531,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         } else {
             var sendEmailParams = generateSendPageParams(info, tab);
             sendEmailParams.to = {email:await storage.get("quickComposeEmail")}; // name:storage.get("quickComposeEmailAlias")
-            
+
             var originalMessage = sendEmailParams.message;
             sendEmailParams.htmlMessage = sendEmailParams.message + "<br><br><span style='color:gray'>Sent from <a style='color:gray;text-decoration:none' href='https://jasonsavard.com/Checker-Plus-for-Gmail?ref=sendpage'>Gmail Checkr</a></span>";
             // remove message since we put it into the htmlMessage and because it seems when gmail api sends in html only it generates the text/plain
             sendEmailParams.message = null;
-            
+
             accounts[0].sendEmail(sendEmailParams).then(() => {
                 const options = {
                     type: "basic",
@@ -510,7 +545,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                     contextMessage: originalMessage,
                     iconUrl: Icons.NotificationLogo
                 }
-                
+
                 var EMAIL_SENT_NOTIFICATION_ID = "emailSent";
                 chrome.notifications.create(EMAIL_SENT_NOTIFICATION_ID, options, async function(notificationId) {
                     if (chrome.runtime.lastError) {
@@ -549,12 +584,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
-
-
+async function setUninstallUrl(email) {
+	if (chrome.runtime.setUninstallURL) {
+		await storagePromise; // previously used await initMisc() but this caused race condition because setUninstallUrl did not have an await in the rest of the code and thus initMisc was called twice consecutively
+		var url = "https://jasonsavard.com/uninstalled?app=gmail";
+		url += "&version=" + encodeURIComponent(chrome.runtime.getManifest().version);
+		url += "&daysInstalled=" + await daysElapsedSinceFirstInstalled();
+		if (email && !/mail\.google\.com/.test(email)) {
+            url += "&e=" + encodeURIComponent(btoa(email));
+            storage.set("_uninstallEmail", email);
+		}
+		if (await storage.get("donationClicked")) {
+			url += "&c=true";
+		}
+		chrome.runtime.setUninstallURL(url);
+	}
+}
 
 async function onButtonClicked(notificationId, buttonIndex) {
 	console.log("onbuttonclicked", notificationId, buttonIndex);
+    // only load initMisc if needed because it might throw corrupt errors
 	if (notificationId == "extensionUpdate") {
+        await initMisc();
 		if (buttonIndex == -1 || buttonIndex == 0) {
             openChangelog();
 			chrome.notifications.clear(notificationId, function() {});
@@ -579,6 +630,7 @@ async function onButtonClicked(notificationId, buttonIndex) {
 		chrome.notifications.clear(notificationId, function() {});
 		sendGA("errorNotification", "clicked button on notification");
 	} else {
+        await initMisc();
 		stopAllSounds();
 		let notificationButtonValue;
 		if (buttonIndex == -1) { // when Windows native notifications were enabled in Chrome 68 this was equivalent to clicking anywhere
@@ -624,21 +676,18 @@ if (chrome.notifications) {
 
 	// clicked anywhere
 	chrome.notifications.onClicked.addListener(async notificationId => {
-        await initMisc();
 		onButtonClicked(notificationId, -1);
 	});
 
 	// buttons clicked
 	chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
-        await initMisc();
 		onButtonClicked(notificationId, buttonIndex);
 	});
-	
+
 	// closed notif
 	chrome.notifications.onClosed.addListener(async (notificationId, byUser) => {
 		console.log("notif onclose", notificationId, byUser, new Date());
-        await initMisc();
-        
+
 		if (notificationId == "extensionUpdate") {
 			if (byUser) {
 				sendGA("extensionUpdateNotification", "closed notification");
@@ -648,8 +697,9 @@ if (chrome.notifications) {
 		} else if (notificationId == "error") {
 			// nothing
 		} else {
+            await initMisc();
             storage.remove("_richNotifId");
-			
+
 			// Chrome <=60 byUser happens ONLY when X is clicked ... NOT by closing browser, NOT by clicking action buttons, ** NOT by calling .clear
 			// Chrome 61 update: calling .clear will set byUser = true
 			if (byUser && !globalThis.notificationClosedByDuration) {
@@ -687,6 +737,8 @@ if (chrome.runtime.onMessageExternal) {
                 sendResponse({installed:true});
             } else if (message.action == "version") {
                 sendResponse(chrome.runtime.getManifest().version);
+            } else {
+                sendResponse({actionNotSupported: true});
             }
         })();
         return true;
@@ -708,7 +760,7 @@ chrome.action.onClicked.addListener(async tab => {
     const sidePanelElseCompose = browserButtonAction == BrowserButtonAction.SIDE_PANEL && sidePanelBrowserButtonActionIfNoEmail == BrowserButtonAction.COMPOSE && unreadCount == 0;
 	const gmailInboxElseCompose = browserButtonAction == BrowserButtonAction.GMAIL_INBOX && gmailPopupBrowserButtonActionIfNoEmail == BrowserButtonAction.COMPOSE && unreadCount == 0;
     const gmailInboxSidePanelElseCompose = browserButtonAction == BrowserButtonAction.GMAIL_INBOX_SIDE_PANEL && gmailSidePanelBrowserButtonActionIfNoEmail == BrowserButtonAction.COMPOSE && unreadCount == 0;
-	
+
 	if (browserButtonAction == BrowserButtonAction.CHECKER_PLUS_POPOUT || browserButtonAction == BrowserButtonAction.GMAIL_INBOX_POPOUT) {
 		openInPopup();
 	} else if (browserButtonAction == BrowserButtonAction.COMPOSE || checkerPlusElseCompose || sidePanelElseCompose || gmailInboxElseCompose || gmailInboxSidePanelElseCompose) {
@@ -747,7 +799,7 @@ chrome.action.onClicked.addListener(async tab => {
             }
 			accountToOpen.openInbox(params);
 		} else {
-			console.error("No mailaccount(s) found with account id " + accountId);		
+			console.error("No mailaccount(s) found with account id " + accountId);
 			openUrl(getSignInUrl());
 		}
 	}
@@ -778,7 +830,7 @@ async function generateNotificationButton(buttons, buttonsWithValues, value, ema
 		} else {
 			NOTIF_BUTTONS_FOLDER = "/images/notifButtons/";
         }
-        
+
         function initButtonObj(title, icon) {
             let button = {
                 title: title
@@ -790,7 +842,7 @@ async function generateNotificationButton(buttons, buttonsWithValues, value, ema
 
             return button;
         }
-		
+
 		if (value == "markAsRead") {
             button = initButtonObj(maybeAppendAllMsg(getMessage("readLink"), emails), "checkmark.png");
 		} else if (value == "delete") {
@@ -820,12 +872,13 @@ async function generateNotificationButton(buttons, buttonsWithValues, value, ema
 		} else if (value == "dismiss") {
             button = initButtonObj(maybeAppendAllMsg(getMessage("dismiss"), emails), "checkmark.png");
 		} else if (value == "otp-code") {
-            button = initButtonObj(`${getMessage("copy")} ${strParam}`);
+            const scanNote = emails.first()?.otpCodeUsesFullContent ? " - Full message scan (local)" : "";
+            button = initButtonObj(`${getMessage("copy")} ${strParam}${scanNote}`);
         }
 
 		if (button) {
 			buttons.push(button);
-			
+
 			const buttonWithValue = shallowClone(button);
 			buttonWithValue.value = value;
 			buttonsWithValues.push(buttonWithValue);
@@ -860,15 +913,15 @@ async function fetchEmailImagePreview(mail) {
                     });
 
                     fixRelativeLinks(images, mail);
-                    
+
                     let detectedIconUrl;
                     let mustTestLoadImage;
                     const image = images.find(image => {
                         const src = image.src;
-                        
+
                         // do not show common gmail images such as these by ignore /images/
                         // .vcf icon = https://mail.google.com/mail/u/0/images/generic.gif
-                        // .wav icon = https://mail.google.com/mail/u/0/images/sound.gif	
+                        // .wav icon = https://mail.google.com/mail/u/0/images/sound.gif
                         // /proxy/ used by Google news letters https://ci6.googleusercontent.com/proxy/b0dQF6UdprOZnNdy4YkkZRZYSz4OKeP6tnNaKKhKAHzc5DoRLm-6T9Ofs1I_nxTMa7p63sQXCvlyhmMf4nIKJxbU6hMDZ46Wv5esDXgENaw2csOyvTEfyb2ycnSEic4Yi7N81kiF=s0-d-e1-ft#https://www.gstatic.com/gmktg/mtv-img/cloudplatform_hero_image_2014_mar_w538.jpg
                         // google logo 						   https://ci4.googleusercontent.com/proxy/GYehbMfqpOfmkZni3YXcVpYFnSdFa4_3HNmCzVHxFFhtCBk_QulXrkB97v_UVSU0gt8t42RnDKOqw0SvszkMjvrdKHZjm3UErjYHQI7vsurAMj3tGuzIFiqw8xIvgCy_aoN9ujcdkHDJYGLdO9h6jySufmfLtNIRr8tXVfdR=s0-d-e1-ft#https://ssl.gstatic.com/s2/oz/images/notifications/logo/google-plus-6617a72bb36cc548861652780c9e6ff1.png
                         // twitter profile image: https://ci4.googleusercontent.com/proxy/6gEsiJis1bR3V0VjLSVPlXWkvG5gpih1SXl76ZtlPej0gbvzyT5csZHqRvspHtFm6RSN3GMjr341ggvV8bL1kUfidvh40p5QhrHlZHUgvGD9Rzzka29xynqxWPMupf5w0YCPXAterd8WXA=s0-d-e1-ft#https://pbs.twimg.com/profile_images/1710068300/avatar-sel-port_reasonably_small.jpg
@@ -877,7 +930,7 @@ async function fetchEmailImagePreview(mail) {
                         console.log("image", image)
                         if (src && canDisplayImageInNotification(image) && !src.includes("/images/") && !src.includes("notifications/") && !src.includes("/logo")) {
                             // hostname is .google.com if they embedded the image
-                            // hostname is .googleusercontent.com if they in Gmail > clicked Insert Photo > by Web address (URL)							
+                            // hostname is .googleusercontent.com if they in Gmail > clicked Insert Photo > by Web address (URL)
                             if (mail.authorMail?.includes("@facebookmail.com")) {
                                 // https://ci3.googleusercontent.com/proxy/g96-WnOcJ8aMpwH8MgjPEGTy5Q32qaOHpaF30q0s6tJRXXxs8yRr5jFkDIWAX_-wDIkjnoGpvMmPqJp_GGHk4U5yhSmUiBmDma-tPDyIE7Y_2-jWYC0PmPxhRU8mcSqqJxoqi27HTYG6sh9Jcbzsuw=s0-d-e1-ft#https://fbcdn-profile-a.akamaihd.net/hprofile-ak-prn2/t5/1117010_779426678_323617099_q.jpg
                                 if (src.includes("profile")) {
@@ -957,11 +1010,11 @@ async function ensureDoNotShowNotificationIfGmailTabOpenTest(params = {}) {
     } else {
         return true;
     }
-} 
+}
 
 function showWebNotification(title, params = {}) {
     if (globalThis.registration) {
-        
+
         webNotification = {
             tag: params.tag
         }
@@ -1020,9 +1073,9 @@ async function showNotification(params = {}) {
     if (newState == "active") {
         storage.setDate("_lastNotificationDateWhileActive");
     }
-    
+
     const notificationDisplay = await storage.get("notificationDisplay");
-    
+
     params.unsnoozedEmails ||= [];
     params.newEmails ||= [];
 
@@ -1061,7 +1114,7 @@ async function showNotification(params = {}) {
             const passedDoNotShowNotificationIfGmailTabOpenTest = await ensureDoNotShowNotificationIfGmailTabOpenTest(params);
             if (passedDoNotShowNotificationIfGmailTabOpenTest) {
                 var NOTIFICATION_DISABLE_WARNING = "Normally a notification for this email or some of these emails will not appear because you unchecked the notification in your Accounts/Labels settings for this particular email/label";
-                
+
                 const notifications = await firstEmail.account.getSetting("notifications");
                 var notificationFlagForLabelsOfNewestEmail = await getSettingValueForLabels(firstEmail.account, notifications, firstEmail.labels, desktopNotification);
 
@@ -1070,13 +1123,13 @@ async function showNotification(params = {}) {
 
                 if (textNotification || !chrome.notifications) {
                     // text window
-                    if (notificationFlagForLabelsOfNewestEmail || params.testType) {					
+                    if (notificationFlagForLabelsOfNewestEmail || params.testType) {
                         var fromName = await generateNotificationDisplayName(firstEmail);
-                        
+
                         const subject = firstEmail.title || "";
-                        
+
                         var body = await firstEmail.getLastMessageText({maxSummaryLetters:101, htmlToText:true});
-        
+
                         var title = "";
 
                         if (params.resumeFromIdle && !firstEmail.unSnoozed) {
@@ -1085,7 +1138,7 @@ async function showNotification(params = {}) {
                                 title = `(${timeElapsedMsg}) `;
                             }
                         }
-                        
+
                         if (accounts.length >= 2 && await storage.get("displayAccountReceivingEmail")) {
                             title += await firstEmail.account.getEmailDisplayName() + "\n";
                         }
@@ -1102,7 +1155,7 @@ async function showNotification(params = {}) {
                         } else {
                             title += formatEmailNotificationTitle(fromName, subject);
                         }
-                        
+
                         body = shortenUrls(body);
 
                         await showWebNotification(title, {
@@ -1117,7 +1170,7 @@ async function showNotification(params = {}) {
                         });
 
                         const showNotificationDuration = await storage.get("showNotificationDuration");
-                        
+
                         if (!isNaN(showNotificationDuration)) {
                             if (webNotification) {
                                 sleep(seconds(showNotificationDuration)).then(() => {
@@ -1132,23 +1185,28 @@ async function showNotification(params = {}) {
                     }
                 } else if (richNotification) {
                     // rich notif
-                    
+
                     console.log("rich params: ", params);
 
                     var iconUrl = Icons.NotificationLogo;
-                    
+
                     var buttons = [];
                     var buttonsWithValues = []; // used to associate button values inside notification object
                     var buttonValue;
 
+                    const showCopyOTPInNotification = await storage.get("showCopyOTPInNotification");
+                    globalThis.otpCode = showCopyOTPInNotification ? await firstEmail.getOTPCode() : null;
+                    /*
                     // ignore google emails since most system notification automatically includes copy code, except from google voice
                     if (!firstEmail.authorMail.includes("google.") || firstEmail.authorMail.includes("voice.google.")) { // v1 commented because chrome started showing them: firstEmail.authorMail.includes("voice.google.")
                         globalThis.otpCode = await firstEmail.getOTPCode();
                     } else {
                         globalThis.otpCode = null;
                     }
-                    
-                    if (globalThis.otpCode) {
+                    */
+
+                    const showOtpCopyButton = Boolean(globalThis.otpCode) && showCopyOTPInNotification;
+                    if (showOtpCopyButton) {
                         buttonValue = "otp-code";
                     } else {
                         buttonValue = await storage.get("notificationButton1");
@@ -1159,28 +1217,28 @@ async function showNotification(params = {}) {
                     } else {
                         await generateNotificationButton(buttons, buttonsWithValues, buttonValue, params.emails, globalThis.otpCode);
                     }
-                    
-                    if (globalThis.otpCode) {
+
+                    if (showOtpCopyButton) {
                         buttonValue = await storage.get("notificationButton1");
                     } else {
                         if (await shouldShowReducedDonationMsg()) {
                             buttonValue = "reducedDonationAd";
                         } else {
                             buttonValue = await storage.get("notificationButton2");
-                        }				
-    
+                        }
+
                     }
 
                     await generateNotificationButton(buttons, buttonsWithValues, buttonValue, params.emails);
-                    
+
                     var options;
 
                     if (params.emails.length == 1) {
                         // single email
-                        
+
                         if (notificationFlagForLabelsOfNewestEmail || params.testType) {
                             var fromName = await generateNotificationDisplayName(firstEmail);
-        
+
                             var subject = "";
                             if (firstEmail.title) {
                                 subject = firstEmail.title;
@@ -1188,7 +1246,7 @@ async function showNotification(params = {}) {
                                     subject = "";
                                 }
                             }
-        
+
                             options = {
                                 type: "basic",
                                 title: "",
@@ -1221,7 +1279,7 @@ async function showNotification(params = {}) {
 
                             let confidentialString = firstEmail.unSnoozed ? getMessage("snoozed") : getMessage("newEmail");
                             let prefixString = firstEmail.unSnoozed ? getMessage("snoozed") + ": " : "";
-                            
+
                             if (notificationDisplay == "newEmail") {
                                 if (canUseTitle) {
                                     options.title += confidentialString;
@@ -1255,11 +1313,11 @@ async function showNotification(params = {}) {
                                     options.message = prefixString + formatEmailNotificationTitle(fromName, subject) + "\n" + emailMessage;
                                 }
                             }
-                            
+
                             if (supportsNotificationButtons()) {
                                 options.buttons = buttons;
                             }
-                            
+
                             const email = params.emails.first();
                             let responses;
                             try {
@@ -1277,7 +1335,7 @@ async function showNotification(params = {}) {
                                     fetchEmailImagePreviewResult = responses[1].value;
                                 }
 
-                                if (email.contactPhotoUrl) {									
+                                if (email.contactPhotoUrl) {
                                     console.log("iconUrl: " + email.contactPhotoUrl);
                                     options.iconUrl = email.contactPhotoUrl;
                                 } else {
@@ -1314,25 +1372,25 @@ async function showNotification(params = {}) {
                         const items = [];
 
                         for (const email of params.emails) {
-                            
+
                             console.log("item.push:", email);
 
                             const notificationPerEmail = await email.account.getSetting("notifications");
                             const notificationFlagForLabelsOfEmail = await getSettingValueForLabels(email.account, notificationPerEmail, email.labels, desktopNotification);
-    
+
                             if (notificationFlagForLabelsOfEmail) {
                                 emailsWithNotifications.push(email);
 
                                 let prefix = email.unSnoozed ? getMessage("snoozed") + ": " : "";
-                            
+
                                 let subject = email.title;
                                 if (subject) {
                                     subject = await sendToOffscreenDoc("htmlToText", subject);
                                 }
                                 subject ||= "";
-                                
+
                                 const item = {};
-                                
+
                                 if (notificationDisplay == "from") {
                                     item.title = prefix + await generateNotificationDisplayName(email);
                                     item.message = "";
@@ -1348,10 +1406,10 @@ async function showNotification(params = {}) {
                                     message ||= "";
                                     item.message = message;
                                 }
-    
+
                                 const MAX_CHARACTERS_PER_MULTI_NOTIFICATION_LINE = 30;
                                 item.title = ellipsis(item.title, MAX_CHARACTERS_PER_MULTI_NOTIFICATION_LINE);
-                                
+
                                 items.push(item);
                             }
                         }
@@ -1360,7 +1418,7 @@ async function showNotification(params = {}) {
                             message: "",
                             iconUrl: iconUrl
                         }
-                        
+
                         if (supportsNotificationButtons()) {
                             options.buttons = buttons;
                         }
@@ -1385,7 +1443,7 @@ async function showNotification(params = {}) {
                         }
 
                         var newEmailsCount;
-                        // because i use a max fetch the total unread email count might not be accurate - so if user is just signing in or startup then fetch the totalunread instead of the emails.length  
+                        // because i use a max fetch the total unread email count might not be accurate - so if user is just signing in or startup then fetch the totalunread instead of the emails.length
                         if (await storage.get("accountAddingMethod") == "oauth" && (params.source == Source.SIGN_IN || params.source == Source.STARTUP)) {
                             newEmailsCount = params.totalUnread;
                         } else {
@@ -1421,7 +1479,7 @@ async function showNotification(params = {}) {
                 } else {
                     // notification are probably set to Off
                     return "Notification settings are incorrect";
-                }							
+                }
             } else {
                 console.info("failed: passedDoNotShowNotificationIfGmailTabOpenTest");
             }
@@ -1443,7 +1501,7 @@ async function showNotificationTest(params = {}) {
 
     const response = await ensureUserHasUnreadEmails();
     if (response.hasUnreadEmails) {
-        
+
         const accountWithNewestMail = await getAccountWithNewestMail();
         params.accountWithNewestMail = accountWithNewestMail;
 
@@ -1451,10 +1509,10 @@ async function showNotificationTest(params = {}) {
             // fetch all unread emails
             params.newEmails = getAllUnreadMail(accounts);
         } else {
-            // first only one unread email			
+            // first only one unread email
             var email;
             if (params.accountWithNewestMail) {
-                email = params.accountWithNewestMail.getNewestMail();			
+                email = params.accountWithNewestMail.getNewestMail();
                 if (!email) {
                     // else get most recent mail (not the newest because it might not have been fetch recently, this shwnotif could be done after a idle etc.)
                     email = params.accountWithNewestMail.getMails().first();
@@ -1463,13 +1521,13 @@ async function showNotificationTest(params = {}) {
             if (!email) {
                 email = getAnyUnreadMail();
             }
-            
+
             // put one email into array to pass to shownotification
             params.newEmails = [email];
         }
 
         params.soundSource = await getNotificationSoundSource(await storage.get("notificationSound"), accountWithNewestMail);
-        
+
         let timeoutLength;
         if (webNotification) {
             timeoutLength = 500;
@@ -1511,11 +1569,11 @@ async function createNotification(params) { // expected args: options, buttonsWi
         }
         params.options.silent = getNotificationSilentFlag(params.soundSource); // only disables Windows notification sound (Chrome 71 still turns screen on)
     }
-    
+
     const showNotificationDuration = await storage.get("showNotificationDuration");
-    
+
     if (showNotificationDuration == "infinite") {
-        if (!DetectClient.isMac()) { // refer to https://jasonsavard.com/forum/discussion/comment/34928#Comment_34928
+        if (!DetectClient.isMac() && !await storage.get("moveIntoActionCenter")) { // refer to https://jasonsavard.com/forum/discussion/comment/34928#Comment_34928
             params.options.requireInteraction = true;
         }
     } else {
@@ -1530,7 +1588,7 @@ async function createNotification(params) { // expected args: options, buttonsWi
     }
 
     console.log("show notif", params.options, new Date());
-        
+
     try {
         const notificationId = await chrome.notifications.create("", params.options);
         storage.set("_richNotifId", notificationId);
@@ -1573,7 +1631,7 @@ async function getChromeWindowOrBackgroundMode() {
             console.warn(error);
         }
     }
-    
+
     const windows = await chrome.windows.getAll(null);
     if (windows?.length) {
         return;
@@ -1628,7 +1686,7 @@ async function checkEmails(source) {
         // stop checking interval
         chrome.alarms.clear(Alarms.CHECK_EMAILS);
     }
-    
+
     checkingEmails = true;
 
     let allEmailsCallbackParams;
@@ -1664,7 +1722,7 @@ async function checkEmails(source) {
 
 async function startCheckEmailTimer(delayInMinutes) {
 	let pollIntervalTime = await calculatePollingInterval(accounts);
-	
+
 	if (pollIntervalTime == "realtime") {
 		pollIntervalTime = minutes(5);
 	} else {
@@ -1674,7 +1732,7 @@ async function startCheckEmailTimer(delayInMinutes) {
 			pollIntervalTime = seconds(30);
 		}
 	}
-	
+
     console.log("polling interval: " + (pollIntervalTime / ONE_SECOND) + "s");
 
     const alarmOptions = {
@@ -1690,7 +1748,7 @@ async function startCheckEmailTimer(delayInMinutes) {
 function restartCheckEmailTimer(immediately) {
 	console.log("restarting check email timer: " + immediately)
 	chrome.alarms.clear(Alarms.CHECK_EMAILS);
-	
+
 	// wait a little bit before restarting timer to let it's last execution run fully
     if (immediately) {
         startCheckEmailTimer();
@@ -1714,7 +1772,7 @@ function shortcutNotApplicableAtThisTime(title) {
 function executeAction(mails, actionName) {
 	if (mails.length <= MAX_EMAILS_TO_ACTION) {
 		const promises = mails.map(mail => mail[actionName]({instantlyUpdatedCount:true}));
-		
+
 		Promise.all(promises).then(async () => {
 			if (actionName != "star" && actionName != "starAndArchive") {
 				if (await storage.get("accountAddingMethod") == "oauth") {
@@ -1733,15 +1791,20 @@ function executeAction(mails, actionName) {
 }
 
 async function openInPopup(params = {}) {
-	let url = getPopupFile("notification");
-	
+    let url;
+    if (params.checkerPlusCompose) {
+        url = getPopupFile("aiPrompt");
+    } else {
+        url = getPopupFile("notification");
+    }
+
 	if (params.previewMail) {
         const notifMails = await restoreLastNotifParams(true);
         if (notifMails.length == 1) {
             const mail = notifMails.first();
             url += "&previewMailId=" + mail.id;
         }
-	}
+    }
 
     const windowId = await storage.get(LS_POPUP_WINDOW_ID);
 	if (windowId) {
@@ -1752,7 +1815,7 @@ async function openInPopup(params = {}) {
             }
         });
 	}
-	
+
 	const createWindowParams = await getPopupWindowSpecs({
         width: await storage.get("popupWidth"),
         height: await storage.get("popupHeight"),
@@ -1764,12 +1827,14 @@ async function openInPopup(params = {}) {
 	if (params.notificationId) {
 		clearRichNotification(params.notificationId);
 	}
+
+    return newWindow;
 }
 
 async function performButtonAction(params) {
     console.log("notificationButtonValue: " + params.notificationButtonValue);
     const notifMails = await restoreLastNotifParams(true);
-	
+
 	// actions...
 	if (params.notificationButtonValue == "markAsRead") {
 		executeAction(notifMails, "markAsRead");
@@ -1794,7 +1859,7 @@ async function performButtonAction(params) {
 		if (params.notificationButtonValue == "openInNewTab") {
 			openParams.openInNewTab = true;
 		}
-		
+
 		if (notifMails.length == 1) {
 			notifMails.first().open(openParams);
 		} else {
@@ -1818,7 +1883,7 @@ async function performButtonAction(params) {
 		clearRichNotification(params.notificationId);
 	} else if (params.notificationButtonValue == "reducedDonationAd") {
 		await storage.enable("reducedDonationAdClicked");
-
+		openUrl("contribute.html?ref=reducedDonationFromNotif");
 		clearRichNotification(params.notificationId);
     } else if (params.notificationButtonValue == "otp-code") {
         const width = 180;
@@ -1847,7 +1912,7 @@ async function performButtonAction(params) {
 	} else {
 		logError("action not found for notificationButtonValue: " + params.notificationButtonValue);
 	}
-	
+
 	//sendGA("richNotification", params.notificationButtonValue);
 }
 
@@ -1896,7 +1961,7 @@ async function initWebRequest() {
                 await storage.init("webrequest");
                 if (await storage.get("voiceInput")) {
                     console.log("oncomplete webrequest:", details);
-                    
+
                     // added timeout because in compose popup window it seems the inserts were not working
                     await sleep(200);
                     insertSpeechRecognition(details.tabId);
@@ -2025,7 +2090,7 @@ if (chrome.idle.onStateChanged) {
             const lastNotificationDate = await storage.get("_lastNotificationDate");
             if (await storage.get("unreadCount") >= 1 && (Math.abs(lastNotificationDate.diffInSeconds()) > MIN_SECONDS_BETWEEN_NOTIFICATIONS || await detectSleepMode.isWakingFromSleepMode()) && await storage.get("_lastNotificationDateWhileActive") < lastNotificationDate) {
                 // move parsing inside condition to lessen load
-                
+
                 const lastShowNotifParams = await restoreLastNotifParams();
                 if (lastShowNotifParams) {
                     if (await storage.get("showNotificationsMissedWhileIdling")) {
@@ -2033,7 +2098,7 @@ if (chrome.idle.onStateChanged) {
                         lastShowNotifParams.skipSerializing = true;
                         lastShowNotifParams.accountWithNewestMail = await getAccountWithNewestMail();
                         lastShowNotifParams.soundSource = "";
-                
+
                         if (lastShowNotifParams && !unreadEmailsChanged(lastShowNotifParams.newEmails) && lastShowNotifParams.newEmails.first().account.lastSuccessfulMailUpdate >= lastNotificationDate) {
                             showNotification(lastShowNotifParams);
                         }
@@ -2049,7 +2114,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status == "loading") {
 
         var alreadyDetectedInbox = false;
-        
+
         if (tab.url) {
             if (tab.url.indexOf(MAIL_DOMAIN + MAIL_PATH) == 0) {
                 await initMisc();
@@ -2061,7 +2126,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                         if (tab.url.indexOf(account.getMailUrl()) == 0) {
                             console.log("Gmail webpage changed: " + tab.url);
                             alreadyDetectedInbox = true;
-                            
+
                             const ignoredAccount = ignoredAccounts.some(ignoredAccount => ignoredAccount.getMailUrl() == account.getMailUrl());
                             if (!ignoredAccount) {
                                 // only fetch emails if user is viewing an email ie. by detecting the email message id ... https://mail.google.com/mail/u/0/?shva=1#inbox/13f577bf07878472
@@ -2073,26 +2138,26 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                                     });
                                 }
                             }
-                            
+
                             return true;
                         }
                     });
                 }
 
                 const accountsSummary = await getAccountsSummary(accounts);
-    
+
                 if (!alreadyDetectedInbox || accountsSummary.signedIntoAccounts == 0) {
                     console.log("Signed into Gmail");
                     pollAccounts({noEllipsis:true, source:Source.SIGN_IN});
                 }
             }
-            
+
             /* new order...
-                * 
+                *
                 * https://mail.google.com/mail/u/0/?logout&hl=en&hlor
-                * https://accounts.youtube.com/accounts/Logout2?hl=en&service=mail&ilo=1&ils=…s%3D1%26scc%3D1%26ltmpl%3Ddefault%26ltmplcache%3D2%26hl%3Den&zx=2053747305 
+                * https://accounts.youtube.com/accounts/Logout2?hl=en&service=mail&ilo=1&ils=…s%3D1%26scc%3D1%26ltmpl%3Ddefault%26ltmplcache%3D2%26hl%3Den&zx=2053747305
                 * http://www.google.ca/accounts/Logout2?hl=en&service=mail&ilo=1&ils=s.CA&ilc…%3D1%26scc%3D1%26ltmpl%3Ddefault%26ltmplcache%3D2%26hl%3Den&zx=-1690400221
-                * https://accounts.google.com/ServiceLogin?service=mail&passive=true&rm=false…=https://mail.google.com/mail/&ss=1&scc=1&ltmpl=default&ltmplcache=2&hl=en    
+                * https://accounts.google.com/ServiceLogin?service=mail&passive=true&rm=false…=https://mail.google.com/mail/&ss=1&scc=1&ltmpl=default&ltmplcache=2&hl=en
                 */
             const PREVENT_CPU_ISSUE_MAX_URL_LENGTH = 1000; // patch to prevent cpu issue when opening a tab with a long url ie. data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
             if (tab.url.length < PREVENT_CPU_ISSUE_MAX_URL_LENGTH && /.*google\..*\/accounts\/Logout*/i.test(tab.url)) { //if (tab.url.includes("://www.google.com/accounts/Logout")) {
@@ -2149,7 +2214,7 @@ if (chrome.commands) {
                             email.markAsRead();
                         }
                         closeWebNotifications();
-                        
+
                         if (await storage.get("accountAddingMethod") == "autoDetect") {
                             if (await storage.get("unreadCount") >= 1) {
                                 const offset = -1;
@@ -2182,7 +2247,7 @@ if (chrome.commands) {
                             email.open();
                         }
                         closeWebNotifications();
-                        
+
                         if (await storage.get("accountAddingMethod") == "autoDetect") {
                             if (await storage.get("unreadCount") >= 1) {
                                 const offset = -1;
@@ -2222,11 +2287,11 @@ if (chrome.commands) {
                 }
             });
         }
-        
+
         if (errorFlag) {
             shortcutNotApplicableAtThisTime(errorMsg);
         }
-        
+
     });
 }
 
@@ -2238,7 +2303,14 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 message.params = JSON.parse(message.params);
             }
 
-            if (message.command == "indexedDBSettingSaved") {
+            if (message.command == "init") {
+                initCalled = false;
+                init();
+                sendResponse();
+            } else if (message.command == "initMisc") {
+                await initMisc();
+                sendResponse();
+            } else if (message.command == "indexedDBSettingSaved") {
                 syncOptions.storageChanged({key:message.key});
                 sendResponse();
             } else if (message.command == "openTabInBackground") {
@@ -2261,7 +2333,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 }
             } else if (message.command == "accountAction") {
                 await initMisc();
-                
+
                 const account = getAccountById(message.params.account.id);
                 const response = await account[message.params.action](message.params.actionParams);
                 sendResponse(response);
@@ -2307,7 +2379,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                     mail.account = getAccountById(message.params.mail.account.id);
                 }
 
-                // patch to fetch correct "from" email when user user as sendAs, cause messages are sometimes only fetched from the preview window, so I must put it to the back end so i can generate the reply object. ref: https://jasonsavard.com/forum2/d/8244-replies-in-the-popup-are-not-being-sent-from-the-address-in-the-original-e-mail-being-replied-to/9
+                // patch to fetch correct "from" email when user user as sendAs, cause messages are sometimes only fetched from the preview window, so I must put it to the back end so i can generate the reply object. ref: https://jasonsavard.com/forum/d/8244-replies-in-the-popup-are-not-being-sent-from-the-address-in-the-original-e-mail-being-replied-to/9
                 const messages = message.params.actionParams?.messages;
                 if (message.params.action == "postReply" && !mail.messages?.length && messages) {
                     console.log("patch to to retrieve correct sendAs");
@@ -2330,6 +2402,60 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 }
             } else if (message.command == "cancelReply") {
                 clearTimeout(globalThis.replyingTimeout);
+            } else if (message.command == "openAIPrompt") {
+
+                message.command = "aiPromptData";
+                message.sender = sender;
+
+                if (globalThis.openCheckerPlusComposeInGmailAction == "sidePanel") {
+                    const tabId = sender.tab.id;
+
+                    chrome.sidePanel.setOptions({
+                        path: getPopupFile("sidepanel"),
+                    });
+
+                    await chrome.sidePanel.open({
+                        tabId: tabId
+                    });
+
+                    sendRuntimeMessageWithRetry(message).then(() => {
+                        console.log("sent aiPromptData message to popup");
+                    }).catch(error => {
+                        console.warn("error sending aiPromptData message", error);
+                    });
+                } else {
+                    try {
+                        chrome.action.setPopup({
+                            popup: getPopupFile("aiPrompt")
+                        });
+
+                        await chrome.action.openPopup();
+
+                        chrome.runtime.sendMessage(message).then(() => {
+                            console.log("sent aiPromptData message to popup");
+                            if (chrome.runtime.lastError) {
+                                console.warn("error sending aiPromptData message", chrome.runtime.lastError);
+                            }
+                        }).catch(error => {
+                            console.warn("error sending aiPromptData message", error);
+                        });
+                    } catch (error) {
+                        console.warn("Couldn't open in popup", error);
+                        // fallback to opening a standalone popup window
+                        const newWindow = await openInPopup({
+                            checkerPlusCompose: true,
+                        });
+                        console.log("newwindow", newWindow);
+
+                        sendTabsMessageWithRetry(newWindow.tabs[0].id, message).then(() => {
+                            console.log("sent aiPromptData message to popup");
+                        }).catch(error => {
+                            console.warn("error sending aiPromptData message", error);
+                        });
+                    }
+                }
+
+                sendResponse();
             } else if (message.command == "switchToOauth") {
                 await initMisc();
                 // filter out accounts that have no token (we're probably never granted access)
@@ -2383,7 +2509,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                     // log but ignore error
                     console.error(error)
                 }
-                
+
                 await account.getEmails();
                 let syncSignInIdError;
                 try {
@@ -2429,6 +2555,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 })
                 sendResponse();
             } else if (message.command == "firestore-message") {
+                await initMisc();
                 onRealtimeMessageReceived(message.data, "firebase");
                 sendResponse();
             } else if (message.command == "unread-count-change-gmail-ui") {
@@ -2441,14 +2568,25 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 console.log("onMessage: " + message.command);
                 const response = await globalThis[message.command](message.params);
                 sendResponse(response);
+            } else if (message.command == "test") {
+                throw new Error("test error from background.js", {cause: ErrorCause.DB_ERROR});
             } else {
                 console.warn("No matching command for " + message.command + " might be captured in other pages.");
             }
         } catch (error) {
             console.error(error);
-            sendResponse({
-                error: error.message || error
-            });
+            if (error.message) {
+                sendResponse({
+                    error: {
+                        message: error.message,
+                        cause: error.cause
+                    }
+                });
+            } else {
+                sendResponse({
+                    error: error.message || error
+                });
+            }
         }
     })();
 
@@ -2517,49 +2655,52 @@ async function init(source) {
                 }
             });
         } else {
-            let result = await chrome.storage.local.get(["detectedChromeVersion"]);
-            const DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN = 90;
-            if (!result.detectedChromeVersion || result.detectedChromeVersion === true || Math.abs(new Date(result.detectedChromeVersion).diffInDays()) > DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN) {
-                chrome.storage.local.set({"detectedChromeVersion": new Date().toJSON()});
-                result = await DetectClient.getChromeChannel();
-                if (result.oldVersion) {
-                    showWebNotification("You are using an old browser version", {
-                        body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update Chrome.",
-                        icon: Icons.NotificationLogo,
-                        tag: NotificationTags.UPDATE_BROWSER,
-                        newNotificationOnClick: async () => {
-                            openUpdateBrowserLink();
-                        }
-                    });
-                } else if (result?.channel != "stable" && result?.channel != "extended") {
-                    showWebNotification("You are not using the stable channel of Chrome", {
-                        body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update to stable channel of Chrome.",
-                        icon: Icons.NotificationLogo,
-                        tag: NotificationTags.UNSTABLE_BROWSER_CHANNEL,
-                        newNotificationOnClick: async () => {
-                            openUnstableWarningPage("notif");
-                        }
-                    });
+            chrome.storage.local.get(["detectedChromeVersion"]).then(async result => {
+                const DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN = 90;
+                if (!result.detectedChromeVersion || result.detectedChromeVersion === true || Math.abs(new Date(result.detectedChromeVersion).diffInDays()) > DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN) {
+                    chrome.storage.local.set({"detectedChromeVersion": new Date().toJSON()});
+                    result = await DetectClient.getChromeChannel();
+                    if (result.oldVersion) {
+                        showWebNotification("You are using an old browser version", {
+                            body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update Chrome.",
+                            icon: Icons.NotificationLogo,
+                            tag: NotificationTags.UPDATE_BROWSER,
+                            newNotificationOnClick: async () => {
+                                openUpdateBrowserLink();
+                            }
+                        });
+                    } else if (result?.channel != "stable" && result?.channel != "extended") {
+                        showWebNotification("You are not using the stable channel of Chrome", {
+                            body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update to stable channel of Chrome.",
+                            icon: Icons.NotificationLogo,
+                            tag: NotificationTags.UNSTABLE_BROWSER_CHANNEL,
+                            newNotificationOnClick: async () => {
+                                openUnstableWarningPage("notif");
+                            }
+                        });
+                    }
                 }
-            }
+            }).catch(error => {
+                console.warn("error getting detectedChromeVersion: " + error);
+            });
         }
 	} catch (e) {
 		logError("error detecting chrome version: " + e);
 	}
-	
+
 	if (!chrome.runtime.onMessage || !globalThis.Promise) {
 		openUrl("https://jasonsavard.com/wiki/Old_Chrome_version");
 		return;
     }
-    
+
     // initialized here to detect disable/enable extension by removing the setVia=manifest
     chrome.action.setPopup({popup: getPopupFile("toolbar")});
 
 	setBadgeEllipsis();
     chrome.action.setTitle({ title: getMessage("loadingSettings") + "..." });
-    
-	storagePromise.then(async () => {
 
+	storagePromise.then(async () => {
+        setUninstallUrl();
 
         detectSleepMode.init();
 
@@ -2597,8 +2738,8 @@ async function init(source) {
 
         let found = false;
         const emailSettings = deepClone(await storage.get("emailSettings"));
-        
-        if (emailSettings) {	
+
+        if (emailSettings) {
             try {
                 for (const email in emailSettings) {
                     for (const label in emailSettings[email]?.sounds) {
@@ -2608,22 +2749,22 @@ async function init(source) {
                             emailSettings[email].sounds[label] = soundFile.replace(".ogg", ".mp3");
                         }
                     }
-                }								
+                }
             } catch (e) {
                 console.error("error converting sounds to mp3", e);
             }
         }
-        
+
         if (found) {
             console.log("converting");
             await storage.set("emailSettings", emailSettings);
         }
 
         // end small legacy
-        
+
 
         buttonIcon.setIcon({signedOut: true});
-        
+
         initContextMenus();
         initRealtimeSync();
 
@@ -2647,26 +2788,28 @@ async function init(source) {
 
         initAutomaticRestart();
 
-        const GMAIL_PAGE_HOST = "https://mail.google.com/mail/u/*";
-        const GMAIL_PAGE_SCRIPT = ["js/gmail-page.js"];
-
         chrome.scripting.registerContentScripts([{
-            id: 'gmailPageScript',
-            matches: [GMAIL_PAGE_HOST],
-            js: GMAIL_PAGE_SCRIPT
+            id: ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.id,
+            matches: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.host],
+            js: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.js]
         }]).catch(error => {
             console.warn("Error registering content script: " + error);
-        })
+        });
 
-        for (const tab of await chrome.tabs.query({url: GMAIL_PAGE_HOST})) {
+        for (const tab of await chrome.tabs.query({url: ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.host})) {
             try {
                 await chrome.scripting.executeScript({
                     target: {tabId: tab.id},
-                    files: GMAIL_PAGE_SCRIPT,
+                    files: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.js],
                 });
             } catch (error) {
                 console.warn("error in executescript: " + error);
             }
+        }
+
+        if (await storage.get("showCheckerPlusComposeInGmail")) {
+            await unregisterAICompose();
+            await registerAICompose();
         }
 	}).catch(error => {
         console.error("init error", error);
@@ -2716,17 +2859,17 @@ function isUnauthorized(error) {
 
 async function initMailAccount(params) {
     const MAX_ACCOUNTS = 20;
-    
+
     if (globalThis.buttonIcon) {
         buttonIcon.stopAnimation();
     }
-    
+
     var tokenResponse = await oAuthForEmails.findTokenResponseByIndex(params.accountNumber);
     let email;
     if (tokenResponse && tokenResponse.userEmail) {
         email = tokenResponse.userEmail;
     }
-    
+
     // when using auto-detect use the accountnumber and eventually the email will get populated with the fetch
     // when using oauth use the email passed in here to fetch the appropriate data
     const account = new Account();
@@ -2737,7 +2880,7 @@ async function initMailAccount(params) {
 
     const safeAmountOfAccountsDetected = params.accountNumber <= MAX_ACCOUNTS && params.isOnline;
     var continueToNextAccount;
-    
+
     try {
         await account.fetchGmailSettings(params);
     } catch (error) {
@@ -2755,7 +2898,7 @@ async function initMailAccount(params) {
         if (safeAmountOfAccountsDetected) {
             if (!hasDuplicatedAccount(account)) {
                 await addAccount(account);
-                continueToNextAccount = true;	    			
+                continueToNextAccount = true;
             }
         } else {
             if (params.isOnline) {
@@ -2810,24 +2953,24 @@ async function initMailAccount(params) {
 
 async function pollAccounts(params = {}) {
     await initMisc();
-    
+
     if (pollingAccounts && !params.refresh) {
         console.log("currently polling: quit polling me!")
     } else {
         pollingAccounts = true;
         try {
             console.log("poll accounts...");
-            
-            if (!params.noEllipsis) { 
+
+            if (!params.noEllipsis) {
                 setBadgeEllipsis();
-            }	
+            }
             chrome.action.setTitle({ title: getMessage("pollingAccounts") + "..." });
 
             if (await storage.get("accountAddingMethod") == "autoDetect") {
                 accounts.forEach(account => {
                     account = null;
                 });
-                
+
                 accounts = [];
                 ignoredAccounts = [];
                 unauthorizedAccounts = 0;
@@ -2854,17 +2997,13 @@ async function pollAccounts(params = {}) {
             }
 
             const accountsSummary = await getAccountsSummary(accounts);
-            
+
             if (accountsSummary.allSignedOut) {
                 setSignedOut({title:accountsSummary.firstNiceError, source: "polling-accounts"});
             } else {
-                if (!await storage.get("verifyPaymentRequestSent")) {
+                if (!await storage.get("paymentInfo")) {
                     try {
-                        const response = await verifyPayment(accounts);
-                        if (response.unlocked || true) { // Force unlock
-                            await Controller.processFeatures();
-                        }
-                        await storage.enable("verifyPaymentRequestSent");
+                        await verifyPayment(accounts);
                     } catch (error) {
                         console.warn("ignore verifyPayment error", error);
                     }
@@ -2901,7 +3040,7 @@ async function getSettingValueForLabels(account, settings = {}, labels, defaultO
 			}
 		}
 	}
-	
+
 	// test for undefined because we could have "" which means Off
 	if (customLabel != undefined) {
 		return customLabel;
@@ -2922,7 +3061,7 @@ async function mailUpdate(params = {}) {
     if (globalThis.buttonIcon) {
         buttonIcon.stopAnimation();
     }
-	
+
 	updateNotificationTray();
 
 	// if this mailUpdate is called from interval then let's gather newest emails ELSE we might gather later in the code
@@ -2963,7 +3102,7 @@ async function mailUpdate(params = {}) {
 			unsnoozedEmails = unsnoozedEmails.concat(accountUnSnoozedEmails);
 		}
 	});
-	
+
 	newEmails.sort(function (a, b) {
 	   if (a.issued > b.issued)
 		   return -1;
@@ -2971,7 +3110,7 @@ async function mailUpdate(params = {}) {
 		   return 1;
 	   return 0;
 	});
-	
+
     let accountWithNewestMail;
 
 	if (newEmails.length || unsnoozedEmails.length) {
@@ -3002,9 +3141,9 @@ async function mailUpdate(params = {}) {
 			accountWithNewestMail = null;
             await storage.remove("_newestAccountId");
 		}
-		
+
 		if (unsnoozedEmails.length || !lastNotificationAccountDates[accountWithNewestMail.id] || passedDateCheck) {
-			
+
 			if (mostRecentNewEmail) {
                 lastNotificationAccountDates[accountWithNewestMail.id] = mostRecentNewEmail.issued;
                 storage.set("_lastNotificationAccountDates", lastNotificationAccountDates);
@@ -3097,9 +3236,13 @@ async function mailUpdate(params = {}) {
 
     await storage.set("unreadCount", totalUnread);
 	initPopup();
-	
 
-    
+	// update the uninstall url caused we detected an email
+	const firstEmail = getFirstEmail(accounts);
+	if (await storage.get("_uninstallEmail") != firstEmail) {
+		setUninstallUrl(firstEmail);
+    }
+
     await serializeAccounts(accounts, {source: params.pollingAccountsSource ? "polling-accounts" : "mailUpdate"});
 
     /*
@@ -3142,7 +3285,7 @@ async function updateNotificationTray() {
 
 async function setSignedOut(params = {}) {
 	console.log("setSignedOut");
-	
+
 	buttonIcon.setIcon({signedOut:true});
 	chrome.action.setBadgeBackgroundColor({color:BadgeColor.GRAY});
 	chrome.action.setBadgeText({ text: "X" });
@@ -3195,7 +3338,7 @@ async function playNotificationSound(source) {
                                 return true;
                             }
                         });
-                    }					
+                    }
                 } else {
                     audioSrc = SOUNDS_FOLDER + source;
                 }
@@ -3215,15 +3358,15 @@ async function playNotificationSound(source) {
 async function getVoiceMessageAttachment(mail) {
 	var found;
 	var promise;
-	
+
     let lastMessage = mail.messages.last();
-    
+
     if (lastMessage) {
         var hasVoiceMessageAttachment;
         if (lastMessage.files?.length && lastMessage.files[0].filename.includes(VOICE_MESSAGE_FILENAME_PREFIX + ".")) {
             hasVoiceMessageAttachment = true;
         }
-        
+
         if ((mail.authorMail?.includes("vonage.")) || (lastMessage.content?.includes(VOICE_MESSAGE_FILENAME_PREFIX + ".")) || hasVoiceMessageAttachment) {
             if (await storage.get("accountAddingMethod") == "autoDetect") {
                 const attachmentNode = parseHtml(lastMessage.content).querySelector(".att > tbody > tr");
@@ -3258,16 +3401,16 @@ async function getVoiceMessageAttachment(mail) {
             }
         }
     }
-	
+
 	return {found:found, promise:promise}
 }
 
 async function playVoiceNotification(accountWithNewestMail) {
 	console.log("playVoiceNotification");
-	
+
 	// moved this outside of timeout in queueVoice() to try avoiding returning null on newestEmail
 	var newestEmail = accountWithNewestMail.getNewestMail();
-	
+
 	async function queueVoice() {
 
 		// put a bit of time between chime and voice
@@ -3278,15 +3421,15 @@ async function playVoiceNotification(accountWithNewestMail) {
             var voiceHear = await getSettingValueForLabels(accountWithNewestMail, voices, newestEmail.labels, await storage.get("voiceHear"));
 
             if (voiceHear) {
-                
+
                 var hearFrom = voiceHear.includes("from");
                 var hearSubject = voiceHear.includes("subject");
                 var hearMessage = voiceHear.includes("message");
-                
+
                 var fromName = await generateNotificationDisplayName(newestEmail);
-                
+
                 // filter for speech
-                
+
                 if (newestEmail.authorMail && newestEmail.authorMail.includes("vonage.")) {
                     // put vonage instead because or elee the phone number is spoken like a long number ie. 15141231212 etc...
                     fromName = "Vonage";
@@ -3297,9 +3440,9 @@ async function playVoiceNotification(accountWithNewestMail) {
 
                 var introToSay = "";
                 var messageToSay = "";
-                
+
                 var voiceMessageAttachmentObj = await getVoiceMessageAttachment(newestEmail);
-                
+
                 if (hearFrom) {
                     if (hearSubject || hearMessage) {
                         // from plus something else...
@@ -3312,8 +3455,8 @@ async function playVoiceNotification(accountWithNewestMail) {
                         // only from
                         introToSay = getMessage("emailFrom_NAME", fromName);
                     }
-                } 
-                    
+                }
+
                 if ((hearSubject || hearMessage) && !voiceMessageAttachmentObj.found) {
                     const subjectsSpoken = deepClone(await storage.get("_subjectsSpoken"));
                     if (hearSubject
@@ -3331,7 +3474,7 @@ async function playVoiceNotification(accountWithNewestMail) {
                     } else {
                         console.log("ignore subject: " + subject);
                     }
-                    
+
                     if (hearMessage) {
                         var spokenWordsLimit = await storage.get("spokenWordsLimit");
                         var spokenWordsLimitLength;
@@ -3342,14 +3485,14 @@ async function playVoiceNotification(accountWithNewestMail) {
                         } else {
                             spokenWordsLimitLength = 30000;
                         }
-                        
+
                         const messageText = await newestEmail.getLastMessageText({maxSummaryLetters:spokenWordsLimitLength, htmlToText:true});
                         if (messageText) {
                             messageToSay += `, ${messageText}`;
                         }
                     }
                 }
-                
+
                 console.log("message to say: " + introToSay + " " + messageToSay);
                 if (introToSay) {
                     ChromeTTS.queue(introToSay, {
@@ -3369,7 +3512,7 @@ async function playVoiceNotification(accountWithNewestMail) {
                                 console.error("error getVoiceMessageAttachment: " + error);
                             });
                         }
-                    });						
+                    });
                 }
             } else {
                 console.log("voiceHear off for these labels");
@@ -3378,7 +3521,7 @@ async function playVoiceNotification(accountWithNewestMail) {
             console.warn("in playVoiceNotification this returns null?? -> accountWithNewestMail.getNewestMail()");
         }
 	}
-	
+
 	if (await storage.get("notificationVoice")) {
 		isDND({soundRelated: true, account: accountWithNewestMail}).then(async dndState => {
 			if (!dndState) {
@@ -3422,14 +3565,14 @@ async function preloadProfilePhoto(mail) {
                     reject(error);
                 }
             });
-        
+
             // wait for https images to load because even if the deferreds completed it seem the contact images woulnd't load at extension startup
             const preloadTimeout = setTimeout(() => {
                 timeoutReached = true;
                 console.log("preloadphotos timeoutEND");
                 resolve();
             }, seconds(3));
-            
+
             await Promise.allSettled([loadPhotoPromise]);
             console.log("preloadphotos always args");
             // cancel timeout
@@ -3457,7 +3600,7 @@ function markAllAsX(account, action, closeWindow) {
 		const totalMailsInThisAccount = account.getMails().length;
 
         globalThis.performingMarkAllAsX = true;
-		
+
 		account.getMails().forEach((mail, index) => {
 			if (index+1 <= MAX_EMAILS_TO_ACTION) {
 				const promise = new Promise((resolve, reject) => {
@@ -3470,41 +3613,41 @@ function markAllAsX(account, action, closeWindow) {
 						} else if (action == "markAsSpam") {
 							markAsPromise = mail.markAsSpam({instantlyUpdatedCount:true});
                         }
-					
+
 						markAsPromise.then(() => {
 							resolve();
 						}).catch(response => {
 							reject(response);
 						});
-						
+
 					}, delay);
-					
+
 					if (totalMailsInThisAccount > MAX_EMAILS_TO_INSTANTLY_ACTION) {
 						delay += 300;
 					}
 				});
-				
+
 				promises.push(promise);
-				
+
 			} else {
 				return false;
 			}
 		});
-		
+
 		const totalMarkedAsX = promises.length;
 
         updateBadge({
             totalUnread: 0,
             offset: -totalMarkedAsX
         });
-		
+
 		// simulate speed by quickly resetting the badge and close the window - but processing still take place below in .apply
 		if (totalUnreadMails - totalMarkedAsX == 0) {
 			if (closeWindow) {
                 chrome.runtime.sendMessage({command: "closeWindow", params:{source:"markAll:" + action}});
 			}
 		}
-		
+
 		Promise.all(promises).then(promiseAllResponse => {
 			resolve();
 		}).catch(error => {
@@ -3523,12 +3666,12 @@ async function refreshAccounts(params = {}) {
         await pollAccounts({refresh:true});
     } else {
         let accountsWithErrors = 0;
-        
+
         accounts.forEach(account => {
             if (account.error) {
                 accountsWithErrors++;
             }
-        });			   
+        });
 
         if (accounts.length >= 1 && !accountsWithErrors) {
             await getAllEmails({accounts: accounts, refresh: true});
@@ -3543,7 +3686,7 @@ async function refreshAccounts(params = {}) {
             // ignore the "Could not establish connection"
         });
     }
-    
+
     if (params.source != "sidepanel" || (params.source == "sidepanel" && params.hardRefreshFlag)) { // created this because I could click refresh button from the popup and it would not refresh the sidepanel
         chrome.runtime.sendMessage({command: "refreshSidePanel"}).catch(error => {
             // ignore the "Could not establish connection"
@@ -3571,14 +3714,14 @@ let lastEventTime = 0;
 async function offlineOnlineChanged(e) {
     console.log("detected: " + e.type + " " + new Date(), "source", e.source);
     updateBadge();
-    
+
     if (e.type == lastEventType && (Date.now() - lastEventTime) < seconds(10)) {
         return;
     }
-    
+
     lastEventType = e.type;
     lastEventTime = Date.now();
-    
+
     if (e.type == "online") {
         console.log("navigator: " + navigator.onLine + " " + new Date());
         await sleep(seconds(3));

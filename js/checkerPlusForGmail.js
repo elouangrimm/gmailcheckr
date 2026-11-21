@@ -1,4 +1,4 @@
-// Copyright Gmail Checkr
+// Copyright Jason Savard
 "use strict";
 
 var MAX_EMAILS_IN_ATOM_FEED = 20;
@@ -15,12 +15,25 @@ var MAX_EMAILS_TO_INSTANTLY_ACTION = 10;
 var MAX_EMAILS_TO_ACTION = 10;
 var TEST_REDUCED_DONATION = false;
 var TEST_SHOW_EXTRA_FEATURE = false;
-var HTML_CSS_SANITIZER_REWRITE_IDS_PREFIX = "somePrefix-";
 var ITEM_ID = "gmail";
 var testGmailQuestion = false;
 var SOUNDS_FOLDER = "/sounds/";
 
 const SYSTEM_DEFAULT_SOUND = "system-default";
+
+const ContentScriptIds = {
+    GMAIL_UNREAD_COUNT_SCRIPT: {
+        host: "https://mail.google.com/mail/u/*",
+        id: "gmailPageScript",
+        js: "js/gmail-unread-count-context.js",
+    },
+    GMAIL_AI_COMPOSE: {
+        host: "https://mail.google.com/mail/u/*",
+        id: "gmailComposerScript",
+        js: "js/gmail-composer-context.js",
+        css: 'css/gmail-composer-context.css'
+    },
+};
 
 /* MUST be synced with input value='???' in options.html */
 const BrowserButtonAction = {
@@ -52,6 +65,7 @@ var SYSTEM_PURCHASES = SYSTEM_PREFIX + "PURCHASES";
 var SYSTEM_FINANCE = SYSTEM_PREFIX + "FINANCE";
 var SYSTEM_STARRED = SYSTEM_PREFIX + "STARRED";
 var SYSTEM_SPAM = SYSTEM_PREFIX + "SPAM";
+var SYSTEM_TRASH = SYSTEM_PREFIX + "TRASH";
 
 var TOTAL_GMAIL_TABS = 5;
 
@@ -93,6 +107,7 @@ AtomFeed.PROMOTIONS = "^smartlabel_promo";
 AtomFeed.UPDATES = "^smartlabel_notification";
 AtomFeed.FORUMS = "^smartlabel_group";
 AtomFeed.SPAM = "spam";
+AtomFeed.TRASH = "trash";
 
 const MUI = "checkerPlusForGmail";
 
@@ -106,6 +121,7 @@ const MouseButton = {
 const RuleIds = {
     GMAIL_AT_BLOCKING: 1,
     GMAIL_MOBILE_USER_AGENT: 2,
+    GMAIL_DEBUG_FRAME_UNBLOCK: 3,
 }
 
 var MailAction = {};
@@ -227,15 +243,6 @@ JError.DID_NOT_CONTRIBUTE = "DID_NOT_CONTRIBUTE";
 JError.DO_NOT_TRACK_MESSAGE = "Use Options > Accounts > Add Accounts or set the default Tracking Protection back to 'Only in private windows'";
 JError.HOST_PERMISSION = "HOST_PERMISSION";
 
-const ErrorCause = {
-    NETWORK_PROBLEM: "NETWORK_PROBLEM",
-    OFFLINE: "OFFLINE",
-    HOST_PERMISSION: "HOST_PERMISSION",
-    DB_ERROR: "DB_ERROR",
-    NO_SYNC_ITEMS_FOUND: "NO_SYNC_ITEMS_FOUND",
-    ACCESS_DENIED: "ACCESS_DENIED",
-}
-
 var Origins = {};
 Origins.GMAIL = "https://mail.google.com/";
 Origins.CONTACT_PHOTOS = "https://*.googleusercontent.com/";
@@ -245,10 +252,6 @@ Origins.EMAIL_ATTACHMENTS = "https://*.googleusercontent.com/";
 var Source = {};
 Source.SIGN_IN = "SIGN_IN";
 Source.STARTUP = "STARTUP";
-
-var Icons = {};
-Icons.NotificationLogo = "/images/icons/icon_48.png";
-Icons.AppIconMaskUrl = "/images/icons/notificationMiniIcon.png";
 
 const ExtensionId = {
     ChromeStoreGmail: "oeopbcgkkoapgobdbedcemjljbihmemj",
@@ -332,11 +335,12 @@ var MAIL_DOMAIN_AND_PATH = MAIL_DOMAIN + MAIL_PATH;
 
 var Urls = {};
 Urls.SignOut = `https://accounts.google.com/Logout?continue=${encodeURIComponent(MAIL_DOMAIN)}&service=mail`; //"https://mail.google.com/mail/logout";
-Urls.NotificationError = "https://jasonsavard.com/forum/categories/checker-plus-for-gmail-feedback?ref=errorNotification";
+Urls.NotificationError = "https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=errorNotification";
 Urls.ExtensionConflict = "https://jasonsavard.com/wiki/Extension_Conflict";
 Urls.CorruptProfile = "https://jasonsavard.com/wiki/Corrupt_browser_profile";
 Urls.OauthToken = "https://extensions-auth.uc.r.appspot.com/oauthToken";
 Urls.LinkEmailToRegistration = "https://fcm-450788627700.us-central1.run.app/ajax";
+Urls.AICompose = "https://default-102381006486.us-central1.run.app"; // Proxy server to secure API keys
 
 var VOICE_MESSAGE_FILENAME_PREFIX = "voice-message";
 var VIDEO_MESSAGE_FILENAME_PREFIX = "video-message";
@@ -363,9 +367,6 @@ const CONTACTS_API_HEADER = {
 
 var DEFAULT_SETTINGS = {
   "language": getPreferredLanguage(),
-  "removeShareLinks": true,
-  "followMeClicked": true,
-  "donationClicked": true,
   "_newestMail": {},
   "gmailSettings": {},
   "animateButtonIcon": true,
@@ -415,6 +416,8 @@ var DEFAULT_SETTINGS = {
   "replyingMarksAsRead": true,
   "deletingMarksAsRead": false,
   "showAddToCalendar": true,
+  "showAddToTasks": true,
+  "messageBodyLightPreviewActive": false,
   "showListenToEmail": true,
   "24hourMode": function() {
         const region = new Intl.DateTimeFormat('default', {hour: "numeric"});
@@ -455,7 +458,7 @@ var DEFAULT_SETTINGS = {
   "accountsShowSignature": true,
   "unreadCountBackgroundColor": "#d32f2f", // v1 #e53935 in Edge this made the autocontrast color was black instead of white in Chrome
   "notificationButtonIcon": "white",
-  "highlightDates": true,
+  "highlightDates": false, // made false again because was causing performance issues, can always add back in the future if there is demand
   "_lastNotificationAccountDates": [],
   "_lastGmailAPIActionByExtension": new Date(1),
   "_subjectsSpoken": [],
@@ -471,13 +474,17 @@ var DEFAULT_SETTINGS = {
   "_lastRepeatNotificationTime": new Date(1),
   "notificationWakesUpScreenTemporarily": true,
   "dnd-by-account": true,
+  "showCopyOTPInNotification": true,
   "deleteAfterOTP": true,
-  "translationSettings": {}
+  "translationSettings": {},
+  "showCheckerPlusComposeInPopup": true,
+  "openCheckerPlusComposeInGmailAction": "popupWindow",
+  "refreshWhenOpeningPopup": false,
 };
 
 const DO_NOT_EXPORT = [
     "donationClicked",
-    "verifyPaymentRequestSent",
+    "paymentInfo",
     "_minimumPayment"
 ]
 
@@ -487,6 +494,7 @@ var DEFAULT_SETTINGS_ALLOWED_OFF = [
 ];
 
 const CONTACTS_STORAGE_VERSION = "3";
+const AI_PROMPT_DRAFT_MAX_AGE = 3 * 60 * 1000;
 
 const Alarms = {
     EVERY_MINUTE:                   "everyMinute",
@@ -504,6 +512,7 @@ const Alarms = {
     WATCH_EMAIL_ALARM_PREFIX: "watchEmail_",
     RESYNC_ALARM_PREFIX: "resync_",
     GET_EMAILS_FROM_FCM_UPDATE_PREFIX: "getEmailsFromFCMUpdate_",
+    EXPIRE_AI_PROMPT_DRAFT_PREFIX: "_aiComposePromptDraft_",
     COLLECT_STATS: "COLLECT_STATS",
     RESET_SPAM_CHECKING: "RESET_SPAM_CHECKING",
     AUTOMATIC_RESTART: "automaticRestart",
@@ -552,6 +561,8 @@ function getGmailAPILabelId(id) {
 		gmailAPILabelId = GmailAPI.labels.STARRED;
 	} else if (id == SYSTEM_SPAM) {
 		gmailAPILabelId = GmailAPI.labels.SPAM;
+	} else if (id == SYSTEM_TRASH) {
+		gmailAPILabelId = GmailAPI.labels.TRASH;
 	} else {
 		gmailAPILabelId = id;
 	}
@@ -589,6 +600,8 @@ function getJSystemLabelId(id, accountAddingMethod) {
             jSystemId = SYSTEM_STARRED;
 		} else if (id == GmailAPI.labels.SPAM) {
 			jSystemId = SYSTEM_SPAM;
+		} else if (id == GmailAPI.labels.TRASH) {
+			jSystemId = SYSTEM_TRASH;
 		} else {
 			jSystemId = id;
 		}
@@ -600,7 +613,7 @@ function isSystemLabel(label) {
 	if (label && label.indexOf(SYSTEM_PREFIX) == 0) {
 		// it's jsystem label
 		return true;
-    } else if (label && (label == GmailAPI.labels.INBOX || label == GmailAPI.labels.CATEGORY_PERSONAL || label == GmailAPI.labels.CATEGORY_PURCHASES || label == GmailAPI.labels.CATEGORY_FINANCE || label == GmailAPI.labels.CATEGORY_SOCIAL || label == GmailAPI.labels.CATEGORY_PROMOTIONS || label == GmailAPI.labels.CATEGORY_UPDATES || label == GmailAPI.labels.STARRED || label == GmailAPI.labels.SENT || label == GmailAPI.labels.UNREAD || label == GmailAPI.labels.IMPORTANT)) {
+    } else if (label && (label == GmailAPI.labels.INBOX || label == GmailAPI.labels.CATEGORY_PERSONAL || label == GmailAPI.labels.CATEGORY_PURCHASES || label == GmailAPI.labels.CATEGORY_FINANCE || label == GmailAPI.labels.CATEGORY_SOCIAL || label == GmailAPI.labels.CATEGORY_PROMOTIONS || label == GmailAPI.labels.CATEGORY_UPDATES || label == GmailAPI.labels.STARRED || label == GmailAPI.labels.SENT || label == GmailAPI.labels.UNREAD || label == GmailAPI.labels.IMPORTANT || label == GmailAPI.labels.SPAM || label == GmailAPI.labels.TRASH)) {
 		// it'a Gmail API system label
 		return true;
 	} else {
@@ -678,7 +691,10 @@ async function updateBadge(params = {}) {
     //console.trace("updateBadge", params);
     await initMisc();
 
-    const dndState = await isDND();
+    let dndState = await isDND();
+    if (dndState && (await storage.get("onlyMuteSoundsDuringDND") || await storage.get("onlyPreventNotificationsDuringDND"))) {
+        dndState = false;
+    }
     let totalUnread = params.totalUnread;
 
     let totalUnreadNotDND = 0;
@@ -954,6 +970,8 @@ async function fetchContacts(userEmail, sync) {
         fetchData(sync, "otherContacts")
     ]);
 
+    const groupLabel = "Fetch contacts";
+    console.groupCollapsed(groupLabel);
     responses.forEach(data => {
         console.log("data", data);
 
@@ -1027,6 +1045,7 @@ async function fetchContacts(userEmail, sync) {
             }
         });
     });
+    console.groupEnd(groupLabel);
 
     contactDataItem.lastModified = new Date();
 
@@ -1354,15 +1373,18 @@ async function isDND(params = {}) {
     }
 
     if (await isDNDbyDuration() || await isDNDbySchedule() || dndByFullscreen) {
-        if (await storage.get("onlyMuteSoundsDuringDND") && (params.notificationRelated || params.animationRelated)) {
-            return false;
+        const onlyMuteSounds = await storage.get("onlyMuteSoundsDuringDND");
+        const onlyPreventNotifications = await storage.get("onlyPreventNotificationsDuringDND");
+        if (onlyMuteSounds || onlyPreventNotifications) {
+            if (params.animationRelated) return false;
+            if (params.notificationRelated && !onlyPreventNotifications) return false;
+            if (params.soundRelated && !onlyMuteSounds) return false;
+        }
+        // if account passed then only enable dnd if user has left it checked in the dnd section
+        if (params.account) {
+            return await params.account.getSetting("dnd-by-account");
         } else {
-            // if account passed then only enable dnd if user has left it checked in the dnd section
-            if (params.account) {
-                return await params.account.getSetting("dnd-by-account");
-            } else {
-                return await areAllAccountsInDND();
-            }
+            return await areAllAccountsInDND();
         }
     } else {
         return false;
@@ -1506,6 +1528,9 @@ async function ensureUserHasUnreadEmails() {
 }
 
 async function insertSpeechRecognition(tabId) {
+    console.warn("temporarily disabled");
+    return;
+
     try {
         await chrome.scripting.insertCSS({
             target: { tabId: tabId },
@@ -1519,6 +1544,74 @@ async function insertSpeechRecognition(tabId) {
         console.warn(error);
     }
 }
+
+async function registerAICompose() {
+    console.log("registerAICompose");
+    try {
+        chrome.scripting.registerContentScripts([{
+            id: ContentScriptIds.GMAIL_AI_COMPOSE.id,
+            matches: [ContentScriptIds.GMAIL_AI_COMPOSE.host],
+            js: [ContentScriptIds.GMAIL_AI_COMPOSE.js]
+        }]).catch(error => {
+            console.warn("Error registering AI reply content script: " + error);
+        });
+    
+        for (const tab of await chrome.tabs.query({url: ContentScriptIds.GMAIL_AI_COMPOSE.host})) {
+            await chrome.scripting.insertCSS({
+                target: {tabId: tab.id},
+                files: [ContentScriptIds.GMAIL_AI_COMPOSE.css],
+            });
+
+            await chrome.scripting.executeScript({
+                target: {tabId: tab.id},
+                files: [ContentScriptIds.GMAIL_AI_COMPOSE.js],
+            });
+
+            chrome.tabs.sendMessage(tab.id, {
+                command: "initCheckerPlusCompose",
+                strings: {
+                    "checkerPlusCompose": getMessage("checkerPlusCompose")
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("error in executescript for AI compose: " + error);
+    }
+}
+
+async function unregisterAICompose() {
+    console.log("unregisterAICompose");
+    try {
+        await chrome.scripting.unregisterContentScripts({
+            ids: [ContentScriptIds.GMAIL_AI_COMPOSE.id]
+        });
+    } catch (error) {
+        console.warn("Error unregistering AI reply content script: " + error);
+    }
+
+    try {
+        for (const tab of await chrome.tabs.query({url: ContentScriptIds.GMAIL_AI_COMPOSE.host})) {
+            try {
+                await chrome.tabs.sendMessage(tab.id, {command: "removeAICompose"});
+            } catch (error) {
+                console.warn("Error removing AI compose in tab: " + error);
+            }
+
+            try {
+                await chrome.scripting.removeCSS({
+                    target: {tabId: tab.id},
+                    files: [ContentScriptIds.GMAIL_AI_COMPOSE.css],
+                });
+            } catch (error) {
+                console.warn("Error removing AI compose CSS: " + error);
+            }
+        }
+    } catch (error) {
+        console.warn("error in removeCSS for AI compose: " + error);
+    }
+}
+
+
 
 async function daysElapsedSinceFirstInstalled() {
     const installDate = await getInstallDate();
@@ -1626,7 +1719,7 @@ async function shouldShowReducedDonationMsg(ignoreExpired) {
 	}
 }
 
-function verifyPayment(accounts) {
+async function verifyPayment(accounts) {
     const emails = accounts.map(account => account.getEmail());
 	return Controller.verifyPayment(ITEM_ID, emails);
 }
@@ -1805,12 +1898,18 @@ function formatEmailNotificationTitle(fromName, subject) {
 
 function loadImage(image) {
     return new Promise((resolve, reject) => {
-        image.onload = () => {
+        function onLoad() {
+            image.removeEventListener("error", onError);
             resolve();
         }
-        image.onerror = event => {
+
+        function onError(event) {
+            image.removeEventListener("load", onLoad);
             reject(event);
         }
+
+        image.addEventListener("load", onLoad, {once: true});
+        image.addEventListener("error", onError, {once: true});
     });
 }
 
@@ -2384,8 +2483,7 @@ async function interceptClicks($node) {
 		if (url) {
 			// if anchor link just skip every and process it
 			if (accountAddingMethod == "oauth" && url.startsWith("#")) {
-				// because we sanitized the 'name' attributes of the target anchor we must match it with the subsituted prefix
-				event.target.href = "#" + HTML_CSS_SANITIZER_REWRITE_IDS_PREFIX + url.substring(1);
+                event.target.href = url;
 				return true;
 			}
 
@@ -2459,7 +2557,7 @@ async function interceptClicks($node) {
 async function requestPermission(params = {}) {
 
     // 2025 patch for Mac because when chrome.identity.launchWebAuthFlow opens the popup window stays open (good), BUT when it closes it closes the popup window before it can process the post permissions actions
-    if (DetectClient.isMac() && location.href.includes("popup.html") && globalThis.fromToolbar && !isRequestingPermission) {
+    if (browserAutomaticallyClosesPopup() && location.href.includes("popup.html") && globalThis.fromToolbar && !isRequestingPermission) {
         // if popup is open then we cannot request permission from here
         // so we must open the options page to request permission
         const createWindowParams = await getPopupWindowSpecs({
@@ -2547,7 +2645,15 @@ async function requestPermission(params = {}) {
 
         hideLoading();
 
-        if (error.cause == ErrorCause.ACCESS_DENIED) {
+        const authPageLoadFailed = (error?.message || "").toLowerCase().includes("authorization page could not be loaded");
+        const policyEnforced = /policy_enforced/i.test(error?.message || "");
+
+        if (policyEnforced) {
+            const requestedData = params.initOAuthContacts ? "your contacts" : params.initOAuthProfiles ? "your profile information" : "the requested Google account data";
+            await niceAlert(`Your organization's security policy has blocked Checker Plus from accessing ${requestedData}. This is not a password or connection problem. Ask your Google Workspace administrator to allow this access.`);
+        } else if (authPageLoadFailed) {
+            await niceAlert("Authorization page could not be loaded. This can happen if access is blocked by your organization or security policy.");
+        } else if (error.cause == ErrorCause.ACCESS_DENIED) {
             await openUrl("https://jasonsavard.com/wiki/Granting_access?ref=permissionDenied&ext=gmail")
         } else if (error.jError == JError.NETWORK_ERROR) {
             await niceAlert("Network problem, click ok for more info");
@@ -3002,8 +3108,103 @@ async function isAnAccountCheckingSpam() {
     return accountsListCheckingSpam.length;
 }
 
+async function isAnAccountCheckingTrash() {
+    const accountsCheckingTrash = await storage.get("_accountsCheckingTrash") || {};
+    const accountsListCheckingTrash = accounts.filter(account => {
+        return accountsCheckingTrash[account.getEmail()];
+    });
+    return accountsListCheckingTrash.length;
+}
+
 async function hasGmailHostPermission() {
     return chrome.permissions.contains({origins: [Origins.GMAIL]});
+}
+
+// gathers info useful for diagnosing the Edge "appears signed out" bug, only reports cookie presence/expiration, never raw values
+async function debugSignInInfo() {
+    await initMisc();
+
+    const debugInfo = {
+        timestamp: new Date().toString(),
+        browser: {
+            isChrome: DetectClient.isChrome(),
+            isEdge: DetectClient.isEdge(),
+            isFirefox: DetectClient.isFirefox(),
+            userAgent: navigator.userAgent
+        },
+        accountAddingMethod: await storage.get("accountAddingMethod"),
+        hasGmailHostPermission: await hasGmailHostPermission(),
+        accounts: accounts.map(account => ({
+            id: account.id,
+            email: account.getEmail(),
+            error: account.error ? account.getError()?.niceError || account.error.toString() : null,
+            errorCode: account.errorCode
+        })),
+        cookies: {}
+    };
+
+    const cookieNamesToCheck = ["SID", "SSID", "HSID", "APISID", "SAPISID", "__Secure-1PSID", "__Secure-3PSID", "COMPASS", "OSID"];
+    for (const name of cookieNamesToCheck) {
+        try {
+            const cookie = await chrome.cookies.get({name: name, url: "https://mail.google.com"});
+            debugInfo.cookies[name] = cookie ? {present: true, expirationDate: cookie.expirationDate ? new Date(cookie.expirationDate * 1000).toString() : "session", hostOnly: cookie.hostOnly} : {present: false};
+        } catch (error) {
+            debugInfo.cookies[name] = {error: error.message};
+        }
+    }
+
+    debugInfo.gmailAtByAccount = {};
+    for (const account of accounts) {
+        try {
+            const cookie = await chrome.cookies.get({name: "GMAIL_AT", url: `https://mail.google.com/mail/u/${account.id}`});
+            debugInfo.gmailAtByAccount[account.getEmail()] = !!cookie;
+        } catch (error) {
+            debugInfo.gmailAtByAccount[account.getEmail()] = "error: " + error.message;
+        }
+    }
+
+    console.log("Sign-in debug info", debugInfo);
+    return debugInfo;
+}
+
+// best-effort attempt to force a real navigation to mail.google.com from the offscreen document, hoping it re-triggers the browser's cookie/sign-in detection (ie. the Edge bug)
+async function reinitGmailSignInViaOffscreen(accountId = 0) {
+    console.log("reinitGmailSignInViaOffscreen");
+
+    // unique marker so the header-stripping rule below only ever matches this one debug request, not regular Gmail traffic
+    const DEBUG_FRAME_URL_MARKER = "checkerPlusDebugFrame=1";
+    const debugUrl = `https://mail.google.com/mail/u/${accountId}/?${DEBUG_FRAME_URL_MARKER}`;
+
+    await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: [RuleIds.GMAIL_DEBUG_FRAME_UNBLOCK],
+        addRules: [{
+            id: RuleIds.GMAIL_DEBUG_FRAME_UNBLOCK,
+            priority: 1,
+            action: {
+                type: "modifyHeaders",
+                // strip the headers Google uses to block framing so our debug iframe can actually render
+                responseHeaders: [
+                    {header: "x-frame-options", operation: "remove"},
+                    {header: "content-security-policy", operation: "remove"}
+                ]
+            },
+            condition: {
+                urlFilter: DEBUG_FRAME_URL_MARKER,
+                resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME]
+            }
+        }]
+    });
+
+    try {
+        const response = await sendToOffscreenDoc("load-gmail-in-iframe", {url: debugUrl});
+        console.log("reinitGmailSignInViaOffscreen response", response);
+        return response;
+    } finally {
+        // only leave the rule active for the duration of this debug action
+        await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: [RuleIds.GMAIL_DEBUG_FRAME_UNBLOCK]
+        });
+    }
 }
 
 function isRecentEmailDate(date) {
@@ -3057,7 +3258,7 @@ function createCalendarEvent(calendarEvent) {
     console.log("newEvent", calendarEvent);
     sendMessageToCalendarExtension({action:"createEvent", event:JSON.stringify(calendarEvent)}).then(response => {
         console.log("response: ", response);
-        hideSaving();
+        hideProgress();
         if (response?.success) {
             // nothing
         } else if (response?.error) {
@@ -3067,7 +3268,7 @@ function createCalendarEvent(calendarEvent) {
         }
     }).catch(response => {
         // not installed or disabled
-        hideSaving();
+        hideProgress();
         requiresCalendarExtension("dateTimeParsing");
     });
 }
@@ -3223,11 +3424,12 @@ async function parseICSAttachment(data, messageBodyNode, mail) {
                 }
 
                 const email = attendee.jCal[3].replace("mailto:", "");
-                if (mail.account.getEmail().equalsIgnoreCase(email)) {
+                const cn = attendee.jCal[1]["cn"];
+                if (mail.account.getEmail().equalsIgnoreCase(email) || !isNaN(cn)) {
                     // ignore me
                 } else {
                     const a = document.createElement("a");
-                    a.textContent = attendee.jCal[1]["cn"] || email;
+                    a.textContent = email;
                     a.setAttribute("href", `mailto:${email}`);
                     a.setAttribute("target", "_blank");
                     a.title = attendee.jCal[3];
@@ -3255,7 +3457,6 @@ async function parseICSAttachment(data, messageBodyNode, mail) {
         // only display calendar details if not already present in email body
         if (messageBodyNode.textContent.length < 20 && description) { // !messageBodyNode.textContent.includes(vevent.getFirstPropertyValue('summary')) 
             description = convertPlainTextToInnerHtml(description);
-            description = html_sanitize(description, allowAllUrls, rewriteIds);
             // just remove img altogether
             if (description) {
                 description = description.replace(/<img/g, IMAGE_REPLACED_OPENER);
@@ -3266,7 +3467,7 @@ async function parseICSAttachment(data, messageBodyNode, mail) {
                 stripPrefix : false,
             } );
     
-            descriptionNode.innerHTML = description;
+            setSafeHTML(descriptionNode, description);
             show(descriptionNode);
         } else {
             hide(descriptionNode);
@@ -3305,7 +3506,7 @@ async function parseICSAttachment(data, messageBodyNode, mail) {
                 show("#calendar-view-button");
             } else {
                 onClickReplace("#calendar-add-button", event => {
-                    showSaving();
+                    showProgress();
         
                     createCalendarEvent(calendarEvent);
         
@@ -3407,7 +3608,12 @@ async function sendToOffscreenDoc(type, data) {
             myOffscreenListener(message, "firefox-manual-send", resolve);
         });
     } else {
-        response = await chrome.runtime.sendMessage(message);
+        try {
+            response = await chrome.runtime.sendMessage(message);
+        } catch (error) {
+            console.error("error sending to offscreen", error);
+            throw error;
+        }
     }
 
     if (response?.errorInOffscreen) {

@@ -247,6 +247,8 @@ function Account() {
                 atomFeed = AtomFeed.FORUMS;
             } else if (label == SYSTEM_SPAM) {
                 atomFeed = AtomFeed.SPAM;
+            } else if (label == SYSTEM_TRASH) {
+                atomFeed = AtomFeed.TRASH;
             } else {
                 atomFeed = label;
             }
@@ -274,10 +276,6 @@ function Account() {
                 if (!response.ok) {
                     const error = Error(response.statusText);
                     error.errorCode = response.status;
-                    if (error.errorCode == 401 && globalThis.detectSleepMode && await globalThis.detectSleepMode.isWakingFromSleepMode()) {
-                        console.warn("401 error while waking from sleep, treating as network error to prevent auth revocation");
-                        error.errorCode = 0;
-                    }
                     throw error;
                 }
 
@@ -564,6 +562,8 @@ function Account() {
 			   labelName = getMessage("forums");
            } else if (labelId == SYSTEM_SPAM) {
                labelName = getMessage("spam");
+           } else if (labelId == SYSTEM_TRASH) {
+               labelName = getMessage("trash");
            } else if (GmailAPI.labels.STAR_VARIANTS.includes(labelId)) {
                return STAR_VARIANT_FLAG;
            } else {
@@ -630,17 +630,12 @@ function Account() {
        const watchRetries = deepClone(await storage.get("_enablePushNotificationsRetries"));
        try {
             if (await isGCMSupported(true)) {
-                const registrationId = await ensureGCMRegistration();
-                if (registrationId) {
-                    // Add email/regid to datastore so watch responses know who to notify ie. extension
-                    const response = await linkEmailToRegistrationId({
-                        email: email,
-                        registrationId: registrationId
-                    });
-                    console.info("enablePushNotifications response: " + response);
-                } else {
-                    console.warn("GCM registration ID not available, skipping link registration.");
-                }
+                // Add email/regid to datastore so watch responses know who to notify ie. extension
+                const response = await linkEmailToRegistrationId({
+                    email: email,
+                    registrationId: await ensureGCMRegistration()
+                });
+                console.info("enablePushNotifications response: " + response);
             }
 
             // reset retries
@@ -706,6 +701,15 @@ function Account() {
                 } else {
                     labelFilterBehavior = "include";
                     labelIds = labels.map(labelId => getGmailAPILabelId(labelId));
+
+                    // Primary-only watch can miss self-sent unread emails that don't carry CATEGORY_PERSONAL.
+                    // Add SENT to watch scope for low-volume self-send changes without broad Inbox watch.
+                    if (labels.includes(SYSTEM_PRIMARY)) {
+                        labelIds.push(GmailAPI.labels.SENT);
+                    }
+
+                    // Safety dedupe in case monitor labels map to repeated Gmail label ids.
+                    labelIds = [...new Set(labelIds)];
                 }
     
                 const data = await oAuthForEmails.send({
@@ -878,6 +882,8 @@ function Account() {
 		   mailObject.labelSortIndex = 9;
         } else if (label == SYSTEM_SPAM) {
             mailObject.labelSortIndex = 10;
+        } else if (label == SYSTEM_TRASH) {
+            mailObject.labelSortIndex = 11;
         } else {
 		   const labelName = mailObject.account.getLabelName(label);
 		   if (labelName && labelName != STAR_VARIANT_FLAG) {
@@ -885,7 +891,7 @@ function Account() {
 		   } else {
 			   // empty label, might have once been monitored but now label removed and marked as spam or something
 			   // let's move it to the end of the list
-			   mailObject.labelSortIndex = 11;
+			   mailObject.labelSortIndex = 12;
 		   }
 	   }
    }
@@ -1148,12 +1154,88 @@ function Account() {
 	   return {historyActions:historyActions, deleted:deleted};
    }
    
-   function isUnread(labelIds) {
+   function isUnread(labelIds, monitoredLabels = []) {
+       const viewingSpam = monitoredLabels.length == 1 && monitoredLabels[0] == SYSTEM_SPAM;
+       const viewingTrash = monitoredLabels.length == 1 && monitoredLabels[0] == SYSTEM_TRASH;
        return labelIds
             && labelIds.includes(GmailAPI.labels.UNREAD)
-            && !labelIds.includes(GmailAPI.labels.SPAM)
-            && !labelIds.includes(GmailAPI.labels.TRASH)
+            && (viewingSpam || !labelIds.includes(GmailAPI.labels.SPAM))
+            && (viewingTrash || !labelIds.includes(GmailAPI.labels.TRASH))
         ;
+   }
+
+   function isPrimarySelfSentFallbackLabelIds(labelIds) {
+       return labelIds
+            && labelIds.includes(GmailAPI.labels.INBOX)
+            && labelIds.includes(GmailAPI.labels.SENT)
+            && !labelIds.includes(GmailAPI.labels.CATEGORY_PERSONAL)
+        ;
+   }
+
+   function requiresPrimarySelfSentRecipientVerification(labelIds, monitoredLabels) {
+       return monitoredLabels?.includes(SYSTEM_PRIMARY) && isPrimarySelfSentFallbackLabelIds(labelIds);
+   }
+
+   function getRecipientEmailsFromAddressObjects(addressObjects) {
+       const recipientEmails = [];
+
+       addressObjects?.forEach(addressObject => {
+           if (addressObject?.email) {
+               recipientEmails.push(addressObject.email);
+           }
+       });
+
+       return recipientEmails;
+   }
+
+   function getRecipientEmailsFromHeaderValues(headerValues) {
+       const recipientEmails = [];
+
+       headerValues?.forEach(headerValue => {
+           addressparser(headerValue).forEach(addressObject => {
+               if (addressObject?.email) {
+                   recipientEmails.push(addressObject.email);
+               }
+           });
+       });
+
+       return recipientEmails;
+   }
+
+   function doesRecipientListIncludeMonitoredAccount(recipientEmails) {
+       return recipientEmails.some(recipientEmail => recipientEmail?.equalsIgnoreCase(email));
+   }
+
+   function doesHttpResponseMessageTargetMonitoredAccount(httpResponseMessage) {
+       const headers = httpResponseMessage.payload?.headers || [];
+       const recipientEmails = [];
+
+       recipientEmails.push(...getRecipientEmailsFromAddressObjects(addressparser(MyGAPIClient.getHeaderValue(headers, "To"))));
+       recipientEmails.push(...getRecipientEmailsFromAddressObjects(addressparser(MyGAPIClient.getHeaderValue(headers, "CC"))));
+       recipientEmails.push(...getRecipientEmailsFromAddressObjects(addressparser(MyGAPIClient.getHeaderValue(headers, "BCC"))));
+       recipientEmails.push(...getRecipientEmailsFromHeaderValues(MyGAPIClient.getAllHeaderValues(headers, "Delivered-To")));
+
+       return doesRecipientListIncludeMonitoredAccount(recipientEmails);
+   }
+
+   function doesMailObjectTargetMonitoredAccount(mailObject) {
+       const recipientEmails = [];
+
+       mailObject.messages?.forEach(message => {
+           recipientEmails.push(...getRecipientEmailsFromAddressObjects(message.to));
+           recipientEmails.push(...getRecipientEmailsFromAddressObjects(message.cc));
+           recipientEmails.push(...getRecipientEmailsFromAddressObjects(message.bcc));
+       });
+
+       recipientEmails.push(...getRecipientEmailsFromHeaderValues(mailObject.deliveredTo));
+
+       return doesRecipientListIncludeMonitoredAccount(recipientEmails);
+   }
+
+   function isValidPrimarySelfSentMail(mailObject, monitoredLabels) {
+       return !requiresPrimarySelfSentRecipientVerification(mailObject.labels, monitoredLabels)
+           || doesMailObjectTargetMonitoredAccount(mailObject)
+       ;
    }
    
    function passesLabelTests(historyMessage, monitoredLabels) {
@@ -1247,12 +1329,6 @@ function Account() {
                                     const authorName = entry.author.name;
                                     let authorMail = entry.author.email;
                                     const entryXML = JSON.stringify(entry);
-                                    
-                                    // Encode content to prevent XSS attacks
-                                    // commend title one because & was converted to &amp; in subject lines 
-                                    //title = html_sanitize(title);
-                                    summary = html_sanitize(summary);
-                                    authorMail = html_sanitize(authorMail);							   
                                     
                                     const mailObject = new Mail();
                                     mailObject.account = that;
@@ -1424,9 +1500,12 @@ function Account() {
                                                 
                                                 console.log("message", message);
                                                 
-                                                var showMailInPopup = !historyActionsResponse.deleted && isUnread(message.labelIds) && passesLabelTests(message, monitoredLabels);
-                                                console.log("showMailInPopup: " + showMailInPopup + " " + isUnread(message.labelIds) + " " + passesLabelTests(message, monitoredLabels));
-                                                var matchingMailResponse = getMatchingMail(message);
+                                                const requiresRecipientVerification = !historyActionsResponse.deleted
+                                                    && isUnread(message.labelIds, monitoredLabels)
+                                                    && requiresPrimarySelfSentRecipientVerification(message.labelIds, monitoredLabels)
+                                                ;
+                                                const showMailInPopup = !historyActionsResponse.deleted && isUnread(message.labelIds, monitoredLabels) && passesLabelTests(message, monitoredLabels);
+                                                const matchingMailResponse = getMatchingMail(message);
                                                 
                                                 if (matchingMailResponse.matchingMail) {
                                                     if (showMailInPopup) {
@@ -1437,13 +1516,16 @@ function Account() {
                                                         } else {
                                                             messagesToFetch.push(message);
                                                         }
+                                                    } else if (requiresRecipientVerification) {
+                                                        message.monitoredLabel = SYSTEM_PRIMARY;
+                                                        messagesToFetch.push(message);
                                                     } else { // is no longer unread (maybe deleted, archive or marked as read etc.)
                                                         console.log("remove message: " + message.id);
                                                         matchingMailResponse.matchingMail.removeMessageById(message.id);
                                                         
                                                         // if all messages from thread are no longer unread then remove it from the array
                                                         const allMessagesRead = matchingMailResponse.matchingMail.messages.every(message => {
-                                                            return !isUnread(message.labels);
+                                                            return !isUnread(message.labels, monitoredLabels);
                                                         });
                                                         
                                                         if (allMessagesRead) {
@@ -1452,7 +1534,10 @@ function Account() {
                                                         }
                                                     }
                                                 } else {
-                                                    if (showMailInPopup) {
+                                                    if (showMailInPopup || requiresRecipientVerification) {
+                                                        if (requiresRecipientVerification) {
+                                                            message.monitoredLabel = SYSTEM_PRIMARY;
+                                                        }
                                                         messagesToFetch.push(message);
                                                     } else {
                                                         // 1) we might have removed it immediately after user action like mark as read
@@ -1482,8 +1567,22 @@ function Account() {
                                         // Not Found, so let's generate a stub to pass to mergeMailObject to remove it
                                         if (historyMailObject.jerror == JError.NOT_FOUND) {
                                             console.error("not found - should i do something", historyMailObject);
+                                        } else if (!isValidPrimarySelfSentMail(historyMailObject, monitoredLabels)) {
+                                            var matchingMailResponse = getMatchingMail(historyMailObject);
+                                            if (matchingMailResponse.matchingMail) {
+                                                matchingMailResponse.matchingMail.removeMessageById(historyMailObject.id);
+
+                                                const allMessagesRead = matchingMailResponse.matchingMail.messages.every(message => {
+                                                    return !isUnread(message.labels, monitoredLabels);
+                                                });
+
+                                                if (allMessagesRead) {
+                                                    mailArray.splice(matchingMailResponse.index, 1);
+                                                    mergeUnreadRelativeCount--;
+                                                }
+                                            }
                                         } else {
-                                            if (historyMailObject.unSnoozed && !isUnread(historyMailObject.labelIds)) {
+                                            if (historyMailObject.unSnoozed && !isUnread(historyMailObject.labelIds, monitoredLabels)) {
                                                 unsnoozedEmails.push(historyMailObject);
                                             } else {
                                                 var matchingMailResponse = getMatchingMail(historyMailObject);
@@ -1605,12 +1704,39 @@ function Account() {
                 }
 
                 // add with inbox count
+                const primaryNonFallbackMessageIds = new Set();
+                const primaryFallbackMessageIds = new Set();
+                getMessagesResponse.fetchMessagesByLabelsResponse.responses.forEach(response => {
+                    response.httpBodies.forEach(httpBody => {
+                        if (httpBody.monitoredLabel == SYSTEM_PRIMARY && httpBody.id) {
+                            if (httpBody.isPrimaryFallback) {
+                                primaryFallbackMessageIds.add(httpBody.id);
+                            } else {
+                                primaryNonFallbackMessageIds.add(httpBody.id);
+                            }
+                        }
+                    });
+                });
+
                 getMessagesResponse.fetchMessageIdsByLabelsResponse.httpBodies.some(httpBody => {
                     //if ((httpBody.monitoredLabel == SYSTEM_INBOX && that.getSetting("openLinksToInboxByGmail")) || httpBody.monitoredLabel == SYSTEM_PRIMARY) {
                     if (isMainCategory(httpBody.monitoredLabel)) {
                         //mailArray if (mailArray.length < that.unreadCount || mailArray.length < MAX_EMAILS_TO_FETCH) {
-                        
-                        that.unreadCount += httpBody.resultSizeEstimate;
+
+                        if (httpBody.isPrimaryFallback) {
+                            // Count only fallback-only ids so we do not double count with the regular primary query.
+                            let fallbackOnlyCount = 0;
+                            if (httpBody.messages?.length) {
+                                httpBody.messages.forEach(message => {
+                                    if (message?.id && primaryFallbackMessageIds.has(message.id) && !primaryNonFallbackMessageIds.has(message.id)) {
+                                        fallbackOnlyCount++;
+                                    }
+                                });
+                            }
+                            that.unreadCount += fallbackOnlyCount;
+                        } else {
+                            that.unreadCount += httpBody.resultSizeEstimate;
+                        }
                         
                         if (newestMailArray.length < that.unreadCount && that.unreadCount < MAX_EMAILS_TO_FETCH) {
                             that.unreadCount = newestMailArray.length;
@@ -1705,7 +1831,8 @@ function Account() {
 		   } else {
                 messages.push({
                     id: httpMessage.id,
-                    monitoredLabel: httpMessage.monitoredLabel
+                    monitoredLabel: httpMessage.monitoredLabel,
+                    isPrimaryFallback: httpMessage.isPrimaryFallback
                 });
 			    params.allLabelsMessageIdsToFetch.push(httpMessage.id);
 		   }
@@ -1728,6 +1855,7 @@ function Account() {
                 
                 httpBody.messages.forEach(httpMessage => {
                     httpMessage.monitoredLabel = httpBody.monitoredLabel;
+                    httpMessage.isPrimaryFallback = httpBody.isPrimaryFallback;
                 });
                 
                 const fetchMessagesByIdsParams = generateFetchMessagesByIdsParams({httpMessages:httpBody.messages, allLabelsMessageIdsToFetch:allLabelsMessageIdsToFetch});
@@ -1742,6 +1870,20 @@ function Account() {
         });
         
         const fetchMessagesByIdsPromisesResponses = await Promise.all(fetchMessagesByIdsPromises);
+        fetchMessagesByIdsPromisesResponses.forEach(response => {
+            response.httpBodies = response.httpBodies.filter(httpBody => {
+                if (!httpBody.isPrimaryFallback) {
+                    return true;
+                }
+
+                if (doesHttpResponseMessageTargetMonitoredAccount(httpBody)) {
+                    return true;
+                }
+
+                console.log("skip primary fallback message because recipient does not match monitored account", httpBody.id);
+                return false;
+            });
+        });
         if (errors.length) {
             console.error("found some errors[]", errors);
             throw errors;
@@ -1757,6 +1899,8 @@ function Account() {
         mailObject.deliveredTo = MyGAPIClient.getAllHeaderValues(headers, "Delivered-To"); // Used to determine any "send mail as" alternate emails etc.
         mailObject.replyTo = MyGAPIClient.getHeaderValue(headers, "Reply-To"); // might have alternate reply to email
         mailObject.messageId = MyGAPIClient.getHeaderValue(headers, "Message-ID"); // Used for replying
+        mailObject.listUnsubscribe = MyGAPIClient.getHeaderValue(headers, "List-Unsubscribe");
+        mailObject.listUnsubscribePost = MyGAPIClient.getHeaderValue(headers, "List-Unsubscribe-Post");
    }
    
    async function createMailObjects(params) {
@@ -1835,8 +1979,6 @@ function Account() {
                    logError("Problem with addressparser: " + from);
                }
                
-               authorMail = html_sanitize(authorMail);
-               
                mailObject.account = that;
                mailObject.id = httpBody.id;
 
@@ -1890,6 +2032,7 @@ function Account() {
 
         const mygapiClient = getMyGAPIClient();
         const showOnlyRecentUnreadEmails = await storage.get("showOnlyRecentUnreadEmails");
+       const requestMeta = [];
 
         /*
             decided not to finish this code because usually sent emails are never unread! , but use this in the future if have to include sent emails in message history
@@ -1921,12 +2064,35 @@ function Account() {
                 method: "GET"
             });
             mygapiClient.HttpBatch.add(httpRequest);
+            requestMeta.push({
+                monitoredLabel: monitoredLabel,
+                isPrimaryFallback: false
+            });
+
+            if (monitoredLabel == SYSTEM_PRIMARY) {
+                // Fallback for self-sent unread inbox emails that may not include CATEGORY_PERSONAL.
+                let primaryFallbackPath = `${GmailAPI.PATH}messages?labelIds=${GmailAPI.labels.UNREAD}&labelIds=${GmailAPI.labels.INBOX}&labelIds=${GmailAPI.labels.SENT}&maxResults=${MAX_EMAILS_TO_FETCH}`;
+                if (showOnlyRecentUnreadEmails) {
+                    primaryFallbackPath += `&q=newer_than:1d`;
+                }
+
+                const primaryFallbackRequest = mygapiClient.request({
+                    path: primaryFallbackPath,
+                    method: "GET"
+                });
+                mygapiClient.HttpBatch.add(primaryFallbackRequest);
+                requestMeta.push({
+                    monitoredLabel: monitoredLabel,
+                    isPrimaryFallback: true
+                });
+            }
         });
 
         const batchResponse = await mygapiClient.HttpBatch.execute({oauthRequest:oAuthForEmails, email:email});
-        // tag monitored label to httpbodies
+        // tag monitored label and metadata to httpbodies
         batchResponse.httpBodies.forEach((httpBody, httpBodyIndex) => {
-            httpBody.monitoredLabel = monitoredLabels[httpBodyIndex];
+            httpBody.monitoredLabel = requestMeta[httpBodyIndex]?.monitoredLabel;
+            httpBody.isPrimaryFallback = requestMeta[httpBodyIndex]?.isPrimaryFallback;
         });
 
         return {httpBodies:batchResponse.httpBodies};
@@ -1952,6 +2118,7 @@ function Account() {
         // tag unsnoozed flags to httpbodies
         batchResponse.httpBodies.forEach((httpBody, httpBodyIndex) => {
             httpBody.monitoredLabel = messages[httpBodyIndex].monitoredLabel;
+            httpBody.isPrimaryFallback = messages[httpBodyIndex].isPrimaryFallback;
             httpBody.unSnoozed = messages[httpBodyIndex].unSnoozed;
         });
         
@@ -1974,12 +2141,13 @@ function Account() {
 	   } else if (part.mimeType == "text/html") {
 		   if (part.body.data) {
 			   message.content = decodeBase64UrlSafe(part.body.data);
-			   
+               
 			   // Must keep content-id reference for inline images, so let's fool sanitizer to by prefixing it with "http://"
-			   message.content = message.content.replace(/src=\"cid:/g, "src=\"" + FOOL_SANITIZER_CONTENT_ID_PREFIX);
-			   message.content = message.content.replace(/src=\'cid:/g, "src=\'" + FOOL_SANITIZER_CONTENT_ID_PREFIX);
+               message.content = message.content.replace(
+                    /\bsrc\s*=\s*(["'])cid:/ig,
+                    (match, quote) => `src=${quote}${FOOL_SANITIZER_CONTENT_ID_PREFIX}`
+                );
 			   
-			   message.content = html_sanitize(message.content, allowAllUrls, rewriteIds);
 			   // just remove img altogether
 			   if (message.content) {
                    message.content = message.content.replace(/<img/g, IMAGE_REPLACED_OPENER);
@@ -2004,11 +2172,11 @@ function Account() {
 		   if (!message.content) {
 			   message.content = "";
 		   }
-		   message.content += " [File attached] But this extension could not process it. Use <a href='https://jasonsavard.com/forum/categories/checker-plus-for-gmail-feedback?ref=unknownMimeType'>Checker Plus forum</a> to help me with this issue.";
+		   message.content += " [File attached] But this extension could not process it. Use <a href='https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=unknownMimeType'>Checker Plus forum</a> to help me with this issue.";
 	   } else {
 		   if (!message.textContent && !message.content) {
 			   logError("must add logic for mimetype: " + part.mimeType, part);
-			   message.content = "Error unknown mimetype: " + part.mimeType + " <br><br>Search or post this bug on the <a href='https://jasonsavard.com/forum/categories/checker-plus-for-gmail-feedback?ref=unknownMimeType'>Checker Plus forum</a>";
+			   message.content = "Error unknown mimetype: " + part.mimeType + " <br><br>Search or post this bug on the <a href='https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=unknownMimeType'>Checker Plus forum</a>";
 		   } else {
 			   if (part.mimeType != "text/x-watch-html" && part.mimeType != "text/x-amp-html") { // ignore x-watch (Apple Watch), also ignore text/x-amp-html because: "It’s recommended structuring your MIME part with text/plain first, text/x-amp-html second, and text/html last"
 				   logError("must add logic for mimetype (but found other content): " + part.mimeType, part);
@@ -2048,7 +2216,7 @@ function Account() {
 	   message.textContent = "";
 
 	   processPart(httpResponseMessage.payload, message);
-	   
+
 	   // if no text content then use the html content
 	   if (!message.textContent) {
 		   if (message.content) {
@@ -2058,12 +2226,11 @@ function Account() {
 			   message.textContent = "";
 		   }
 	   }
-	   
+
 	   // if no html content then use the text content
 	   if (!message.content) {
 		   if (message.textContent) {
 			   message.content = convertPlainTextToInnerHtml(message.textContent);
-			   message.content = html_sanitize(message.content, allowAllUrls, rewriteIds);
 		   }
 		   if (!message.content) {
 			   message.content = "";
@@ -2074,7 +2241,6 @@ function Account() {
            subject: subject,
            body: message.textContent
        });
-	   message.textContent = html_sanitize(message.textContent);
 	   
 	   return message;
    }
@@ -2262,21 +2428,6 @@ function Account() {
             action.code = 7;
         } else if (params.action == MailAction.MARK_AS_NOT_SPAM) {
             urlParams += "us";
-        } else if (params.action == MailAction.APPLY_LABEL) {
-            //urlParams += "ac_" + encodeURIComponent(params.label);
-            return {
-                mustGrantAccess: true
-            }
-        } else if (params.action == MailAction.REMOVE_LABEL) {
-            if (params.label == SYSTEM_INBOX) {
-                params.action = MailAction.ARCHIVE;
-                return executeGmailHttpAction(params);
-            } else {
-                //urlParams += "rc_" + encodeURIComponent(params.label);
-                return {
-                    mustGrantAccess: true
-                }
-            }
         } else if (params.action == MailAction.UNTRASH) {
             url = that.getMailUrl({useBasicGmailUrl:true}) + Math.ceil(1000000 * Math.random()) + "/?s=t";
             
@@ -2297,104 +2448,6 @@ function Account() {
             if (index != -1) {
                 params.mail.labels.splice(index, 1);
             }
-        } else if (params.action == MailAction.REPLY) {
-            urlParams += "sm&ui=2&cmml=" + params.message.length + "&pcd=1&mb=0&rt=c&search=inbox";
-
-            function appendLine(str) {
-                data += str + "\n";
-            }
-
-            var replyObj = await params.mail.generateReplyObject(params);
-
-            url = that.getMailUrl({useBasicGmailUrl:true}) + Math.ceil(1000000 * Math.random()) + "/";
-            options.method = "POST";
-            if (params.replyAllFlag) {
-                var data = "";
-
-                var boundary = "----WebKitFormBoundarythAbRn0cGJ9FBoKg";
-                
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"redir\"");
-                appendLine("");
-                appendLine("?th=" + params.mail.id + "&v=c&s=l");
-                
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"at\"");
-                appendLine("");
-                appendLine(gmailAT);
-                
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"to\"");
-                appendLine("");
-                
-                var toStr = "";
-                if (replyObj) {
-                    replyObj.tos.forEach(function(to, index) {
-                        if (index != 0) {
-                            toStr += ", ";
-                        }
-                        toStr += convertAddress(to, true);
-                    });
-                } else {
-                    toStr = convertAddress(params.to, true);
-                }
-                
-                appendLine(toStr);
-                
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"cc\"");
-                appendLine("");
-                
-                var ccStr = "";
-                if (replyObj?.ccs?.length) {
-                    replyObj.ccs.forEach((cc, index) => {
-                        if (index != 0) {
-                            ccStr += ", ";
-                        }
-                        ccStr += convertAddress(cc, true);
-                    });
-                }
-                
-                appendLine(ccStr);
-
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"bcc\"");
-                appendLine("");
-                appendLine("");
-
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"file0\"; filename=\"\"");
-                appendLine("Content-Type: application/octet-stream");
-                appendLine("");
-                appendLine("");
-
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"subject\"");
-                appendLine("");
-                appendLine(params.mail.title);
-                
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"body\"");
-                appendLine("");
-                appendLine(params.message);
-                appendLine("");
-                appendLine("> " + await params.mail.getLastMessageText());
-
-                appendLine("--" + boundary);
-                appendLine("Content-Disposition: form-data; name=\"nvp_bu_send\"");
-                appendLine("");
-                appendLine("Send");
-
-                appendLine("--" + boundary + "--");
-                
-                options.headers = {
-                    "Content-Type": "multipart/form-data; boundary=" + boundary
-                }
-                url += "?fv=b&cs=c&pv=cv&th=" + params.mail.id + "&rm=" + params.mail.id + "&cpt=r&v=b&s=l";
-            } else {
-                // when replying to emails with no inbox label ie. just Apps label, then we need to add s=l and also encoded s=l insie last param redir= 
-                url += "?" + COMMON_PARAMS + "v=b&qrt=n&pv=cv&s=l&fv=cv&cs=qfnq&rm=" + params.mail.id + "&th=" + params.mail.id + "&qrr=" + "o" + "&body=" + encodeURIComponent(params.message) + "&nvp_bu_send=Send&haot=qt&redir=" + encodeURIComponent("?v=c&s=l");
-            }
         } else {
             throw new Error("action not found: " + params.action);
         }
@@ -2404,37 +2457,38 @@ function Account() {
             url = that.getMailUrl({useBasicGmailUrl:true, urlParams:urlParams});
         }
         
-        if (data) {
-            options.body = data;
-        }
-
-        const isReplyAction = params.action == MailAction.REPLY;
-
-        const ajaxParams = shallowClone(params);
-        ajaxParams.options = options;
-        ajaxParams.ignoreResponse = !isReplyAction;
-
-
         const thread = params.mail.id;
         const o = {};
         
-        const body = new FormData();
-        body.append('s_jr', JSON.stringify([null, [[null, null, null, [
-            null, action.code, thread, (o.id || thread), action.command, [], action.labels, o.ids
-          ]],
-          [null, null, null, null, null, null, [null, true, false]],
-          [null, null, null, null, null, null, [null, true, false]]
-        ], 2, null, null, null, gmailIK]));
+        const createActionBody = () => {
+            const body = new FormData();
+            body.append('s_jr', JSON.stringify([null, [[null, null, null, [
+                null, action.code, thread, (o.id || thread), action.command, [], action.labels, o.ids
+              ]],
+              [null, null, null, null, null, null, [null, true, false]],
+              [null, null, null, null, null, null, [null, true, false]]
+            ], 2, null, null, null, gmailIK]));
+            return body;
+        };
     
-        const href = `https://mail.google.com/mail/u/${that.id}/s/?v=or&ik=${gmailIK}&at=${gmailAT}&subui=chrome&hl=en&ts=` + Date.now();
-        const fetchResponse = await fetch(href, {
+        const sendActionRequest = () => fetch(`https://mail.google.com/mail/u/${that.id}/s/?v=or&ik=${gmailIK}&at=${gmailAT}&subui=chrome&hl=en&ts=${Date.now()}`, {
             method: 'POST',
             credentials: 'include',
-            body
+            body: createActionBody()
         });
 
-        // must do this to know the action is finished
+        let fetchResponse = await sendActionRequest();
         let text = await fetchResponse.text();
+        if (text.includes("Invalid action token")) {
+            await Promise.all([getGmailAT(true), getGmailIK(true)]);
+            fetchResponse = await sendActionRequest();
+            text = await fetchResponse.text();
+            if (text.includes("Invalid action token")) {
+                throw Error("Gmail rejected its refreshed action token.", {
+                    cause: ErrorCause.GMAIL_ACTION_TOKEN_INVALID
+                });
+            }
+        }
 
         console.log("text response", text);
 
@@ -2451,16 +2505,6 @@ function Account() {
                     spreauthUrl: spreauthUrl,
                 }
             });
-        }
-
-        const html = null; // await ajaxBasicHTMLGmail(url, ajaxParams);
-        if (isReplyAction) {
-            console.log("reply response: ", html);
-            if (html?.includes("#FAD163") || html?.toLowerCase().includes("your message has been sent")) {
-                return "success";
-            } else {
-                throw Error("Send error: Could not confirm action");
-            }
         }
         
         if (params.action == MailAction.DELETE || params.action == MailAction.MARK_AS_READ || params.action == MailAction.ARCHIVE) {
@@ -2509,6 +2553,35 @@ function Account() {
         return data;
    }
 
+   async function executeGmailAPIActionAfterHttpTokenFailure(params) {
+        const apiParams = {...params};
+        if (params.action == MailAction.MARK_AS_READ) {
+            apiParams.data = {removeLabelIds:[GmailAPI.labels.UNREAD]};
+        } else if (params.action == MailAction.MARK_AS_UNREAD) {
+            apiParams.data = {addLabelIds:[GmailAPI.labels.UNREAD]};
+        } else if (params.action == MailAction.DELETE) {
+            apiParams.gmailAPIaction = "trash";
+        } else if (params.action == MailAction.ARCHIVE) {
+            apiParams.data = {removeLabelIds:[GmailAPI.labels.INBOX]};
+        } else if (params.action == MailAction.MARK_AS_SPAM) {
+            apiParams.data = {addLabelIds:[GmailAPI.labels.SPAM]};
+        } else if (params.action == MailAction.MARK_AS_NOT_SPAM) {
+            apiParams.data = {removeLabelIds:[GmailAPI.labels.SPAM]};
+        } else if (params.action == MailAction.UNTRASH) {
+            apiParams.gmailAPIaction = "untrash";
+            await executeGmailAPIAction(apiParams);
+            delete apiParams.gmailAPIaction;
+            apiParams.data = {addLabelIds:[GmailAPI.labels.INBOX]};
+        } else if (params.action == MailAction.STAR) {
+            apiParams.data = {addLabelIds:[GmailAPI.labels.STARRED]};
+        } else if (params.action == MailAction.REMOVE_STAR) {
+            apiParams.data = {removeLabelIds:GmailAPI.labels.STAR_VARIANTS};
+        } else {
+            throw new Error(`No Gmail API fallback for action: ${params.action}`);
+        }
+        return executeGmailAPIAction(apiParams);
+   }
+
    async function getOauthHybridLabel(params) {
         let label = userAndSystemLabelsForOauthHybrid.find(label => label.name == params.label);
         if (!label) {
@@ -2535,7 +2608,25 @@ function Account() {
             await Promise.all([getGmailAT(), getGmailIK()]);
 
             try {
-                const response = await executeGmailHttpAction(params);
+                let response;
+                try {
+                    response = await executeGmailHttpAction(params);
+                } catch (error) {
+                    if (error.cause != ErrorCause.GMAIL_ACTION_TOKEN_INVALID) {
+                        throw error;
+                    }
+                    try {
+                        response = await executeGmailAPIActionAfterHttpTokenFailure(params);
+                    } catch (apiError) {
+                        if (apiError.message == JError.NO_TOKEN_FOR_EMAIL || apiError.code == ErrorCodes.BAD_REQUEST || apiError.code == ErrorCodes.UNAUTHORIZED) {
+                            openUrl(`grant-access.html?email=${encodeURIComponent(that.getEmail())}`);
+                            return {
+                                mustGrantAccess: true
+                            };
+                        }
+                        throw apiError;
+                    }
+                }
                 await that.getEmails();
                 await mailUpdate(params);
                 return response;
@@ -2709,6 +2800,20 @@ function Account() {
    this.testGetGmailIKFromMobileView = function() {
         return getGmailIKFromMobileView();
     }
+
+    async function getGmailATFromCookie(accountId) {
+        const cookies = await chrome.cookies.getAll({
+            name: "GMAIL_AT",
+            domain: "mail.google.com",
+            partitionKey: {}
+        });
+        let gmailAT = cookies.find(cookie => cookie.path == `/mail/u/${accountId}/`)?.value;
+        if (!gmailAT) {
+            // try without the trailing slash
+            gmailAT = cookies.find(cookie => cookie.path == `/mail/u/${accountId}`)?.value;
+        }
+        return gmailAT;
+    }
    
    // acts as a singleton so that it can handle multiple calls
    async function getGmailAT(force) {
@@ -2717,10 +2822,13 @@ function Account() {
             getGmailAtPromise = async function() {
                 // every 5 minutes
                 if (!gmailAT || lastGmailATFetch.diffInMinutes() <= -5 || force) {
-                    const response = await chrome.cookies.get({name: 'GMAIL_AT', url: `https://mail.google.com/mail/u/${that.id}`});
-                    gmailAT = response?.value;
+                    gmailAT = await getGmailATFromCookie(that.id);
                     if (!gmailAT) {
-                        throw Error("No gmail AT found");
+                        //await reinitGmailSignInViaOffscreen(that.id);
+                        //gmailAT = await getGmailATFromCookie(that.id);
+                        if (!gmailAT) {
+                            throw Error("No gmail AT found");
+                        }
                     }
                     lastGmailATFetch = new Date();
                 }
@@ -2850,6 +2958,21 @@ function Account() {
         }
    }
 
+   async function sanitizeQuotedContent(rawHtml) {
+        const unsafe = String(rawHtml ?? "");
+
+        // Background/service-worker safe fallback: convert to plain text then re-HTML-encode
+        if (!globalThis.document) {
+            const text = await htmlToText(unsafe);
+            return convertPlainTextToInnerHtml(text || "");
+        }
+
+        // DOM context: reuse your sanitizer sink
+        const tmp = document.createElement("div");
+        setSafeHTML(tmp, unsafe); // uses sanitizer from [common.js](http://_vscodecontentref_/2)
+        return tmp.innerHTML;
+    }
+
    async function generateExecuteGmailAPIActionParams(params) {
 	   const account = that;
 
@@ -2969,12 +3092,16 @@ function Account() {
 	    * I used to send text/plain and text/html but the Gmail API would overwrite/derive the text/plain part from the text/html with it's own logic
 	    * Can't attachments + send text/plain together or else only text/plain would go through
 	    */
+
+       // Feb 2026: Force HTML mode to avoid plain-text reflow/wrapping behavior in clients
+       if (!params.htmlMessage && params.message) {
+            params.htmlMessage = convertPlainTextToInnerHtml(params.message);
+       }
 	   
        let signatureHtml;
 	   if (await account.getSetting("showSignature", "accountsShowSignature")) {
             const signature = sendAs?.signature;
             if (signature) {
-                params.htmlMessage ||= convertPlainTextToInnerHtml(params.message);
                 signatureHtml = `<br><div class="gmail_signature" data-smartmail="gmail_signature">${signature}</div>`;
             }
        }
@@ -2983,9 +3110,11 @@ function Account() {
        let lastMessage;
        try {
             lastMessage = params.mail.messages?.last();
-            if (lastMessage) {
+            if (lastMessage?.content) {
+                const safeQuoted = await sanitizeQuotedContent(lastMessage.content);
                 replyQuoted = getMessage("onDATE_NAMEwrote", new Date(lastMessage.date).toLocaleStringJ(), lastMessage.from?.name) + (params.htmlMessage ? "<br><br>" : "\n\n");
-                replyQuoted += "> " + (await params.mail.getLastMessageText()).replaceAll("\n", `${params.htmlMessage ? "<br>" : "\n"}> `);
+                replyQuoted += "<blockquote type='cite' style='border-left:1px solid #ccc;margin-top:20px;margin-bottom:10px;margin-left:50px;padding-left:9px'>" + safeQuoted + "</blockquote>";
+                //replyQuoted += "> " + (await params.mail.getLastMessageText()).replaceAll("\n", `${params.htmlMessage ? "<br>" : "\n"}> `);
             }
         } catch (error) {
             console.warn("error generating reply quote: ", error);
@@ -2994,6 +3123,7 @@ function Account() {
 	   if (!params.message && !params.htmlMessage && !params.attachment) {
 		   // send nothing!
 	   } else if (params.message && !params.htmlMessage && !params.attachment) {
+            // v2 Feb 2025, might never get here now cause forcing htmlMessage for better formatting, but leaving this code here just in case and also for reference of how to format text/plain if we want to add it as an option in the future
             // note if there's a signature than we won't get here becauase htmlMessage will be filled and will go to the text/html section below
            mimeMessage += newLine(``);
            mimeMessage += params.message;
@@ -3107,9 +3237,11 @@ function Account() {
             label = await that.getOpenLabel();
         }
 
-        // overwrite open label if it's a spam email
+        // Preserve special-folder context when opening mail from these folders.
         if (params.mail?.monitoredLabel == SYSTEM_SPAM) {
             params.label = SYSTEM_SPAM;
+        } else if (params.mail?.monitoredLabel == SYSTEM_TRASH) {
+            params.label = SYSTEM_TRASH;
         } else {
             params.label = label;
         }
@@ -3361,6 +3493,8 @@ function Account() {
 				labelToUse = "search/label%3Aunread";
 			} else if (labelToUse == SYSTEM_SPAM) {
 				labelToUse = "spam";
+			} else if (labelToUse == SYSTEM_TRASH) {
+				labelToUse = "trash";
 			} else if (labelToUse == "search") {
 				var searchStrFormatted = encodeURIComponent(params.searchStr);
 				searchStrFormatted = searchStrFormatted.replace(/%20/g, "+");
@@ -3410,6 +3544,22 @@ function Account() {
 		}
 
 		return mailUrl;
+	}
+
+	// builds a Gmail "print" view url, ie. https://mail.google.com/mail/u/0/?ik=xxx&view=pt&search=all&permthid=thread-f:123&simpl=msg-f:123
+	this.getPrintUrl = async function (mail) {
+		const idKey = await getGmailIK();
+		// Gmail's thread/message ids are hex, but permthid/simpl use the decimal representation
+		const threadIdDecimal = BigInt("0x" + (mail.threadId || mail.id)).toString();
+
+		let searchValue = "all";
+		if (mail.monitoredLabel == SYSTEM_SPAM) {
+			searchValue = "spam";
+		} else if (mail.monitoredLabel == SYSTEM_TRASH) {
+			searchValue = "trash";
+		}
+
+		return `${MAIL_DOMAIN}${MAIL_PATH}u/${that.id}/?ik=${idKey}&view=pt&search=${searchValue}&permthid=thread-f:${threadIdDecimal}&simpl=msg-f:${threadIdDecimal}`;
 	}
 
    // Returns the email address for the current account
