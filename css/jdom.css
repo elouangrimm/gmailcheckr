@@ -1,5 +1,12 @@
 :root, .apply-light-theme {
+    color-scheme: light;
     interpolate-size: allow-keywords;
+
+    --site-header-padding-block: 10px;
+    --dialog-max-height: 75vh;
+
+    --z-index-non-modal-dialog: 10000; /* cause popover in fullcalendar uses z-index 9999 */
+    --z-index-progressbar: 30000;
 
     --header-bg-color: rgb(63, 81, 181);
     --header-color: white;
@@ -9,19 +16,17 @@
     --bg-light-color: rgb(250, 250, 250);
     --bg-light-color-hover: #eaeaea;
 
-    --border-color: #eaeaea;
+    --border-color: #ccc; /* in gmail was this #eaeaea; */
 
     --button: #2282e8;
-    j-button.raised {
-        --button: #ccc;
-    }
-    --button-icon-only-hover: color-mix(in srgb, var(--button-primary), transparent 90%);
     --button-primary: #2f67a2;
     --button-text-color: #0b57d0;
 
+    --input-font-size: 16px;
     --input-bg-color: white;
     --focus-visible-color: dodgerblue;
-    --input-focus-color: #2563eb;
+    --input-focus-box-shadow: 0 0 5px rgba(37, 99, 235, 0.5);
+    --input-border-radius: 8px;
 
     --default-icon-color: #49454f;
     --light-theme-icon-color: var(--default-icon-color);
@@ -32,18 +37,21 @@
     --separator-color: #ddd;
 }
 :root[color-scheme='dark'], .apply-dark-theme { /* note that color-scheme in dom cannot be empty for this logic to work */
+    color-scheme: dark;
+    
     --text-color: #ddd;
-    --bg-color: #2B2B2B;
-    --bg-light-color: #333;
-    --bg-light-color-hover: #444;
+    --bg-color: #131314;
+    --bg-light-color: #222;
+    --bg-light-color-hover: #333;
 
     --border-color: #555;
 
     --button-text-color: #a8c8ff;
 
-    --input-bg-color: #2a2a2a;
+    --input-bg-color: #1a1a1a;
     --input-focus-color: white;
-    --input-focus-shadow: none;
+
+    --checkbox-radio-bg-color: #a8c7fa;
 
     --default-icon-color: var(--dark-theme-icon-color);
     --icon-color: var(--dark-theme-icon-color);
@@ -51,11 +59,15 @@
 
     --separator-color: #444;
 
+    --link-color: #3c80f6;
+
     dialog {
         background: var(--bg-light-color);
         color: var(--text-color);
         border: 1px solid var(--separator-color);
     }
+
+    --inverted-spin-button-filter: invert(1);
 }
 
 ::-webkit-scrollbar {
@@ -106,6 +118,7 @@ body, textarea {
 
 a {
     -webkit-tap-highlight-color: transparent;
+    color: var(--link-color, revert);
 }
 
 [mustDonate] {
@@ -167,19 +180,24 @@ label:has(input[type="checkbox"][mustDonate]) {
     }
 }
 
-.layout.horizontal, .layout.vertical {
-    display: flex;
-}
-
 .layout.inline {
     display: inline-flex;
 }
 
-.layout.horizontal {
+.horizontal,
+.vertical {
+    display: flex;
+}
+
+.center {
+    align-items: center;
+}
+
+.horizontal {
     flex-direction: row;
 }
 
-.layout.vertical {
+.vertical {
     flex-direction: column;
 }
 
@@ -197,6 +215,14 @@ label:has(input[type="checkbox"][mustDonate]) {
 
 .layout.center-justified, .layout.center-center {
     justify-content: center;
+}
+
+.gap-10 {
+    gap: 10px;
+}
+
+.gap-20 {
+    gap: 20px;
 }
 
 .flex {
@@ -323,7 +349,7 @@ label {
             margin-inline-start: 3px;
             font-size: small;
             opacity: 0.7;
-            xxcolor: var(--text-color); /* commented since moving stuff into [color-scheme] */
+            color: var(--text-color); /* v2 had to put it back cause issue with dropdown inside header area of screenshot ext. v1 commented since moving stuff into [color-scheme] */
         }
     }
 }
@@ -332,21 +358,16 @@ label {
     position: fixed;
     left: 15px;
     right: 15px;
+    top: auto;
     bottom: 15px;
-    z-index: 9999;
+    margin: 0;
+    padding: 0;
+    background-color: transparent;
     pointer-events: none;
     display: flex;
     flex-direction: column;
     align-items: start;
     gap: 10px;
-
-    &:has(.j-toast.visible) {
-        pointer-events: auto;
-    }
-
-    &[position="end"] {
-        align-items: end;
-    }
 
     &[position="top"] {
         top: 15px;
@@ -354,24 +375,32 @@ label {
     }
 
     .j-toast {
-        color: #fff;
-        background-color: #323232;
+        color: light-dark(black, white);
+        background-color: light-dark( #f0f0f0, #323232);
         padding-top: 6px;
         padding-bottom: 6px;
         padding-inline-start: 18px;
         padding-inline-end: 4px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        border: 1px solid rgba(255,255,255,0.05);
         border-radius: 4px;
         opacity: 0;
         transition: opacity 0.2s cubic-bezier(.4,0,.2,1);
         display: flex;
-        gap: 10px;
+        gap: 20px;
         align-items: center;
-        xxmin-width: 160px;
         font-size: 16px;
 
         .j-toast-message {
             flex: 1;
+            overflow-wrap: anywhere; /* v3 back to anywhere because refer to \a\cal error.txt v2 break-word v1 anywhere; */
+        }
+
+        .j-toast-buttons {
+            display: flex;
+            j-button {
+                margin: 0;
+            }
         }
 
         .j-toast-action {
@@ -379,15 +408,7 @@ label {
         }
 
         .j-toast-close {
-            margin-inline-start: 10px;
             flex: 0;
-            &::part(icon) {
-                --icon-color: #eee;
-            }
-        }
-
-        .j-toast-close:hover {
-            background-color: rgba(255, 255, 255, 0.1);
         }
 
         &.visible {
@@ -397,29 +418,118 @@ label {
     }
 }
 
+@media (min-width: 1280px) {
+    .j-toast-container {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        align-items: stretch;
+    }
+}
+
 select,
 textarea,
-xxinput:not([type]),
-xxinput[type="text"], 
-xxinput[type="email"],
-xxinput[type="number"],
-xxinput[type="password"] {
-    font-size: 16px;
+[contenteditable] { /* ,xxinput:not([type]),xxinput[type="text"], xxinput[type="email"],xxinput[type="number"],xxinput[type="password"] */
+    font-size: var(--input-font-size);
     padding: 8px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
     outline: none;
     transition: border-color 0.2s;
     color: var(--text-color);
 
     &:focus-visible:not([no-outline]) {
+        border-color: transparent;
         outline: 2px solid var(--focus-visible-color);
-        box-shadow: var(--input-focus-shadow, 0 0 5px rgba(37, 99, 235, 0.5));
+        box-shadow: var(--input-focus-box-shadow);
     }
 }
 
+input:not([type]),
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
 textarea {
+    padding: var(--input-padding, 6px 12px);
+    font-size: var(--input-font-size);
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--input-border-radius);
+
+    &:focus:not([no-outline]) {
+        border-color: transparent;
+        outline: 2px solid var(--focus-visible-color);
+    }
+}
+
+input:disabled,
+select:disabled,
+j-input:disabled {
+    opacity: 0.4;
+}
+
+/* patch for unnecessary spacing in option when it contain multiple sub nodes ie. <span>a</span><span>b</span> */
+select option {
+    gap: 0;
+}
+@supports selector(option::checkmark) {
+    select option::checkmark {
+        margin-inline-end: 0.55em;
+    }
+}
+
+select option:focus-visible {
+    xxoutline: revert; /* restore default for keyboard users */
+}
+
+select option:focus {
+    outline: none;
+    background-color: var(--bg-light-color-hover);
+}
+
+[color-scheme='dark'] select,
+.apply-dark-theme select {
+    color-scheme: dark;
+}
+
+[color-scheme='dark'] select option,
+[color-scheme='dark'] select optgroup,
+.apply-dark-theme select option,
+.apply-dark-theme select optgroup {
+    background-color: var(--bg-light-color);
+    color: var(--text-color);
+}
+
+[color-scheme='dark'] select option:checked,
+[color-scheme='dark'] select option:hover,
+[color-scheme='dark'] select option:focus,
+.apply-dark-theme select option:checked,
+.apply-dark-theme select option:hover,
+.apply-dark-theme select option:focus {
+    background-color: var(--bg-light-color-hover);
+    color: var(--text-color);
+}
+
+textarea, [contenteditable] {
     background-color: var(--input-bg-color, var(--bg-color));
-    border-radius: 8px;
+    border-radius: var(--input-border-radius);
+}
+
+[contenteditable] {
+    max-height: 100px;
+	width: 290px;
+	overflow-x: hidden;
+    overflow-y: auto;
+	xxpadding-bottom: 4px;
+	xxborder-bottom: 1px solid var(--border-color);
+	xxoutline: none;
+	cursor: text;
+
+    :focus {
+        xxpadding-bottom: 3px;
+        xxborder-bottom:2px solid darkblue;
+    }
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -448,21 +558,31 @@ input[type="range"] {
     border: 1px solid #666;
 
     &:checked {
-        border-color: #888;
-        background-color: #2f67a2;
+        border-color: transparent;
         background-repeat: no-repeat;
         background-position: center;
     }
 }
 
-[color-scheme='dark'] input[type="checkbox"] {
+[color-scheme='dark'] input[type="checkbox"], .jdom-checkbox {
     border-radius: 3px;
 
+    &:checked {
+        background-color: var(--checkbox-radio-bg-color);
+        background-image: url("data:image/svg+xml;utf8,\
+            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+            <polyline points='20 6 9 17 4 12' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>\
+            </svg>");
+    }
+}
+
+[color-scheme='light'] .jdom-checkbox,
+.apply-light-theme .jdom-checkbox {
     &:checked {
         background-image: url("data:image/svg+xml;utf8,\
             <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
             <polyline points='20 6 9 17 4 12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>\
-            </svg>");
+            </svg>") !important;
     }
 }
 
@@ -470,9 +590,10 @@ input[type="range"] {
     border-radius: 50%;
 
     &:checked {
+        background-color: var(--checkbox-radio-bg-color);
         background-image: url("data:image/svg+xml;utf8,\
             <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
-            <circle cx='12' cy='12' r='6' fill='white'/>\
+            <circle cx='12' cy='12' r='6' fill='black'/>\
             </svg>");
     }
 }
@@ -488,7 +609,7 @@ select {
     padding: 6px 3px;
     border-radius: 5px 5px 0 0;
     border: none;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     overflow: hidden;
     white-space: nowrap;
@@ -497,10 +618,18 @@ select {
         border-color: #999;
     }
 
+    &:focus-visible {
+        border-end-start-radius: 5px;
+        border-end-end-radius: 5px;
+    }
+
     hr {
-        border: none;
-        border-top: 1px solid lightgray;
-        margin: 4px 0;
+        margin: 0;
+        border: 0;
+        height: 1px;
+        background-color:  color-mix(in srgb, var(--separator-color), var(--text-color) 12%);
+        padding: 0px 0;
+        box-shadow: none;
     }
 
     selectedcontent {
@@ -559,6 +688,16 @@ select:open::picker-icon {
     rotate: 180deg;
 }
 
+@-moz-document url-prefix() {
+    select,
+    select.selectedcontent-added {
+        -moz-appearance: menulist;
+        appearance: menulist;
+        padding-inline-end: 0;
+        background-image: none;
+    }
+}
+
 fieldset, .card {
     border-radius: 10px;
     border: 1px solid color-mix(in srgb, var(--bg-light-color), var(--text-color) 10%);
@@ -582,21 +721,19 @@ legend {
 }
 
 .non-modal-dialog-wrapper {
-    /* CRITICAL: Fixes it to the viewport */
     position: fixed; 
     top: 0;
     left: 0;
-    width: 100vw; /* Viewport Width */
-    height: 100vh; /* Viewport Height */
+    width: 100vw;
+    height: 100vh;
     
-    /* CRITICAL: Center content */
     display: flex;
     justify-content: center; /* Centers horizontally */
     align-items: center; /* Centers vertically */
     
     /* Optional: Ensure it's on top and doesn't interfere with interaction */
     pointer-events: none; /* Allows clicks to pass through the wrapper */
-    z-index: 1000;
+    z-index: var(--z-index-non-modal-dialog);
 }
 
 dialog {
@@ -618,6 +755,7 @@ dialog {
 
     h2 {
         margin-top: 3px;
+        margin-bottom: 2px;
         margin-inline-start: 10px;
     }
 
@@ -625,7 +763,7 @@ dialog {
         padding: 0;
         margin: 0;
         display: flex;
-        gap: 8px;
+        gap: 4px;
         justify-content: flex-end;
         flex-wrap: wrap;
     }
@@ -643,8 +781,9 @@ dialog {
     #native-dialog-message {
         padding-block-start: 12px;
         padding-inline: 12px;
+        padding-block-end: 2px; /* to not clip the bottom of the outline of a highlighted input field */
         overflow-y: auto;
-        max-height: 55vh;
+        max-height: var(--dialog-max-height); /* 55vh before calendar create event dialog */
         font-size: 16px;
 
         &:focus-visible {
@@ -652,8 +791,9 @@ dialog {
         }
     }
 
-    &::backdrop {
-        background: rgba(0, 0, 0, 0.4);
+    &.maximize-height #native-dialog-message {
+        max-height: none;
+        height: min(var(--dialog-max-height), 450px); /* added for side-panel cause too tall */
     }
 
     &:modal {
@@ -662,6 +802,10 @@ dialog {
         &.opening {
             transform: translateY(0) scale(1);
         }
+    }
+
+    &:focus-visible {
+        outline: none;
     }
 
     &:not(:modal) {
@@ -694,14 +838,13 @@ dialog {
 
 .site-header {
     background-color: var(--header-bg-color);
-    --pad-top-bottom: 10px;
-    padding: var(--pad-top-bottom) 30px;
+    padding: var(--site-header-padding-block) 10px;
     top: 0;
     z-index: 100;
     opacity: 1;
     will-change: opacity, padding, transform;
     transition: opacity 0.2s linear, xxpadding 0.2s linear; /* commented padding creatin issue in popup */
-    animation-name: shrink; /* v2 re-enabled because not using position-area v1 commented because popover tooltips with position-area had y offset issues when container was scrolled */
+    xxanimation-name: shrink; /* v3 commented because it was shaking in screenshot popup when using 90% zoom in chrome, v2 re-enabled because not using position-area v1 commented because popover tooltips with position-area had y offset issues when container was scrolled */
     animation-timeline: scroll();
     animation-duration: 1ms;
     xxanimation-range: 0px 100px;
@@ -716,7 +859,7 @@ dialog {
         text-decoration: none;
     }
 
-    j-button {
+    &:not([no-bg-color]) j-button {
         &:hover {
             background-color: color-mix(in srgb, var(--header-bg-color), var(--text-color) 5%);
         }
@@ -729,13 +872,11 @@ dialog {
 
 @keyframes shrink {
     from {
-        padding-top: var(--pad-top-bottom);
-        padding-bottom: var(--pad-top-bottom);
+        padding-block: var(--site-header-padding-block);
         opacity: 1;
     }
     to {
-        padding-top: 2px;
-        padding-bottom: 2px;
+        padding-block: 2px;
         opacity: 0.92;
     }
 }
@@ -770,7 +911,7 @@ dialog {
     align-items: center;
 }
 
-#logo-and-title {
+.logo-and-title {
     display: flex;
     gap: 0 20px;
     align-items: center;
@@ -828,15 +969,30 @@ dialog {
     }
 }
 
+.primary-nav {
+    gap: 5px;
+}
+
 [popover] {
+    border: none;
+}
+
+#spinner[popover] {
+    overflow: hidden;
+    background-color: transparent;
+}
+
+:is(dialog, #spinner[popover].modal)::backdrop {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+[popover]:not([unanchored]) {
     display: none;
     position: absolute;
     margin: 0;
     padding: 0;
     color: inherit;
     background-color: var(--bg-light-color);
-    border: none;
-
     box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
                 0 1px 5px 0 rgba(0, 0, 0, 0.12),
                 0 3px 1px -2px rgba(0, 0, 0, 0.2);
@@ -847,31 +1003,36 @@ dialog {
                 transform 0.18s cubic-bezier(.4,0,.2,1);
     overflow-y: auto;
 
-    xxposition-area: block-end span-inline-start;
-    top: anchor(bottom);
-    inset-inline-end: 10px; /* default is to give buffer from edges */
-    xxleft: anchor(start);
-    justify-self: anchor-center;
+    position-area: block-end span-inline-end;
 
     &#side-rail-menu {
-        xxposition-area: none;
-        inset-block-start: 0px;
-    }
-
-    &[position="start"] {
-        inset-inline-start: anchor(start);
-    }
-
-    &[position="end"] {
-        xxposition-area: block-end span-inline-end;
-        inset-inline-end: anchor(end);
+        position-area: none;
+        top: 0px; /* commented this in calendar, but js will probably want to pass an attribute to place it back to top */
     }
 
     &[position="center"] {
-        xxposition-area: block-end center;
+        position-area: block-end;
     }
 
-    position-try: --bottom-to-top-try;
+    &[position="end"] {
+        position-area: block-end span-inline-start;
+    }
+
+    &[position="center-start"] {
+        position-area: inline-start center;
+
+        &:popover-open {
+            transform: translateX(0) scale(1);
+
+            @starting-style {
+                transform: translateX(10px) scale(0.98);
+            }
+        }
+    }
+
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; /* flip-start, flip-end, flip-center; */
+    xxposition-try-order: most-height;
+    xxposition-visibility: anchors-visible; /* Only show when anchor is visible */
 
     &:popover-open {
         display: block;
@@ -891,7 +1052,7 @@ dialog {
     }
 }
 
-j-tooltip[popover] {
+j-tooltip[popover]:not([unanchored]) { /* had to match unanchored from popover to take precedence here */
     padding: 4px 8px;
     background: #5a5a5aff;
     color: #fff !important;
@@ -903,18 +1064,11 @@ j-tooltip[popover] {
         transition-delay: attr(animation-delay ms);
     }
 
-    xxposition-area: block-end center;
-    &:not([position]) {
-        margin-block-start: 12px; /* so cursor doesn't hover over tooltip */
-    }
+    position-area: block-end;
+    margin: 12px; /* so cursor doesn't hover over tooltip */
 
     &[position="start"] {
-        xxposition-area: inline-end;
-        top: anchor(top);
-        align-self: anchor-center;
-        inset-inline-start: anchor(end);
-        justify-content: none;
-        margin-inline-start: 10px;
+        position-area: inline-end center;
 
         &:popover-open {
             transform: translateX(0) scale(1);
@@ -926,12 +1080,7 @@ j-tooltip[popover] {
     }
 
     &[position="end"] {
-        xxposition-area: inline-start;
-        top: anchor(top);
-        align-self: anchor-center;
-        justify-content: center;
-        inset-inline-end: anchor(start);
-        margin-inline-end: 10px;
+        position-area: inline-start center;
 
         &:popover-open {
             transform: translateX(0) scale(1);
@@ -954,11 +1103,13 @@ j-tooltip[popover] {
     }
 }
 
+/*
 @position-try --bottom-to-top-try {
-    xxposition-area: block-start span-inline-start;
-    top: unset;
-    bottom: anchor(top);
+    position-area: block-start span-inline-start;
+    xtop: unset;
+    xbottom: anchor(top);
 }
+*/
 
 .side-rail-button {
     display: none;
@@ -969,7 +1120,7 @@ j-tooltip[popover] {
 
     position: fixed;
     padding: 20px;
-    background-color: var(--bg-color);
+    background-color: var(--bg-light-color);
     xxbox-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
 
     max-height: 100vh;
@@ -1075,44 +1226,6 @@ nav.site-nav {
     }
 }
 
-body.j-loading dialog {
-    position: relative;
-}
-
-body.j-loading::before,
-body.j-loading dialog::before {
-    content: "";
-    inset: 0;
-    position: fixed;
-    background-color: var(--bg-color);
-    z-index: 200;
-    opacity: 0.7;
-    cursor: progress;
-    pointer-events: none;
-}
-
-body.j-loading.j-loading-modal::before,
-body.j-loading.j-loading-modal dialog::before {
-    pointer-events: auto;
-}
-
-#spinner {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    
-    &.j-spinner-inline {
-        position: absolute;
-    }
-}
-
 .j-progressbar {
     /* Position at the very top of the screen */
     position: fixed;
@@ -1128,7 +1241,7 @@ body.j-loading.j-loading-modal dialog::before {
     
     /* Ensure the moving bar stays inside */
     overflow: hidden;
-    z-index: 9999; /* Keep it above other content */
+    z-index: var(--z-index-progressbar);
 }
 
 .j-progressbar::before {
@@ -1150,6 +1263,10 @@ body.j-loading.j-loading-modal dialog::before {
     transition: height 0.5s ease, content-visibility 0.5s ease allow-discrete;
     height: 0;
     overflow: clip;
+}
+
+details[no-animation]::details-content {
+    transition: none !important;
 }
 
 .recordSoundWrapper audio {opacity:0}
@@ -1186,7 +1303,7 @@ body.j-loading.j-loading-modal dialog::before {
 /* Fallback for browsers with no interpolate-size support */
 @supports not (interpolate-size: allow-keywords) {
     [open]::details-content {
-        height: 150px;
+        height: 100%;
         overflow-y: scroll; /* In case the contents should be taller than 150px */
     }
 }
@@ -1269,7 +1386,24 @@ body.j-loading.j-loading-modal dialog::before {
         gap: 0px;
     }
 
-    #logo-and-title {
+    .logo-and-title {
         gap: 0 10px;
+    }
+}
+
+@media screen and (max-height: 250px) { /* Cause 260px is Gmail's default popup height with no emails */
+    dialog {
+        h2 {
+            display: none;
+        }
+
+        form {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        #native-dialog-message {
+            padding-block-start: 0;
+        }
     }
 }

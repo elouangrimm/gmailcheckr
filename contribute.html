@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<head>
+	<title>Contribute</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <link rel="stylesheet" href="css/jdom.css">
+
+    <style>
+        :root {
+            --header-bg-color: #d23f31;
+        }
+
+        j-item {
+            flex-direction: column;
+            padding: 12px;
+            [secondary] {
+                color: gray;
+                font-size: 0.9em;
+				}
+			}
+	  	
+	  	:link, :visited {
+		    color: #03a9f4;
+		    outline: 0;
+		    text-decoration: none;
+		}
+
+	  	#paymentMethods {margin:15px 0}
+		
+		#submitDonationAmount {
+            opacity: 0;
+            transition: opacity 0.1s ease-in;
+            pointer-events: none;
+		
+            &.visible {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        #licenseOptions.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+		.add {
+            vertical-align: top;
+            margin: -9px;
+            fill: #aaa;
+            height: 15px;
+            width: 15px;
+        }
+		
+        .payment-icons {
+            justify-content: center;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .extension-tooltip {
+            max-width: none !important;
+        }
+		
+        .divider {
+            margin: 0 24px;
+        }
+
+        #donateAmountWrapper {
+            display: flex;
+            align-items: center;
+            margin-top: 40px;
+        }
+
+        .amountSelections {
+            margin: 0 10px;
+		}
+
+        #currency {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+		}
+
+        #amount {
+            width: 80px;
+            text-align: center;
+        }
+
+        #already-contributed-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #applePay j-icon {
+            transform: translateY(-2px);
+        }
+
+        #video {
+            width: 530px;
+            height: 400px;
+            xxaspect-ratio: 16 / 9; /* Automatically calculates the correct height */
+        }
+
+        @media (max-width: 1382px) {
+            #video {
+                width: 33%;
+            }
+        }
+
+        #video, #thank-you-video {
+            border-radius: 10px;
+        }
+
+        .checkerPlusCompose {
+            font-size: 13px;
+            margin-block-start: -11px;
+            margin-inline: -13px 1px;
+            --button-padding: 9px 0px;
+            &::part(label) {
+                min-width: 20px;
+            }
+        }
+
+        #paymentArea {
+            gap: 10px;
+        }
+
+        .payment-successful {
+            #extraFeaturesWrapper {
+                display: none;
+            }
+        }
+
+		.choice-section {
+            display: flex;
+            position: relative;
+            flex-direction: column;
+            gap: 0px;
+            min-width: 353px;
+            padding:0 20px;
+            flex: 1 1 0;
+
+            .choice-section-content {
+                flex: 1 1 auto;
+            }
+
+            .choice-section-footer {
+                display: flex;
+                gap: 10px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+
+            .most-popular {
+                font-weight: bold;
+                margin-bottom: 10px;
+                position: absolute;
+                top: -10px;
+                inset-inline-end: 15px;
+                color: black;
+                background-color: yellow;
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+            h2 {
+                margin-block: 20px 0;
+                font-size: 30px;
+                align-self: center;
+                xxmargin-bottom: 5px;
+                j-button {
+                    margin-bottom: 5px;
+                }
+            }
+
+            j-button:not(.checkerPlusCompose) {
+                --button-padding: 10px 30px;
+            }
+
+            .note {
+                color: gray;
+                align-self: center;
+                font-weight: normal;
+                font-size: 14px;
+                vertical-align: middle;
+            }
+        }
+
+        #paymentComplete {
+            gap: 20px;
+        }
+
+        .choice-section-content {
+            ul {
+                list-style: none;
+                padding-inline-start: 20px;
+                margin-top: 0;
+            }
+
+            li {
+                margin-bottom: 4px;
+            }
+
+            li::before {
+                content: "✓"; /* • */
+                display: inline-block;
+                margin-inline-end: 8px;
+            }
+        }
+
+        #pro-suite-content {
+            .extension-item {
+                margin-inline-start: 10px;
+            }
+
+            li:not(.extension-item)::before {
+                content: "+";
+                color: #3ebc5f;
+                font-size: 20px;
+            }
+
+            xxli.arrow::before {
+                content: "🡆";
+                rotate: 180deg;
+                transform: translateY(-3px) scaleX(1.2);
+                margin-inline-start: -8px;
+            }
+        }
+
+	</style>
+
+	<script src="js/common.js"></script>
+    <script src="js/jdom.js"></script>
+    <script src="js/icons.js"></script>
+
+   	<script src="js/checkerPlusForGmail.js"></script>
+    <script src="js/account.js"></script>
+    <script src="js/mail.js"></script>
+  	<script src="js/contribute.js"></script>
+	
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-and-secondary-nav">
+            <div class="header-content">
+                <div class="header-start">
+                    <j-button class="side-rail-button" icon="menu" aria-label="Open menu"></j-button>
+                    <div class="logo-and-title">
+                        <img class="logo" src="images/icons/icon_48_white.png"/>
+                        <a main-title href="https://jasonsavard.com?ref=GmailContributeTitle">Checker Plus for Gmail</a>
+                    </div>
+                </div>
+
+                <nav class="primary-nav" aria-label="Main Navigation"></nav>
+                
+                <div class="utility-items">
+                    <a href="options.html"><j-ripple></j-ripple><span msg="options">Options</span></a>
+                    <a id="alreadyDonated" href="#"><j-ripple></j-ripple><span msg="alreadyDonated">Already contributed</span></a>
+                    <a id="help" href="https://jasonsavard.com/wiki/Extra_features_and_contributions"><j-ripple></j-ripple><span msg="help">Help</span></a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="site-main layout vertical center" style="gap: 20px">
+
+        <div id="extraFeaturesWrapper" class="layout vertical center" style="gap: 25px">
+
+            <div msg="extraFeatures" style="font-size: 24px;">Extra features</div>
+
+            <div id="individual-businesses-choice" class="button-group" hidden>
+                <j-button id="individual" class="outline filled" msg="individual">Individual</j-button>
+                <j-button id="businesses" class="outline" msg="businesses">Businesses</j-button>
+            </div>
+
+            <div id="individual-choices" class="layout horizontal gap-20">
+
+                <iframe id="video" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+
+                <div class="choice-section card">
+                    <h2 msg="pro">Pro</h2>
+                    <div class="payment-icons" style="align-self:center;">
+                        <j-button class="gmailExtraFeatures" src="images/allExtensionIcons/gmail.png"></j-button>
+                    </div>
+                    <div class="choice-section-content">
+                        <ul>
+                            <li><a href="https://jasonsavard.com/wiki/Notifications_for_emails?ref=GmailDonate" target="_blank" msg="differentSounds">differentSounds</a></li>
+                            <li><a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=GmailDonate" target="_blank" msg="addSkinsOrThemes">addSkinsOrThemes</a></li>
+                            <li hide-from-firefox><a href="https://jasonsavard.com/wiki/Push_Notifications?ref=GmailDonate" target="_blank" msg="realtimeForMultipleAccounts">realtime for multiple accounts</a></li>
+                            <li><a href="https://jasonsavard.com/wiki/Do_Not_Disturb_(DND)?ref=GmailDonate" target="_blank" msg="muteVoiceWhileSleeping">muteVoiceWhileSleeping</a></li>
+                            <!--li><a href="https://jasonsavard.com/wiki/Popup_window?ref=GmailDonate#Tabs" target="_blank" msg="tabToolTip">tabToolTip</a></li-->
+                            <li msg="selectQuickActionButtons">selectQuickActionButtons</li>
+                            <li msg="addEmailAlias">addEmailAlias</li>
+                            <li msg="developingMoreSuggestions">and workking <a msg="developingMoreSuggestions_suggestions" href="https://jasonsavard.com/forum/t/checker-plus-for-gmail?ref=donatePage" target="_blank">suggestions</a></li>
+                        </ul>
+                    </div>
+                    <div class="choice-section-footer vertical center">
+                        <j-button id="get-pro-button" class="colored" msg="getPro">Get Pro</j-button>
+                        <span class="note">(<span msg="onetime">One-time</span>)</span>
+                    </div>
+                </div>
+
+                <div class="choice-section card">
+                    <h2 msg="ultraSuite">Ultra Suite</h2>
+                    <div class="most-popular" msg="bestValue">Best value</div>
+                    <div class="payment-icons" style="align-self:center;">
+                        <div>
+                            <j-button class="gmailExtraFeatures" src="images/allExtensionIcons/gmail.png"></j-button>
+                            <j-button class="checkerPlusCompose">✨</j-button>
+                        </div>
+                        <j-icon class="add" icon="add"></j-icon>
+                        <j-button class="calendarExtraFeatures" src="images/allExtensionIcons/calendar.png"></j-button>
+                        <j-icon class="add" icon="add"></j-icon>
+                        <j-button class="driveExtraFeatures" src="images/allExtensionIcons/drive.png"></j-button>
+                    </div>
+                    <div id="pro-suite-content" class="choice-section-content">
+                        <ul>
+                            <li class="arrow"><a href="https://jasonsavard.com?refGmailDonate" target="_blank" msg="includesProForAllExtensions">Includes Pro features for ALL my extensions</a></li>
+                            <li class="extension-item"><j-icon xsrc="images/allExtensionIcons/gmail.png"></j-icon><a href="https://jasonsavard.com/Checker-Plus-for-Gmail?ref=contributePage" target="_blank">Checker Plus for Gmail</a></li>
+                            <li class="extension-item"><j-icon xsrc="images/allExtensionIcons/calendar.png"></j-icon><a href="https://jasonsavard.com/Checker-Plus-for-Google-Calendar?ref=contributePage" target="_blank">Checker Plus for Google Calendar</a></li>
+                            <li class="extension-item"><j-icon xsrc="images/allExtensionIcons/drive.png"></j-icon><a href="https://jasonsavard.com/Checker-Plus-for-Google-Drive?ref=contributePage" target="_blank">Checker Plus for Google Drive</a></li>
+                            <li class="ai"><a href="https://jasonsavard.com/wiki/Checker_Plus_Compose?ref=GmailDonate" target="_blank" msg="checkerPlusCompose">checker plus compose</a></li>
+                            <li><a href="https://jasonsavard.com/wiki/Account_sign_in_methods?ref=GmailDonate" target="_blank" msg="unlimitedManualAddAccounts">unlimited manual add accounts</a></li>
+                            <li><a href="https://jasonsavard.com/wiki/Voice_and_video_emails?ref=GmailDonate" target="_blank" msg="sendVoiceOrVideoEmails">sendVoiceOrVideoEmails</a></li>
+                            <!--li><a href="https://jasonsavard.com/forum/?ref=GmailDonate" target="_blank" msg="directDeveloperSupport">Direct Developer Support</a></li-->
+                        </ul>
+                    </div>
+                    <div class="choice-section-footer vertical center">
+                        <j-button id="get-pro-suite-button" class="colored"><span msg="getUltraSuite">Get Ultra Suite</j-button>
+                        <span class="note">(<span msg="monthly">Monthly</span> / <span msg="yearly">Yearly</span>)</span>
+                    </div>
+                </div>
+
+                <div id="multipleUserLicenseWrapper" hidden>
+                    <div id="licenseOnlyValidFor"><span msg="licenseOnlyValidFor">Valid only for a </span> <span id="licenseDomain" style="font-weight:bold">@abc.com</span> (<a id="changeDomain" href="#" msg="changeDomain">Change domain</a>) </div>
+                    <div id="signInAsUserOfOrg" hidden><span msg="signInAsUserOfOrg"><a msg="signInAsUserOfOrg2" class="signOutAndSignIn" href="#">signInAsUserOfOrg2</a>sign as a diff</span> <span style="white-space:nowrap"><span msg="example">example</span>: <span id="exampleEmail">abc@mycompany.com</span></span></div>
+
+                    <j-listbox id="licenseOptions" class="card" style="width:200px;margin:20px auto">
+                        <j-item users="1" price="any">
+                            <div>x user</div>
+                            <div secondary><span msg="anyAmount">any amount</span></div>
+                        </j-item>
+                        <j-item users="5" price="9.99">
+                            <div>x users</div>
+                            <div secondary>$x</div>
+                        </j-item>
+                        <j-item users="20" price="29.99">
+                            <div>x users</div>
+                            <div secondary>$x</div>
+                        </j-item>
+                        <j-item users="unlimited" price="49.99">
+                            <div>x users</div>
+                            <div secondary>$x</div>
+                        </j-item>
+                        <j-item users="other">
+                            <div msg="otherPlans">Other plans</div>
+                            <div secondary msg="otherPlansDescription">aa ...</div>
+                        </j-item>
+                    </j-listbox>
+                </div>
+
+            </div>
+
+            <j-tooltip class="extension-tooltip" for-class="driveExtraFeatures" animation-delay="100">
+                <div style="text-align:center">
+                    <div style="margin:8px 0 15px;font-size:120%" msg="includesExtraFeaturesForX" msgArg1=" "></div>
+                    <img src="/images/allExtensionIcons/drive-promo-small.webp" height="200"/>
+                </div>
+            </j-tooltip>
+            <j-tooltip class="extension-tooltip" for-class="gmailExtraFeatures" animation-delay="100">
+                <div style="text-align:center">
+                    <div style="margin:8px 0 15px;font-size:120%" msg="includesExtraFeaturesForX" msgArg1=" "></div>
+                    <img src="/images/allExtensionIcons/gmail-promo-small.webp" height="200"/>
+                </div>
+            </j-tooltip>
+            <j-tooltip class="extension-tooltip" for-class="calendarExtraFeatures" animation-delay="100">
+                <div style="text-align:center">
+                    <div style="margin:8px 0 15px;font-size:120%" msg="includesExtraFeaturesForX" msgArg1=" "></div>
+                    <img src="/images/allExtensionIcons/calendar-promo-small.webp" height="200"/>
+                </div>
+            </j-tooltip>
+
+            <j-tooltip for-class="checkerPlusCompose" animation-delay="100"><span msg="checkerPlusCompose"></span></j-tooltip>
+            <j-tooltip for-class="support" animation-delay="100"><span msg="support"></span></j-tooltip>
+
+			<div id="paymentArea" class="layout vertical center">
+                <div id="donateAmountWrapper" class="gap-20" hidden>
+                    <div id="subscription-type" class="button-group">
+                        <j-button id="monthlyButton" class="outline filled" msg="monthly">Monthly</j-button>
+                        <j-button id="yearlyButton" class="outline" msg="yearly">Yearly</j-button>
+                    </div>
+
+                    <select id="currency">
+                        <option value="USD" symbol="$">USD $</option>
+                        <option value="EUR" symbol="€">EUR €</option>
+                        <option value="GBP" symbol="£">GBP £</option>
+                        <option value="AUD" symbol="$">AUD $</option>
+                        <option value="CAD" symbol="$">CAD $</option>
+                        <option value="JPY" symbol="¥">JPY ¥</option>
+                        <option value="CNY" symbol="¥">CNY ¥</option>
+                        <option value="TWD" symbol="$">TWD $</option>
+                        <option value="crypto" msg="crypto">Crypto</option>
+                    </select>
+
+                    <div id="onetimeAmountSelections" class="amountSelections button-group" hidden>
+                        <j-button class="filled" amount="40">40</j-button>
+                        <j-button class="filled" amount="20">20</j-button>
+                        <j-button class="filled" amount="15">15</j-button>
+                        <j-button class="filled" amount="10">10</j-button>
+                    </div>
+                    <div id="monthlyAmountSelections" class="amountSelections button-group">
+                        <j-button class="filled" amount="5">5</j-button>
+                        <j-button class="filled" amount="4">4</j-button>
+                        <j-button class="filled" amount="3">3</j-button>
+                    </div>
+
+                    <span id="yearlyAmountSelections" class="amountSelections">
+                        <j-button class="filled" amount="xx">xx</j-button>
+                    </span>
+
+                    <j-input type="number" id="amount" min="2" name="amount" autocomplete="off" msgLabel="amount" no-spin-button></j-input> <j-button id="submitDonationAmount" class="colored" style="margin-inline-start:20px" msg="ok"></j-button>
+                </div>
+
+                <div id="paymentMethods" class="button-group" hidden>
+                    <j-button id="stripe" class="filled" icon="credit-card" msg="card">card</j-button>
+                    <j-tooltip for="stripe" animation-delay="0" fit-to-visible-bounds><img style="width:120px" src="/images/powered_by_stripe.svg" /><span hidden>.</span></j-tooltip>
+                    <j-button id="paypal" class="filled" src="/images/paypal.png" msg="paypal">PayPal</j-button>
+                    <j-button id="googlePay" class="filled" src="/images/googlePay.png" msg="pay">Pay</j-button>
+                    <j-button id="applePay" class="filled" src="/images/apple_logo_black.svg" invert-icon msg="pay">Pay</j-button>
+                    <!--j-button id="wechat-pay" class="filled" src="/images/wechat-pay.png">
+                        WeChat
+                    </j-button-->
+                    <j-button id="nowpayments" class="filled" src="/images/bitcoin.svg">
+                        <span msg="crypto">Crypto</span>
+                    </j-button>
+                </div>
+
+                <a id="multipleUserLicenseLink" style="margin: 10px 0; font-size:0.9em" href="#" msg="multipleUserLicense">multipler user lcience</a>
+			</div>            
+		</div>
+
+        <div id="paymentComplete" hidden class="layout vertical center">
+            <div class="layout vertical center-center">
+                <iframe id="thank-you-video" width="560" height="315" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
+
+            <div msg="thankYouForYourContribution">thank you...</div>
+            <div id="unlockOtherExtensions" msg="unlockOtherExtensions" hidden style="font-style:italic;color:gray">Unlock the other extensions by opening their contribute page and use the Already Contributed link above.</div>
+            <j-button id="options" class="filled" msg="options">options</j-button>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,131 +1,88 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Gmail Checkr</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>Checker Plus for Gmail</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
-    <link rel="icon" href="images/icons/icon_32.png" sizes="32x32" />
-    <link rel="icon" href="images/icons/icon_64.png" sizes="64x64" />
+	<link rel="icon" href="images/icons/icon_32.png" sizes="32x32"/>
+	<link rel="icon" href="images/icons/icon_64.png" sizes="64x64"/>
 
     <link rel="stylesheet" href="css/jdom.css">
-
-    <style>
+	
+   	<style>
         :root {
             --primary-background-color-rgb: 255, 255, 255;
             --primary-background-color: rgb(var(--primary-background-color-rgb), 1);
             --primary-background-color-with-image: rgb(var(--primary-background-color-rgb), 0.8);
             --secondary-background-color: rgb(var(--primary-background-color-rgb), 0.9);
-            --inbox-mail-action-buttons-position: 14%;
+			--inbox-mail-action-buttons-position: 14%;
             --inbox-mail-action-buttons-narrow-position: 10px;
             --skin-water-position: 8px;
+            --skin-translate-add-button: -33px;
+		}
+
+        :root[dir='rtl'] {
+            --skin-translate-add-button: 33px;
         }
 
         :root[color-scheme='light'] {
             --inbox-section-bg-color: #f5f5f5;
         }
 
-        :root[color-scheme='dark'],
-        .apply-dark-theme {
+        :root[color-scheme='dark'], .apply-dark-theme {
             --inbox-section-bg-color: var(--bg-color);
-            --primary-background-color-rgb: 56, 56, 56;
+            --primary-background-color-rgb: 35, 35, 35;
         }
 
-        a {
-            color: #3c80f6
-        }
+  	 	a {color:#3c80f6}
+  	 	a:visited {color:#3f51b5}
+  	 	
+  	 	input, textarea, keygen, select {font-size:14px}
+  	 	
+  	 	.hide {display:none}
+  	 	
+		/* for some reason the body opacity was not always transitioning? polymer inteference? */
+		[unresolved] .pageWrapper {opacity:0}
 
-        a:visited {
-            color: #3f51b5
-        }
-
-        input,
-        textarea,
-        keygen,
-        select {
-            font-size: 14px
-        }
-
-        .hide {
-            display: none
-        }
-
-        .logo {
-            vertical-align: middle;
-            max-height: 32px
-        }
-
-        /* for some reason the body opacity was not always transitioning? polymer inteference? */
-        [unresolved] .pageWrapper {
-            opacity: 0
-        }
-
-        body {
+   		body {
             width: 650px;
             height: 260px;
             font-size: 14px;
-            overflow: hidden;
-            /* to prevent horizontal scrollbar in popout mode */
+            overflow: hidden; /* to prevent horizontal scrollbar in popout mode */
         }
-
-        body.mac {
-            text-rendering: geometricPrecision
-        }
-
-        body.opera {
-            background-color: white
-        }
-
-        @-moz-document url-prefix() {
-            body {
-                height: 550px;
-                padding-left: 1px
-            }
-
-            /* patch height because i can't resize window and padding because there was black border on the right?? */
-        }
-
-        body.comfortable {
-            width: 700px
-        }
-
-        body.cozy {
-            width: 650px
-        }
-
-        body.compact {
-            width: 600px
-        }
-
-        .full-width-and-height body {
-            width: 100% !important;
-            height: 100% !important
-        }
+		body.mac {text-rendering: geometricPrecision}
+        body.opera {background-color: var(--bg-color)}
+   		@-moz-document url-prefix() { 
+ 			body {height:550px;padding-left:1px} /* patch height because i can't resize window and padding because there was black border on the right?? */
+		}
+		body.comfortable {width:700px}
+   		body.cozy {width:650px}
+   		body.compact {width:600px}
+   		
+		.full-width-and-height body {width:100% !important;height:100% !important}
 
         .site-header {
             position: relative;
         }
 
-        html:not(.fromToolbar) .close {
-            display: none
-        }
-
+		html:not(.fromToolbar) .close {display:none}
         .close {
             position: absolute;
-            inset-block-start: -4px;
-            inset-inline-end: -4px;
+            margin: 0;
+            inset-block-start: 0px; /* aug 2026 double scrollbar issue in chrome update, so had to shrink this from -4px to 0px for both lines block & inline */
+            inset-inline-end: 0px;
             --icon-size: 14px;
+            --icon-only-padding: 5px;
         }
-
-        #inboxSection {
+   		
+		#inboxSection {
             background-color: var(--inbox-section-bg-color);
             display: flex;
             flex-direction: column;
 
-            #logo-and-title {
+            .logo-and-title {
                 margin-inline-start: 13px;
             }
-
             .site-header {
                 xxmargin-inline-start: 13px;
             }
@@ -134,8 +91,7 @@
         #accounts-and-inbox {
             display: flex;
             flex-direction: row;
-            height: calc(100vh - 60px);
-            /* required for infinite scrolling - adjust based on header/footer height */
+            height: calc(100vh - 60px); /* required for infinite scrolling - adjust based on header/footer height */
         }
 
         #accountAvatars {
@@ -151,7 +107,7 @@
             }
         }
 
-        .accountAvatar {
+		.accountAvatar {
             position: relative;
             cursor: pointer;
             margin-bottom: 1px;
@@ -159,29 +115,32 @@
 
         .accountAvatarUnreadCount {
             position: absolute;
-            left: -9%;
+            left: -20%;
             bottom: 7%;
-            color: black;
-            background: white;
+            color: var(--text-color);
+            background: var(--primary-background-color);
             border-radius: 50%;
-            line-height: 9px;
+            line-height: 11px;
             padding: 2px 5px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             font-size: x-small;
+        }        
+
+        .accountOptionsMenu {
+            white-space: nowrap;
         }
 
         #inbox {
-            position: relative;
-            /* for offsetTop purposes in calculating scroll */
+            position: relative; /* for offsetTop purposes in calculating scroll */
             flex-grow: 1;
             overflow-y: auto;
         }
 
-        #inbox.hasVerticalScrollbars {
+		#inbox.hasVerticalScrollbars {
             overflow-y: scroll;
         }
-
-        /* 
+		
+		/* 
             v2 aut 2024 commented due to to fix different issue https://jasonsavard.com/forum/discussion/8462/white-lines-in-firefox-but-not-in-edge-chrome, but scroll issue seems resolved...
             v1 ff patch for black background issue when scrolling ref https://bugzilla.mozilla.org/show_bug.cgi?id=1417286 */
         /*
@@ -190,7 +149,7 @@
 			body.background-skin #inbox, #openEmailScrollArea {background-color:rgba(255,255,255,0.1)}
 		}
         */
-
+		
         body.background-skin {
             header {
                 --header-color: white;
@@ -200,7 +159,7 @@
             #searchInput,
             #skinWatermark,
             .showMoreEmails j-button {
-                color: white;
+                color:white;
                 --icon-color: white;
                 mix-blend-mode: difference;
             }
@@ -229,53 +188,44 @@
             padding: 6px 8px;
         }
 
-        xxhtml.searchInputVisible #menu {
-            display: none
-        }
+		xxhtml.searchInputVisible #menu {display:none}
+		xxhtml.searchInputVisible #searchInputWrapper {display:block}
 
-        xxhtml.searchInputVisible #searchInputWrapper {
-            display: block
-        }
-
-        .external-link {
-            opacity: 0.5;
-            margin-inline-start: 7px
-        }
+		.external-link {opacity:0.5;margin-inline-start: 7px}
 
         [contribute] {
             opacity: 0.5;
         }
 
-        #prevMail:not(.visible),
-        #nextMail:not(.visible) {
-            opacity: 0.2
-        }
-
-        .hideArchive .archive,
+		#prevMail:not(.visible),
+        #nextMail:not(.visible) {opacity:0.2}
+		
+		.hideArchive .archive,
         .hideArchive #archive,
-        .hideSpam .markAsSpam,
-        .hideDelete .delete,
+		.hideSpam .markAsSpam,
+		.hideDelete .delete,
         .hideDelete #delete,
-        .hideMoveLabel #moveLabel,
-        .hideMarkAsRead .markAsRead,
+		.hideMoveLabel #moveLabel,
+		.hideMarkAsRead .markAsRead,
         .hideMarkAsRead #markAsRead,
-        .hideArchiveAll .archiveAll,
+		.hideArchiveAll .archiveAll,
         .hideMarkAllAsSpam .markAllAsSpamButton,
-        .hideMarkAllAsRead .markAllAsReadButton,
-        .hideMarkAsUnread .markAsUnread,
+		.hideMarkAllAsRead .markAllAsReadButton,
+		.hideMarkAsUnread .markAsUnread,
         .hideMarkAsUnread #markAsUnread,
-        .hideReply .reply,
-        .hideOpen .openMail,
+		.hideReply .reply,
+		.hideOpen .openMail,
         .hideAddToCalendar #addToGoogleCalendar,
-        .hideListenToEmail #listenToEmail {
-            display: none !important
-                /* important because inline-block would be added afterwards probably due to my default block logic */
+        .hideListenToEmail #listenToEmail,
+        .hidePrint #print,
+        .hideAddToTasks #addToTasks {
+            display:none !important /* important because inline-block would be added afterwards probably due to my default block logic */
         }
 
         #calendar-box {
             text-align: center;
         }
-
+        
         #calendar-logo,
         #calendar-details {
             padding: 16px;
@@ -309,7 +259,7 @@
             border-top: 1px solid #e5e5e5;
             background-color: white;
             border-radius: 0 0 5px 5px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, .075);
+            box-shadow: 0 1px 2px rgba(0,0,0,.075);
         }
 
         #calendar-title {
@@ -342,175 +292,84 @@
             overflow-wrap: break-word;
         }
 
-        #tabletViewFrame {
-            display: none;
-            border: none;
-            width: 100%;
-            height: 536px
+		#tabletViewFrame {
+            display:none;
+            border:none;
+            width:100%;
+            height:536px
         }
-
         @-moz-document url-prefix() {
             #tabletViewFrame {
                 height: 486px;
             }
         }
-
-        html.hasTabs #tabletViewFrame {
-            height: 488px
-        }
-
+		html.hasTabs #tabletViewFrame {height:488px}
         @-moz-document url-prefix() {
             html.hasTabs #tabletViewFrame {
                 height: 438px;
             }
         }
-
-        html.tabletView #inbox {
-            display: none
-        }
+		html.tabletView #inbox {display:none}
 
         #tabletViewWrapper {
             display: none;
         }
-
-        html.tabletView #tabletViewWrapper {
-            display: block;
-            width: 100%
-        }
-
-        html.tabletView #tabletViewFrame {
-            display: block
-        }
-
-        #tabs {
-            display: none;
-            width: 97%;
-            clear: both;
-            padding-top: 10px;
-            margin-bottom: -1px;
-            position: relative
-        }
-
-        html.tabletView.hasTabs #tabs {
-            display: flex
-        }
-
-        .tab {
-            display: none;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-right: -1px;
-            white-space: nowrap;
-            width: 100px;
-            padding: 9px 12px;
-            cursor: pointer;
-            xxborder-top-left-radius: 4px;
-            xxborder-top-right-radius: 4px;
-            border: 1px solid #ccc;
-            background: rgb(243, 243, 243)
-        }
-
-        .tab:first-child {
-            xxborder-top-left-radius: 5px
-        }
-
-        .tab:last-child {
-            xxborder-top-right-radius: 5px
-        }
-
-        #tabs.shrink .tab {
-            padding: 9px 8px
-        }
-
-        .tab.visible {
-            display: inline-block
-        }
-
-        .tab.selected {
-            border-bottom: 1px solid white
-        }
-
-        .tab.selected,
-        .tab:hover {
-            background: white
-        }
-
-        .accountHeader {
+        html.tabletView #tabletViewWrapper {display: block; width: 100%}
+		html.tabletView #tabletViewFrame {display: block}
+		
+		#tabs {display:none;width:97%;clear:both;padding-top:10px;margin-bottom:-1px;position: relative}
+		html.tabletView.hasTabs #tabs {display:flex}
+		.tab {display:none;overflow: hidden;text-overflow: ellipsis;margin-right:-1px;white-space:nowrap;width:100px;padding:9px 12px;cursor:pointer;xxborder-top-left-radius:4px;xxborder-top-right-radius:4px;border:1px solid #ccc;background:rgb(243,243,243)}
+		.tab:first-child {xxborder-top-left-radius:5px}
+		.tab:last-child {xxborder-top-right-radius:5px}
+		#tabs.shrink .tab {padding:9px 8px}
+		.tab.visible {display:inline-block}
+		.tab.selected {border-bottom:1px solid white}
+		.tab.selected, .tab:hover {background:white}
+		
+		.accountHeader {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        @-webkit-keyframes swing {
-            0% {
-                transform: rotate(0deg)
-            }
+		@-webkit-keyframes swing {
+			0%   {transform: rotate(0deg)}
+			25%  {transform: rotate(-15deg)}
+            75%  {transform: rotate(15deg)}
+			100% {transform: rotate(0deg)}
+		}
 
-            25% {
-                transform: rotate(-15deg)
-            }
+		.share-button.swing {color:blue}
 
-            75% {
-                transform: rotate(15deg)
-            }
-
-            100% {
-                transform: rotate(0deg)
-            }
-        }
-
-        .share-button.swing {
-            color: blue
-        }
-
-        .swing {
-            animation: 0.7s ease-in-out 0s normal none 3 swing;
-            transform-origin: center top;
-        }
-
-        #newsNotification {
-            color: green;
-            opacity: 1
-        }
-
-        .account {
-            transition: opacity 0.15s ease-in-out
-        }
-
+		.swing {
+			animation: 0.7s ease-in-out 0s normal none 3 swing;
+			transform-origin: center top;
+		}
+		
+		#newsNotification {--icon-color:green}
+		
+		.account {transition:opacity 0.15s ease-in-out}
         .account:not(.hasUnread) .markAllAsSpamButton,
-        .account:not(.hasUnread) .markAllAsReadButton,
-        .account:not(.hasUnread) .markAllAsRead {
-            display: none
-        }
-
-        .account:not(.hasUnread) .archiveAll {
-            display: none
-        }
-
-        .account:not(.hasMail) .accountHeader {
-            margin-bottom: 3px
-        }
-
-        .accountHeader {
+		.account:not(.hasUnread) .markAllAsReadButton,
+        .account:not(.hasUnread) .markAllAsRead {display:none}
+		.account:not(.hasUnread) .archiveAll {display:none}
+		.account:not(.hasMail) .accountHeader {margin-bottom:3px}
+		.accountHeader {
             font-size: 1.2em;
         }
-
-        @media (max-resolution: 1.5dppx) {
-
-            /* no sticky for windows text zoom (which equals 1.25+) ref: https://jasonsavard.com/forum/discussion/comment/13360#Comment_13360 */
-            .accountHeader.sticky {
+		@media (max-resolution: 1.5dppx) { /* no sticky for windows text zoom (which equals 1.25+) ref: https://jasonsavard.com/forum/discussion/comment/13360#Comment_13360 */
+			.accountHeader.sticky {
                 position: sticky;
                 top: 0;
                 left: 0;
                 z-index: 1
             }
-        }
-
-        .accountTitleArea {
+		}
+		.accountTitleArea {
             cursor: pointer;
             position: relative;
-            min-width: 0;
-            /* min-width patch for ellipsis on long email refer to https://css-tricks.com/flexbox-truncated-text/ */
+            min-width: 0; /* min-width patch for ellipsis on long email refer to https://css-tricks.com/flexbox-truncated-text/ */
         }
 
         .accountTitleArea:has(.accountPhoto[hidden]) {
@@ -518,63 +377,49 @@
             padding: 12px 0;
         }
 
-        .accountTitle,
-        .unreadCount {
-            margin-top: -3px
-        }
-
-        .accountTitle {
-            overflow-x: hidden;
-            text-overflow: ellipsis
-        }
-
-        .unreadCount {
-            margin-inline-start: 4px;
-            margin-inline-end: 4px
-        }
+		.accountTitle, .unreadCount {margin-top:-3px}
+		.accountTitle {overflow-x: hidden;text-overflow: ellipsis}
+		.unreadCount {margin-inline-start:4px;margin-inline-end:4px}
 
         .accountHeader,
         .accountErrorWrapper {
             margin: 0 11px 11px 11px;
         }
-
-        .accountHeader {
-            height: 17px !important;
+		.accountHeader {
+            height:17px !important;
         }
-
-        .autoDetect .accountHeader .videoEmail,
-        .autoDetect .accountHeader .voiceEmail {
-            display: none
-        }
-
-        .accountErrorWrapper {
-            background: red;
-            color: white;
+        
+		.autoDetect .accountHeader .videoEmail,
+        .autoDetect .accountHeader .voiceEmail {display:none}
+		
+		.accountErrorWrapper {
+            background:red;
+            color:white;
             margin-bottom: 16px;
             border-radius: 0px 0px 10px 10px;
         }
-
-        .accountError {
-            padding: 4px
-        }
+		.accountError {padding:4px}
 
         body.popup .accountHeader {
+            color: black;
+            j-button {
+                --icon-color: black;
+            }
             background-color: var(--primary-background-color);
+            &.dark-bg {
+                color: white;
+                & j-button {
+                    --icon-color: white;
+                }
+            }
         }
 
         body.background-skin .accountHeader {
             background-color: var(--primary-background-color-with-image);
         }
 
-        .mail {
+		.mail {
             background-color: var(--secondary-background-color);
-        }
-
-        body.popup .accountHeader.dark-bg {
-            color: white;
-        }
-
-        .mail {
             position: relative;
             cursor: pointer;
             margin: 11px;
@@ -591,17 +436,14 @@
             box-shadow: var(--main-box-shadow);
         }
 
-        .cozy {
-
+		.cozy {
             & .mail,
             & .accountHeader,
             & .accountErrorWrapper {
                 padding: 12px;
             }
-        }
-
-        .compact {
-
+		}
+		.compact {
             & .mail,
             & .accountHeader,
             & .accountErrorWrapper {
@@ -613,21 +455,17 @@
             box-shadow: 0px 0px 0px 1px rgb(193 193 193 / 50%)
         }
 
-        .mail.swiping::before,
-        .mail.swiping::after {
+        .mail.swiping::before, .mail.swiping::after {
             font-size: 180%;
             position: absolute;
             top: 30%;
         }
-
         .mail.swiping::before {
             content: '✉';
             left: -70px;
         }
-
         .mail.swiping::after {
-            content: '🗑️';
-            /* 🗑️ 🗑 */
+            content: '🗑️'; /* 🗑️ 🗑 */
             right: -70px;
         }
 
@@ -635,7 +473,7 @@
             overflow: hidden;
             line-height: 130%;
         }
-
+		
         .accountPhoto {
             width: 26px;
             height: 26px;
@@ -653,187 +491,101 @@
             margin-inline-end: 16px;
             --j-icon-img-border-radius: 50%;
         }
-
-        .showTrimmedContent {
-            -webkit-user-select: none;
-            text-align: center;
-            padding: 0px 1px;
-            cursor: pointer;
-            margin-top: 10px;
-            color: #8E8E8E;
-            background-color: #f1f1f1;
-            border: 1px solid #ddd;
-            clear: both;
-            line-height: 0px;
-            outline: none;
-            font-size: 15px;
-            height: 9px;
-            width: 15px;
-            overflow: hidden !important
-        }
-
-        .showTrimmedContent:hover {
-            background-color: #d8d8d8;
-            color: black
-        }
-
-        .message .snippet {
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden
-        }
-
-        xx.mail .star-wrapper {
-            float: right
-        }
-
-        xx.rtl .mail .star-wrapper {
-            float: left
-        }
-
-        xx.mail .star {
-            margin-top: -18px
-        }
-
-        .star {
-            xx--icon-only-padding: 4px;
-            xx--icon-size: 12px;
-        }
+		
+		.showTrimmedContent {-webkit-user-select: none;text-align:center;padding:0px 1px;cursor:pointer;margin-top:10px;color:#8E8E8E;background-color: #f1f1f1;border: 1px solid #ddd;clear: both;line-height:0px;outline:none;font-size:15px;height:9px;width:15px;overflow:hidden !important}
+		.showTrimmedContent:hover {background-color:#d8d8d8;color:black}
+		
+		.message .snippet {white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
 
         .labels {
             gap: 5px;
         }
 
         .mail .labels {
-            xxfloat: right;
             max-width: 30%;
         }
 
-        .rtl .mail .labels {
-            xxfloat: left;
+        html[dir='rtl'] {
+            [icon='chevron-left'],
+            [icon='chevron-right'],
+            [icon='arrow-back'] {
+                transform: rotate(180deg);
+            }
         }
 
-        .rtl j-button[icon='arrow-back'] {
-            transform: scaleX(-1);
-        }
-
-        .mail .attachment-icon {
+		.mail .attachment-icon {
             --icon-size: 19px;
             --icon-padding: 0;
             margin-inline-end: 10px;
         }
+		#openEmail .attachment-icon {pointer-events: none}
+        
+		[icon='star'] {--icon-color: rgb(244, 180, 4)}
+        .orange-star {--icon-color: #ec9900}
+        .red-star {--icon-color: red}
+        .blue-star {--icon-color: blue}
+        .green-star {--icon-color: green}
+        .purple-star {--icon-color: purple}
 
-        #openEmail .attachment-icon {
-            pointer-events: none
+        .mail.mail:not(.unread) {
+            background-color: rgb(var(--primary-background-color-rgb), 0.35);
         }
-
-        [icon='star'] {
-            --icon-color: rgb(244, 180, 4)
+		
+		.mail.unread {
+            .sender span.unread,
+            .subject,
+            .date {
+                font-weight: bold;
+            }
         }
-
-        .orange-star {
-            --icon-color: #ec9900
-        }
-
-        .red-star {
-            --icon-color: red
-        }
-
-        .blue-star {
-            --icon-color: blue
-        }
-
-        .green-star {
-            --icon-color: green
-        }
-
-        .purple-star {
-            --icon-color: purple
-        }
-
-        .mail.unread .sender span.unread,
-        .mail.unread .subject {
-            font-weight: bold
-        }
-
-        .mail.unread .markAsUnread {
-            display: none
-        }
-
-        .mail:not(.unread) .markAsRead {
-            display: none
-        }
-
-        .mail.is-spam .markAsSpam {
-            display: none
-        }
-
-        .mail:not(.is-spam) .markAsNotSpam {
-            display: none
-        }
-
-        .autoDetect .markAsNotSpam {
-            display: none !important
-        }
-
-        /* temporary */
+		
+		.mail.unread .markAsUnread {display:none}
+		.mail:not(.unread) .markAsRead {display:none}
+        .mail.is-spam .markAsSpam {display: none}
+        .mail:not(.is-spam) .markAsNotSpam {display: none}
+        .autoDetect .markAsNotSpam {display: none !important} /* temporary */
 
         #change-move-dialog #native-dialog-message {
             min-width: 280px;
             min-height: 330px;
         }
-
-        .label {
+		
+		.label {
             xxmargin-inline-start: 7px;
             xxmargin-bottom: 5px;
             background-color: var(--bg-light-color-hover);
             xxborder: 1px solid lightgray;
-            white-space: nowrap;
-            font-size: 0.9em;
-            border-radius: 5px;
+            white-space:nowrap;
+            font-size:0.9em;
+            border-radius:5px;
         }
-
+		
         .labelName,
-        .removeLabel {
-            xxheight: 1.5em;
-            padding: 1px 5px
-        }
+        .removeLabel {xxheight:1.5em;padding:1px 5px}
 
-        #inbox .labelName {
-            border-radius: 5px
-        }
-
-        #openEmailLabels .labelName {
-            border-radius: 5px 0 0 5px
-        }
-
-        #openEmailLabels .removeLabel {
-            border-radius: 0 5px 5px 0
-        }
-
-        .removeLabel {
-            cursor: pointer
-        }
-
-        .removeLabel:hover {
-            background-color: rgb(102, 102, 102) !important;
-            color: rgb(221, 221, 221) !important
-        }
-
-        .moveLabel,
+		#inbox .labelName {border-radius:5px}
+		#openEmailLabels .labelName {border-radius:5px 0 0 5px}
+		#openEmailLabels .removeLabel {border-radius:0 5px 5px 0}
+		.removeLabel {cursor:pointer}
+		.removeLabel:hover {background-color:rgb(102, 102, 102) !important;color:rgb(221, 221, 221) !important}
+		
+		.moveLabel,
         .changeLabel {
             --j-item-padding: 0px 4px;
         }
-
-        #moveLabelSearch,
+		
+		#moveLabelSearch,
         #changeLabelSearch {
+            margin-bottom: 8px;
             outline: none;
             width: 100%;
-            opacity: 0
+            opacity: 0;
         }
+		
+		.accountOptions {text-transform: capitalize}
 
-        .accountOptions {
-            text-transform: capitalize
+        #email-list-context-menu j-item {
+            white-space: nowrap;
         }
 
         #openEmailSection {
@@ -851,11 +603,8 @@
         #openEmailSectionLayout {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-
-            /* Example height */
-            header,
-            footer {
+            height: 100vh; /* Example height */
+            header, footer {
                 /* 3. These divs will take their required content height */
                 flex-shrink: 0;
             }
@@ -864,102 +613,48 @@
                 flex-grow: 1;
                 /* 5. The Critical Fix: Prevents content from pushing the container's height */
                 xxflex-shrink: 1;
-                xxflex-basis: auto;
-                /* You can use flex-basis: 0; for a more explicit fix */
+                xxflex-basis: auto; /* You can use flex-basis: 0; for a more explicit fix */
                 overflow-y: auto;
             }
         }
 
-        #openEmailProgress {
-            width: 100%;
-            height: 2px;
-            opacity: 0
-        }
-
-        #openEmailProgress.visible {
-            opacity: 1
-        }
-
-        #openEmail {
-            padding-top: 13px;
-            xxoverflow-x: auto;
-            xxoverflow-y: hidden
-        }
-
-        /* overflow-y hidden because when using highlighter and changing the .html it would get scrollbar?? */
-        #openEmail:focus {
-            outline: none
-        }
-
-        .openEmailSubject {
-            font-size: 1.5em;
-            cursor: pointer
-        }
-
-        #openEmailLabels {
-            margin-inline-end: 8px
-        }
-
-        #openEmail .labels {
-            margin-inline-start: 10px
-        }
-
-        #openEmailHeader {
-            padding: 0 0 13px 22px
-        }
-
-        .rtl #openEmailHeader {
-            padding: 0 22px 13px 0
-        }
-
-        .openEmailSender {
-            font-size: 1.2em
-        }
-
-        .openEmailSenderEmailAddress {
+		#openEmailProgress {width:100%;height:2px;opacity:0}
+		#openEmailProgress.visible {opacity:1}
+		
+		#openEmail {padding-top:13px;xxoverflow-x:auto;xxoverflow-y:hidden} /* overflow-y hidden because when using highlighter and changing the .html it would get scrollbar?? */
+        #openEmail:focus {outline:none}
+		.openEmailSubject {font-size:1.5em;cursor:pointer}
+		#openEmailLabels {margin-inline-end:8px}
+		#openEmail .labels {margin-inline-start:10px}
+		#openEmailHeader {padding:0 0 13px 22px}
+		.rtl #openEmailHeader {padding:0 22px 13px 0}
+		.openEmailSender {font-size:1.2em}
+		.openEmailSenderEmailAddress {
             display: inline-block;
             vertical-align: bottom;
-            color: gray;
-            margin-inline-start: 5px;
+            color:gray;
+            margin-inline-start:5px;
             text-overflow: ellipsis;
             overflow: hidden;
             max-width: 80%;
             white-space: nowrap;
         }
+		.to {color:gray}
+		.sender, .to, .subject {white-space: nowrap;text-overflow: ellipsis;overflow: hidden}
+        .sender, .to-wrapper, .subject {margin-inline-end: 10%}
 
-        .to {
-            color: gray
-        }
-
-        .sender,
-        .to,
-        .subject {
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden
-        }
-
-        .sender,
-        .to-wrapper,
-        .subject {
-            margin-inline-end: 10%
+        .sender .thread-count {
+            opacity: 0.6;
+            font-size: 80%;
+            margin-inline-start: 2px;
         }
 
         .mail:hover .sender,
-        .skin_29 .sender {
-            margin-inline-end: 40%
-        }
-
-        /* skin_29 is always show buttons */
+        .skin_29 .sender {margin-inline-end: 40%} /* skin_29 is always show buttons */
 
         @media screen and (max-width: 500px) {
-
             .mail:hover .sender,
-            .skin_29 .sender {
-                margin-inline-end: 75%
-            }
-
-            /* skin_29 is always show buttons */
+            .skin_29 .sender {margin-inline-end: 75%} /* skin_29 is always show buttons */
 
             .mail:hover .date {
                 display: none;
@@ -975,7 +670,7 @@
             }
         }
 
-        .snippet {
+		.snippet {
             color: gray;
             overflow-x: hidden;
             align-self: start;
@@ -1011,152 +706,126 @@
             visibility: hidden;
         }
 
-        .message {
-            border-top: 1px solid var(--border-color);
+		.message {
+            border-top:1px solid var(--border-color);
         }
 
         #message-calendar {
             padding-top: 0;
         }
 
-        .message.hide+.message {
-            border-top: none
-        }
-
-        .message:not(:last-child) .messageHeader {
-            cursor: pointer
-        }
-
-        xx.message:not(.collapsed) .senderAndDate .date {
-            display: none
-        }
-
-        .message:not(.collapsed) .snippet {
-            display: none
-        }
-
-        .messageBody {
-            margin-top: 20px;
+		.message.hide + .message {border-top:none}
+		.message:not(:last-child) .messageHeader {cursor:pointer}
+		xx.message:not(.collapsed) .senderAndDate .date {display:none}
+		.message:not(.collapsed) .snippet {display:none}
+		.messageBody {
+            margin-top:20px;
             overflow-wrap: break-word;
         }
 
-        :root[color-scheme='dark'] .messageBody {
-            xxbackground-color: white;
-            color: black;
-            filter: invert(100%);
-            padding: 5px;
-            border-radius: 8px;
+        :root[color-scheme='dark'] {
+            .messageBody, #emailContext {
+                color: black;
+                padding: 5px;
+                border-radius: 8px;
 
-            img {
-                filter: invert(1)
+                &,
+                *[style*="background-image"], *[background*="http"] {
+                    filter: invert(1)
+                }
+
+                /* Avoid stacked inversions for media nested in links. */
+                a {
+                    filter: invert(1);
+                    color: #bdd9ff;
+                }
+
+                img,
+                picture,
+                video,
+                svg,
+                canvas,
+                iframe {
+                    filter: invert(1);
+                }
+
+                a img,
+                a picture,
+                a video,
+                a svg,
+                a canvas,
+                a iframe {
+                    filter: none;
+                }
             }
 
-            *[style*="background-image"] {
-                filter: invert(1);
+            /* "Preview in light theme" only affects the message body, not the rest of the popup UI */
+            #openEmail .messageBody.light-preview {
+                color: initial;
+                padding: 0;
+                border-radius: 0;
+
+                &,
+                *[style*="background-image"], *[background*="http"] {
+                    filter: none;
+                }
+
+                a {
+                    filter: none;
+                    color: revert;
+                }
+
+                img,
+                picture,
+                video,
+                svg,
+                canvas,
+                iframe {
+                    filter: none;
+                }
             }
         }
 
-        #background-color {
-            margin: -6px -8px 8px;
-            height: 20px
-        }
-
-        #openEmail.resized .messageBody img:not([style*="max-width"]) {
-            max-width: 91vw !important;
-            xxheight: auto !important
-        }
-
+		#openEmail.resized .messageBody img:not([style*="max-width"]) {max-width:91vw !important;xxheight:auto !important}
         /* Test: YouTube emails with thumbnails, Facebook emails. Still buggy if image as width or height attributes
             added :not(style*="max-width") for kijii emails issue with wide logo images
         */
-        #openEmail.resized.facebook .messageBody table {
-            max-width: 85vw !important
-        }
-
-        /* xxdisplay:block;xxmax-width:100% messed up facebook emails, xxmax-width - commented every since i removed extra padding around #openEmail */
-        @-moz-document url-prefix() {
-            #openEmail.resized .messageBody img {
-                max-width: 91% !important
-            }
-
-            #openEmail.resized.facebook .messageBody table {
-                max-width: 85% !important
-            }
-        }
-
-        #openEmail.resized .messageBody table img[style*="width:50px"],
+		#openEmail.resized.facebook .messageBody table {max-width:85vw !important} /* xxdisplay:block;xxmax-width:100% messed up facebook emails, xxmax-width - commented every since i removed extra padding around #openEmail */
+		@-moz-document url-prefix() {
+			#openEmail.resized .messageBody img {max-width:91% !important}
+			#openEmail.resized.facebook .messageBody table {max-width:85% !important}
+		}
+		#openEmail.resized .messageBody table img[style*="width:50px"],
         #openEmail.resized .messageBody table img[style*="width: 50px"] {
-            max-width: none !important;
-            /* messed up facebook emails */
+            max-width:none !important; /* messed up facebook emails */
         }
-
-        #openEmail.resized .messageBody pre {
-            white-space: pre-wrap
-        }
-
-        .message .messageHeaderRight {
-            overflow-x: hidden
-        }
-
-        /* required to keep the photo icons (with letters only) from not being squeazed out */
-        .message.collapsed .openEmailSenderEmailAddress {
-            display: none !important
-        }
-
-        .message.collapsed .to {
-            display: none !important
-        }
-
-        .message.collapsed .viewMessageDetails {
-            display: none !important
-        }
-
-        .message.collapsed .messageBody {
-            display: none !important
-        }
-
-        .message.hide {
-            display: none !important
-        }
-
+		#openEmail.resized .messageBody pre {white-space: pre-wrap}
+		
+		.message .messageHeaderRight {overflow-x:hidden} /* required to keep the photo icons (with letters only) from not being squeazed out */
+		.message.collapsed .openEmailSenderEmailAddress {display:none !important}
+		.message.collapsed .to {display:none !important}
+		.message.collapsed .viewMessageDetails {display:none !important}
+		.message.collapsed .messageBody {display:none !important}
+		.message.hide {display:none !important}
+		
         .expand {
-            --icon-size: 14px;
+            --icon-size: 15px;
+            --icon-only-padding: 2px;
+            margin: 4px 8px;
         }
 
-        .expand:hover {
-            color: black;
-        }
-
-        .messageDetails {
+		.messageDetails {
             display: none;
             margin: 2px;
             padding: 5px;
+            align-self: flex-start;
         }
-
-        #messageExpander {
-            cursor: pointer;
-            position: relative
-        }
-
-        #messageExpander::before,
-        #messageExpander::after {
-            content: ' ';
-            border-top: 1px solid #e5e5e5;
-            position: absolute;
-            left: 0;
-            line-height: 0;
-            right: 0
-        }
-
-        #messageExpander::before {
-            top: 18px
-        }
-
-        #messageExpander::after {
-            top: 21px
-        }
-
-        #messagesHidden {
+		
+		#messageExpander {cursor:pointer;position:relative}
+		#messageExpander::before, #messageExpander::after {content: ' ';border-top: 1px solid #e5e5e5;position: absolute;left: 0;line-height: 0;right: 0}
+   		#messageExpander::before {top: 18px}
+  		#messageExpander::after {top: 21px}	
+		#messagesHidden {
             background-color: #fff;
             color: #999;
             border: 1px solid #cacaca;
@@ -1170,163 +839,145 @@
             width: 40px;
             z-index: 1;
         }
-
-        #replyTo {
-            display: none;
-            margin: 0 12px 7px 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        #replyArea {
+		
+		#replyArea {
             padding: 5px;
             border-top: 1px solid var(--border-color);
-            xxbackground-color: #f6f6f6;
             cursor: text;
-        }
 
-        #replyPlaceholder,
-        #replyTo {
-            color: #888;
+            #replyTo {
+                color: #888;
+                display: none;
+                margin: 0 12px 7px 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
         }
 
         #reply-textarea-wrapper {
+            display: none;
             flex: 1;
             overflow: hidden;
             justify-content: center;
             place-self: stretch;
-
+            max-height: 200px;
             &:active {
                 outline: none;
             }
         }
 
-        #replyArea .noPhoto {
-            filter: invert(20%)
+		#replyArea .noPhoto {filter:invert(20%)}
+		#replyArea .sendButtons {
+            display:none;
+            gap: 5px 0;
+            margin:0 5px;
         }
 
-        #replyArea .sendButtons {
+        #ai-compose-in-reply-button {
             display: none;
-            gap: 5px 0;
-            margin: 0 30px;
+        }
+
+        #replyArea .ai-compose-button {
+            --button-padding: 9px 0px;
+        }
+
+        #replyArea:not(.show-checker-plus-compose) .ai-compose-button {
+            display: none !important;
         }
 
         #replyArea .sendButtons #send {
             justify-content: center;
             min-width: 100px;
         }
-
         #replyArea .sendButtons #sendAndArchive,
         #replyArea .sendButtons #sendAndDelete {
             --icon-color: white;
             --icon-padding: 0 3px;
         }
+		
+		#replyArea.clicked {padding:10px 5px}
 
-        #replyArea.clicked {
-            padding: 10px 5px
-        }
-
-        #replyArea.clicked,
+		#replyArea.clicked,
         #replyArea:hover {
             background-color: var(--bg-color);
         }
 
-        #replyArea.clicked #replyPlaceholder {
-            display: none
+        #replyArea.clicked #reply-textarea-wrapper {display: block}
+		#replyArea.clicked #reply-textarea {display:block}
+		#replyArea.clicked #replyTo {display:block}
+		#replyArea.clicked #replyButtons {display:none}
+		#replyArea.clicked .sendButtons {display:flex}
+        #replyArea.clicked #ai-compose-in-reply-button {
+            display: block;
         }
 
-        #replyArea.clicked #reply-textarea {
-            display: block
+        /* less room needed for the email content when the popup window is short */
+        @media (max-height: 500px) {
+            #openEmailSection footer {
+                #replyArea {
+                    padding: 2px;
+                }
+
+                #replyArea.clicked {
+                    padding: 4px 2px;
+                }
+
+                #replyArea .contactPhoto {
+                    width: 20px !important;
+                    height: 20px !important;
+                    margin: 0 8px !important;
+                }
+
+                #reply-textarea-wrapper {
+                    max-height: 60px;
+                }
+
+                #replyButtons,
+                #replyArea .sendButtons {
+                    gap: 0;
+                }
+
+                j-button {
+                    --button-padding: 2px 6px;
+                    --icon-only-padding: 4px;
+                }
+            }
         }
 
-        #replyArea.clicked #replyTo {
-            display: block
-        }
-
-        #replyArea.clicked #replyButtons {
-            display: none
-        }
-
-        #replyArea.clicked .sendButtons {
-            display: flex
-        }
-
-        #reply-from .pretty-email {
-            margin: 0 5px
-        }
-
-        #reply-textarea {
+        #reply-from .pretty-email {margin: 0 5px}
+		
+		#reply-textarea {
             display: none;
             width: 98%;
             border: none;
             padding: 0;
             resize: none;
             background-color: transparent;
+            border-radius: 0;
         }
-
-        #replyOnlyToSender {
-            display: none
+		
+		#replyButtons {
+            align-items: center;
+            gap: 5px;
         }
+		
+		#composeArea {position:fixed;right:30px;bottom:20px;z-index:2}
+		.rtl #composeArea {right:auto;left:30px}
 
-        #replyArea[replyAll] #replyOnlyToSender {
-            display: block
-        }
-
-        #replyButtons {
-            margin-inline-end: 16px
-        }
-
-        #composeArea {
-            position: fixed;
-            right: 30px;
-            bottom: 20px;
-            z-index: 2
-        }
-
-        .rtl #composeArea {
-            right: auto;
-            left: 30px
-        }
-
-        #compose {
+		#compose {
             background-color: var(--secondary-background-color);
             box-shadow: 0 0 6px rgba(0, 0, 0, .16), 0 6px 12px rgb(0 0 0 / 15%);
             padding: 8px;
         }
 
-        #quickContact {
-            cursor: pointer;
-            transform: scale(0.5);
-            height: 0;
-            opacity: 0;
-            transition: all 150ms ease-out
-        }
-
-        #quickContactPhoto.contactPhoto {
-            margin: 10px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%
-        }
-
-        #quickContactPhoto:hover {
-            box-shadow: 0 0 6px rgba(0, 0, 0, .16), 0 6px 12px rgba(0, 0, 0, .32)
-        }
-
-        #composeArea:hover #quickContact {
-            transform: scale(1);
-            height: auto;
-            opacity: 1
-        }
-
-        #composeArea:hover #compose {
-            margin-top: 5px
-        }
-
-        #composeArea j-tooltip {
-            white-space: nowrap
-        }
+		#quickContact {cursor:pointer;transform:scale(0.5);height:0;opacity:0;transition: all 150ms ease-out}
+		#quickContactPhoto.contactPhoto {margin:10px;width:40px;height:40px;border-radius:50%}
+		#quickContactPhoto:hover {box-shadow:0 0 6px rgba(0,0,0,.16),0 6px 12px rgba(0,0,0,.32)}
+		#composeArea:hover #quickContact {transform:scale(1);height:auto;opacity:1}
+		#composeArea:hover #compose {margin-top:5px}
+		
+		#composeArea j-tooltip {white-space:nowrap}
 
         #compose-footer {
             position: fixed;
@@ -1336,119 +987,83 @@
             padding: 5px;
             border: 1px solid var(--border-color);
         }
+		
+		.inboxMailActionButtons {
+			opacity: 0;
+			position: absolute;
+			top: 0;
+			right: var(--inbox-mail-action-buttons-position); /* used to be 90px */
+			transition: opacity 150ms ease-out;
+			white-space: nowrap;
+		}
+		
+		.rtl .inboxMailActionButtons {
+			left: var(--inbox-mail-action-buttons-position);
+			right: auto;
+		}
+		
+		.mail:hover .inboxMailActionButtons {opacity:1}
+		xx.mail:hover .attachment-icon {opacity:0}
 
-        .inboxMailActionButtons {
-            opacity: 0;
-            position: absolute;
-            top: 0;
-            right: var(--inbox-mail-action-buttons-position);
-            /* used to be 90px */
-            transition: opacity 150ms ease-out;
-            white-space: nowrap;
-        }
+		.eom {margin-left:5px;font-size: x-small;color:#ccc;font-family: arial,sans-serif}
 
-        .rtl .inboxMailActionButtons {
-            left: var(--inbox-mail-action-buttons-position);
-            right: auto;
+		.filesSep {background:#eee;line-height:1px;margin:12px 0}
+		.attachmentsWrapper {margin-top:15px}
+		.attachment {
+            position:relative;
+            cursor:pointer;
+            margin:8px 8px 8px 0;
+            padding:8px 12px;
         }
-
-        .mail:hover .inboxMailActionButtons {
-            opacity: 1
-        }
-
-        xx.mail:hover .attachment-icon {
-            opacity: 0
-        }
-
-        .eom {
-            margin-left: 5px;
-            font-size: x-small;
-            color: #ccc;
-            font-family: arial, sans-serif
-        }
-
-        .filesSep {
-            background: #eee;
-            line-height: 1px;
-            margin: 12px 0
-        }
-
-        .attachmentsWrapper {
-            margin-top: 15px
-        }
-
-        .attachment {
-            position: relative;
-            cursor: pointer;
-            margin: 8px 8px 8px 0;
-            padding: 8px 12px;
-        }
-
-        .downloadIcon {
-            color: gray
-        }
-
-        .filename {
-            margin: 0 8px
-        }
+		.downloadIcon {color:gray}
+		.filename {margin:0 8px}
 
         #skinsDialog {
             opacity: 0.9;
-
             #native-dialog-message {
                 max-height: 200px;
             }
         }
 
-        #skinsDialog,
+		#skinsDialog,
         #customSkinDialog {
-            position: fixed;
-            /* fixes sometimes v scrollbar, and can't be fixed by putting this in the &:not(:modal) ??? */
+            position: fixed; /* fixes sometimes v scrollbar, and can't be fixed by putting this in the &:not(:modal) ??? */
             top: auto;
             bottom: 30px;
         }
-
         #skinsDialog .buttons j-button:not(.colored) {
             color: gray;
         }
-
-        #skinsDialog #availableSkins j-item {
+		#skinsDialog #availableSkins j-item {
             margin-inline-start: 45px;
             padding-inline-start: 8px;
             --j-item-padding: 8px 12px 8px 0;
         }
+		#skinsDialog #availableSkins j-item.selected .addButton,
+		#skinsDialog .addButton.selected {
+			visibility: visible;
+		}
+		#skinsDialog .addButton {
+			visibility: hidden;
+			position:absolute;
+			transition:0.3s transform ease-in 0.5s;
+			transform: translateX(var(--skin-translate-add-button));
+		}
 
-        #skinsDialog #availableSkins j-item.selected .addButton,
-        #skinsDialog .addButton.selected {
-            visibility: visible;
-        }
-
-        #skinsDialog .addButton {
-            visibility: hidden;
-            position: absolute;
-            transition: 0.3s transform ease-in 0.5s;
-            --add-button-translateX: translateX(-33px);
-            transform: var(--add-button-translateX);
-        }
-
-        #skinsDialog .addButton:not(.selected).highlight {
-            transform: var(--add-button-translateX) rotate(180deg) scale(2);
-        }
-
-        #skinAuthorWrapper {
+		#skinsDialog .addButton:not(.selected).highlight {
+			transform: translateX(var(--skin-translate-add-button)) rotate(180deg) scale(2);
+		}
+		
+		#skinAuthorWrapper {
             min-width: 69px;
             min-height: 26px;
             align-content: center;
-            font-size: 0.8em;
-            font-style: italic;
-            padding: 11px;
-            color: gray;
+            font-size:0.8em;
+            font-style:italic;
+            padding:11px;
+            color:gray;
         }
-
-        #skinAuthorWrapper a {
-            text-decoration: none
-        }
-
+		#skinAuthorWrapper a {text-decoration:none}
         #skinAuthorInner {
             display: flex;
             flex-direction: column;
@@ -1458,19 +1073,17 @@
             white-space: nowrap;
             max-width: 180px;
             visibility: hidden;
-
             &.visible {
                 visibility: visible;
             }
         }
-
+        
         @media screen and (max-width: 699px) {
             .skin-by {
                 display: none;
             }
         }
-
-        #skinWatermark {
+		#skinWatermark {
             display: none;
             position: absolute;
             left: var(--skin-water-position);
@@ -1480,251 +1093,265 @@
             text-decoration: none;
             transition: opacity 0.1s ease-in-out;
         }
-
-        #skinWatermark:hover {
-            opacity: 0.7
-        }
-
-        .rtl #skinWatermark {
+		#skinWatermark:hover {opacity:0.7}
+		.rtl #skinWatermark {
             left: auto;
             right: var(--skin-water-position);
         }
-
-        #skinWatermark.visible {
-            display: block
-        }
-
-        .showMoreEmails {
-            text-align: center;
+		#skinWatermark.visible {display:block}
+		
+		.showMoreEmails {
+            text-align:center;
             margin-bottom: 10px;
         }
-
-        .fieldRow {
-            padding: 0 10px
-        }
-
-        .composeField {
-            padding: 6px 0
-        }
-
-        .composeField:focus {
-            outline: none
-        }
-
-        .chip {
-            background-color: #f6f6f6;
-            margin: 3px 6px 3px 3px;
-            border-radius: 12px;
-            font-size: 1.1em
-        }
-
-        .chip .contactPhoto {
-            width: 24px;
-            height: 24px;
-            margin-inline-end: 0
-        }
-
-        .chipName {
-            padding: 0 5px;
-            vertical-align: middle;
-            color: #555;
-            font-size: 0.9em
-        }
-
-        .removeChip {
-            --icon-color: gray
-        }
-
-        #fetchContacts {
-            display: none;
-            position: absolute
-        }
-
-        .acSuggestions {
-            position: absolute;
-            display: none;
-            background: white;
-            z-index: 1;
-            margin-top: 50px;
-            margin-left: 10px;
-            border: 1px solid #eee
-        }
-
-        .acItem {
-            padding: 12px;
-            cursor: pointer
-        }
-
-        .acItem.selected,
-        .acItem:hover {
-            background-color: #f5f5f5
-        }
-
-        .acItem .contactPhoto {
-            width: 26px;
-            height: 26px;
-            margin-inline-end: 10px
-        }
-
-        .acName {
-            color: #333;
-            white-space: nowrap;
-            margin-inline-end: 10px;
-            width: 150px;
-            overflow-x: hidden;
-            text-overflow: ellipsis
-        }
-
-        .acEmail {
-            color: gray
-        }
+		
+		.fieldRow {padding:0 10px}
+		.composeField {padding:6px 0}
+		.composeField:focus {outline:none} 
+		
+		.chip {background-color:#f6f6f6;margin: 3px 6px 3px 3px;border-radius: 12px;font-size:1.1em}
+		.chip .contactPhoto {width:24px;height:24px;margin-inline-end:0}
+		.chipName {padding:0 5px;vertical-align:middle;color:#555;font-size:0.9em}
+		.removeChip {--icon-color: gray}
+		#fetchContacts {display:none;position:absolute}
+		
+		.acSuggestions {position:absolute;display:none;background:white;z-index:1;margin-top:50px;margin-left:10px;border:1px solid #eee}
+		.acItem {padding:12px;cursor:pointer}
+		.acItem.selected, .acItem:hover {background-color:#f5f5f5}
+		.acItem .contactPhoto {width:26px;height:26px;margin-inline-end:10px}
+		.acName {color: #333;white-space:nowrap;margin-inline-end:10px;width:150px;overflow-x:hidden;text-overflow: ellipsis}
+		.acEmail {color:gray}
 
         #audio-attachment:focus-visible,
         #video-attachment:focus-visible {
             outline: none;
         }
-
-        .videoWrapper {
-            position: relative
-        }
-
-        .videoWrapper video {
-            cursor: pointer;
-            margin: 8px;
-            max-height: 100px
-        }
-
-        .videoWrapper .videoPlayButton {
-            opacity: 0;
-            position: absolute;
-            background: rgba(0, 0, 0, 0.2);
-            width: 46px;
-            height: 46px;
-            left: 40%;
-            top: 33%;
-            border-radius: 50%;
-            pointer-events: none;
-            transition: 0.1s transform ease-in
-        }
-
-        .videoWrapper.loaded .videoPlayButton {
-            opacity: 1
-        }
-
-        .videoWrapper:hover .videoPlayButton {
-            transform: scale(1.2)
-        }
-
-        #recordVideoWrapper {
-            margin: 5px auto;
-            text-align: center;
-        }
-
-        #recordVideoWrapper .videoPlayButton {
-            opacity: 0;
-            position: absolute;
-            background: rgba(0, 0, 0, 0.2);
-            width: 56px;
-            height: 56px;
-            left: 43%;
-            top: 43%;
-            padding: 0;
-            border-radius: 50%;
-            pointer-events: none;
-            transition: 0.1s transform ease-in
-        }
-
-        #recordVideoWrapper.recordedVideo:not(.playing) .videoPlayButton {
-            opacity: 1
-        }
-
+		
+		.videoWrapper {position:relative}
+		.videoWrapper video {cursor:pointer;margin:8px;max-height:100px}
+		.videoWrapper .videoPlayButton {opacity:0;position:absolute;background: rgba(0,0,0,0.2);width:46px;height:46px;left:40%;top:33%;border-radius:50%;pointer-events:none;transition:0.1s transform ease-in}
+		.videoWrapper.loaded .videoPlayButton {opacity:1}
+		.videoWrapper:hover .videoPlayButton {transform:scale(1.2)}
+		
+		#recordVideoWrapper {margin:5px auto; text-align: center;}
+		#recordVideoWrapper .videoPlayButton {opacity:0;position:absolute;background: rgba(0,0,0,0.2);width:56px;height:56px;left:43%;top:43%;padding:0;border-radius:50%;pointer-events:none;transition:0.1s transform ease-in}
+		#recordVideoWrapper.recordedVideo:not(.playing) .videoPlayButton {opacity:1}
+		
         .emoji-container {
             display: flex;
             flex-wrap: wrap;
             margin: 5px;
         }
-
-        .emoji-container .emoji {
-            font-size: 1.5rem;
-            align-items: center;
-            justify-content: center;
+		.emoji-container .emoji {
+			font-size: 1.5rem;
+			align-items: center;
+			justify-content: center;
             --button-padding: 6px;
-        }
+		}
 
-        .emoji-container .emoji:hover {
-            background: var(--bg-light-color-hover);
-        }
+		.emoji-container .emoji:hover {
+			background: var(--bg-light-color-hover);
+		}
 
-        .pageWrapper {
-            width: 100%;
-            height: 100%
-        }
+		.pageWrapper {width:100%;height:100%}
+		.page {
+			position:absolute;
+			width:100%;
+			height:100%;
+			transition-property: transform;
+			transition-duration: 0.2s;
+			transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+			transform: translateX(100%);
+		}
+		.page.disableTransition {
+			transition-duration: 0.01s; /* this same css is also used for skin [Effect] Disable transitions */
+		}
+		.page:first-child {transform: translateX(-100%)}
+		.page.active {transform: translateX(0)}
 
-        .page {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            transition-property: transform;
-            transition-duration: 0.2s;
-            transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-            transform: translateX(100%);
+        @keyframes rotateQuarterCircle {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
+		
+        #AIComposeSection {
+            display: flex;
+            flex-direction: column;
 
-        .page.disableTransition {
-            transition-duration: 0.01s;
-            /* this same css is also used for skin [Effect] Disable transitions */
-        }
-
-        .page:first-child {
-            transform: translateX(-100%)
-        }
-
-        .page.active {
-            transform: translateX(0)
-        }
-
-        [jason-unresolved] {
-            opacity: 0;
-            transition: opacity 0.1s ease-in
-        }
-
-        .DTH {
-            border-bottom: 1px dashed black;
-            color: black;
-            text-decoration: none
-        }
-
-        a.DTH:-webkit-any-link {
-            color: inherit;
-        }
-
-        @media (min-width:800px) {
-            .snippet {
-                margin-inline-end: 10px
+            header, footer {
+                flex-shrink: 0;
             }
 
-            #openEmail .snippet {
-                margin-inline-end: 100px
+            #emailContextWrapper,
+            .draft-box {
+                xxbox-sizing: border-box;
+                xxwidth: 100%;
+                xxoverflow: auto;
+                xxpadding: 8px;
+            }
+
+            #AIComposeMainArea {
+                flex-grow: 1;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+
+                .section-label {
+                    opacity: 0.7;
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-bottom: 6px;
+                }
+
+                .section {
+                    flex-direction: column;
+                }
+
+                #emailContextSection {
+                    display: flex;
+                    gap: 6px;
+                    flex: 1;
+
+                    summary {
+                        cursor: pointer;
+                    }
+
+                    :is(body.prompted, body.draft-with-no-prompts-yet) & {
+                        flex: 0 0 auto;
+                    }
+
+                    html.side-panel &,
+                    body.new-composition & {
+                        visibility: hidden;
+                    }
+
+                    #emailContextWrapper {
+                        resize: none;
+                        border-radius: 6px;
+                    }
+                }
+            }
+
+            #AIComposeMainArea,
+            footer {
+                padding: 20px;
+            }
+
+            #draftSection {
+                flex-direction: column;
+                #draft {
+                    padding: 14px;
+                }
+            }
+
+            #draftSection,
+            #draftActionsWrapper {
+                display: none;
+
+                :is(body.prompted, body.draft-with-no-prompts-yet) & {
+                    display: flex;
+                }
+            }
+
+            .draft-with-no-prompts-yet & #insertDraft {
+                display: none;
+            }
+
+            footer .buttons {
+                display: flex;
+                gap: 8px;
+                xxjustify-content: center; /* flex-end to align right */
+                flex-wrap: wrap; /* for sidepanel mainly */
+                align-items: center;
+                margin-block: 15px;
+            }
+
+            #quickReplyWrapper {
+                justify-content: start;
+            }
+
+            :is(body.prompted, body.draft-with-no-prompts-yet, body.new-composition) & #quickReplyWrapper {
+                display: none;
+            }
+
+            #stop-prompt {
+                display: none;
+            }
+
+            #replyPromptIcon {
+                position: absolute;
+                inset-inline-start: 12px;
+                top: 8px;
+                font-size: 20px;
+            }
+
+            #thinkingIndicator {
+                display: none;
+                position: absolute;
+                inset-inline-start: 6px;
+                top: 6px;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                border: 3px solid transparent;
+                border-top-color: var(--focus-visible-color);
+                border-right-color: var(--focus-visible-color);
+                opacity: 0.6;
+                animation: rotateQuarterCircle 1s linear infinite;
+            }
+
+            body.prompting & {
+                #send-prompt {
+                    display: none;
+                }
+
+                #thinkingIndicator,
+                #stop-prompt {
+                    display: block;
+                }
+
+                #replyPromptTextarea {
+                    caret-color: transparent;
+                }
+            }
+
+            #replyPromptWrapper {
+                display: flex;
+                flex-direction: row;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+
+                #replyPromptTextarea {
+                    box-sizing: border-box;
+                    width: 100%;
+                    height: 74px;
+                    resize: none;
+                    padding: 8px;
+                    padding-top: 12px;
+                    padding-inline-start: 50px;
+                    font-size: 16px;
+                }
             }
         }
+		
+		.DTH {border-bottom:1px dashed black;color:black;text-decoration:none}
+		a.DTH:-webkit-any-link {
+  			color: inherit;
+		}
 
-        @media (min-device-width: 1367px) {
-            body {
-                width: 700px
-            }
+		@media (min-width:800px) {
+			.snippet {margin-inline-end: 10px}
+			#openEmail .snippet {margin-inline-end: 100px}
+		}
 
-            body.comfortable {
-                width: 800px
-            }
-
-            body.cozy {
-                width: 700px
-            }
-
-            body.compact {
-                width: 650px
-            }
-        }
+		@media (min-device-width: 1367px) {
+			body {width:700px}
+			body.comfortable {width:800px}
+	   		body.cozy {width:700px}
+   			body.compact {width:650px}
+		}
 
         @media (max-width: 378px) {
             #openEmailSection {
@@ -1733,69 +1360,50 @@
         }
 
         @media (max-width: 423px) {
-            #moveLabel {
-                display: none
-            }
+            #moveLabel {display:none}
         }
 
         @media (max-width: 470px) {
-            #markAsSpam {
-                display: none !important
-            }
+            #markAsSpam {display:none !important}
         }
 
         @media (max-width: 512px) {
-
             #listenToEmail,
-            .search {
-                display: none
-            }
+            .search {display:none}
         }
 
         @media (max-width: 556px) {
-            #addToGoogleCalendar {
-                display: none
-            }
+            #addToGoogleCalendar {display:none}
         }
+		
+		@media (max-width: 550px) and (max-resolution: 1dppx) {
+			xx[main-title] {display:none}
+		}
 
-        @media (max-width: 550px) and (max-resolution: 1dppx) {
-            xx[main-title] {
-                display: none
-            }
-        }
+		@media (max-width: 500px) and (max-resolution: 1.5dppx) {
+			xx[main-title] {display:none}
+		}
 
-        @media (max-width: 500px) and (max-resolution: 1.5dppx) {
-            xx[main-title] {
-                display: none
-            }
-        }
-
-        @media (max-width: 460px) {
-
-            /* and (min-resolution: 1.6dppx) */
-            [main-title] {
-                display: none
-            }
-        }
+        @media (max-width: 460px) { /* and (min-resolution: 1.6dppx) */
+			[main-title] {display:none}
+		}
 
         @media (max-width: 600px) {
-
             .videoEmail,
             .voiceEmail {
                 display: none;
             }
         }
-    </style>
+   	</style>
 
-    <script src="js/config.js"></script>
-    <script src="js/common.js"></script>
+	<script src="js/common.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
-
-    <script defer src="js/lib/Autolinker.js"></script>
-    <script defer src="js/lib/ical.js"></script>
+	
+	<script defer src="lib/Autolinker.js"></script>
+    <script defer src="lib/ical.js"></script>
     <script defer src="js/checkerPlusForGmail.js"></script>
-
+       
     <script defer src="js/mime/addressparser.js"></script>
     <script defer src="js/mime/buffer.js"></script>
     <script defer src="js/mime/iconv.js"></script>
@@ -1805,45 +1413,37 @@
     <script defer src="js/account.js"></script>
     <script defer src="js/mail.js"></script>
 
-    <script defer src="js/sanitizer/html4.js"></script>
-    <script defer src="js/sanitizer/uri.js"></script>
-    <script defer src="js/sanitizer/sanitizer.js"></script>
-
-    <script defer src="js/recorder.js"></script>
-    <script defer src="js/popup.js"></script>
+   	<script defer src="js/recorder.js"></script>
+   	<script defer src="js/popup.js"></script>
 </head>
 
 <body id="gmail-extension-popup" class="popup polymer2" gmail-version="jdom">
-    <div class="pageWrapper">
+	<div class="pageWrapper">
         <div id="inboxSection" class="page active">
             <header class="site-header" no-bg-color>
                 <div class="header-content">
                     <div class="header-start">
                         <j-button class="side-rail-button" icon="menu" aria-label="Open menu" hidden></j-button>
-                        <div id="logo-and-title">
-                            <img id="logo" src="/images/icons/icon_64.png" />
-                            <a main-title href="#">Gmail Checkr</a>
+                        <div class="logo-and-title">
+                            <img class="logo" src="/images/icons/icon_64.png"/>
+                            <a main-title href="#">Checker Plus for Gmail</a>
                         </div>
                     </div>
 
                     <nav class="primary-nav" aria-label="Main Navigation">
                         <div id="searchInputWrapper">
-                            <j-button id="back" icon="arrow-back" role="button" aria-label="search"></j-button> <j-input
-                                id="searchInput" type="text"></j-input>
+                            <j-button icon="arrow-back" role="button" aria-label="search"></j-button> <j-input id="searchInput" type="text"></j-input>
                         </div>
                     </nav>
-
+                    
                     <div class="utility-items">
                         <j-button id="newsNotification" icon="new-releases" hidden></j-button>
                         <j-tooltip for="newsNotification" animation-delay="100">
-                            <div id="newsNotificationReducedDonationMessage" hidden
-                                style="text-align:center; white-space: nowrap; line-height: 1.2">Good news</div>
-                            <div id="newsNotificationBigUpdateMessage" hidden style="text-align:center"><span
-                                    msg="extensionUpdated">big update</span></div>
+                            <div id="newsNotificationReducedDonationMessage" hidden style="text-align:center; white-space: nowrap; line-height: 1.2">Good news</div>
+                            <div id="newsNotificationBigUpdateMessage" hidden style="text-align:center"><span msg="extensionUpdated">big update</span></div>
                         </j-tooltip>
 
-                        <j-button id="share-icon-button" class="share-button" icon="share"
-                            popovertarget-id="share-menu"></j-button>
+                        <j-button id="share-icon-button" class="share-button" icon="share" popovertarget-id="share-menu"></j-button>
                         <j-listbox id="share-menu" popover position="center">
                             <j-icon-item id="facebook">
                                 <j-icon icon="facebook"></j-icon>
@@ -1870,20 +1470,17 @@
                                 <span>Copy Link</span>
                             </j-icon-item>
                         </j-listbox>
-                        <j-tooltip for="share-icon-button" animation-delay="0"><span
-                                msg="share">share</span></j-tooltip>
+                        <j-tooltip for="share-icon-button" animation-delay="0"><span msg="share">share</span></j-tooltip>
 
                         <j-button id="refresh" icon="refresh" msgTitle="refresh"></j-button>
                         <j-button id="maximize" icon="open-in-browser" msgTitle="openGmailTab"></j-button>
-                        <j-button id="options-button" icon="settings" msgTitle="options"></j-button>
-                        <j-button id="mainOptions" icon="more-vert" msgTitle="options"
-                            popovertarget-id="options-menu"></j-button>
+                        <j-button id="mainOptions" icon="more-vert" msgTitle="options" popovertarget-id="options-menu"></j-button>
                         <j-listbox id="options-menu" popover>
-                            <!-- <j-icon-item class="options">
+                            <j-icon-item class="options">
                                 <j-icon icon="settings"></j-icon>
                                 <span msg="options"></span>
                             </j-icon-item>
-                            <j-item class="separator" disabled></j-item> -->
+                            <j-item class="separator" disabled></j-item>
 
                             <j-icon-item class="switchView">
                                 <j-icon icon="inbox"></j-icon>
@@ -1911,6 +1508,10 @@
                             </j-icon-item>
 
                             <j-item class="separator" disabled></j-item>
+                            <j-item class="contribute"><span msg="contribute">contribute</span></j-item>
+                            <j-item class="changelog"><span msg="changelog">Changelog</span></j-item>
+                            <j-item class="discoverMyApps"><span msg="discoverMyApps">discoverMyApps</span></j-item>
+                            <j-item class="aboutMe"><span msg="aboutMe">about me</span></j-item>
                             <j-item class="help"><span msg="help">help</span></j-item>
                         </j-listbox>
                     </div>
@@ -1934,23 +1535,19 @@
                         <div class="account">
                             <div class="accountHeader sticky">
                                 <div class="accountTitleArea flex layout horizontal center ripple">
-                                    <j-icon class="accountPhoto" sizing="cover" preload
-                                        src="/images/noPhoto.svg"></j-icon>
+                                    <j-icon class="accountPhoto" sizing="cover" preload src="/images/noPhoto.svg"></j-icon>
                                     <div class="accountTitle"></div>
                                     <div class="unreadCount"></div>
                                 </div>
                                 <div>
                                     <j-button class="archiveAll" icon="archive" msgTitle="archiveAll" hidden></j-button>
-                                    <j-button class="markAllAsSpamButton" icon="report" msgTitle="markAllAsSpam"
-                                        hidden></j-button>
-                                    <j-button class="markAllAsReadButton" icon="drafts"
-                                        msgTitle="markAllAsRead"></j-button>
+                                    <j-button class="markAllAsSpamButton" icon="report" msgTitle="markAllAsSpam" hidden></j-button>
+                                    <j-button class="markAllAsReadButton" icon="drafts" msgTitle="markAllAsRead"></j-button>
                                     <j-button class="compose" icon="create" msgTitle="compose"></j-button>
                                     <j-button class="videoEmail" icon="videocam" msgTitle="videoEmail"></j-button>
                                     <j-button class="voiceEmail" icon="mic" msgTitle="voiceEmail"></j-button>
                                     <j-button class="search" icon="search" msgTitle="search"></j-button>
-                                    <j-button class="accountOptionsMenuButton" icon="more-vert"
-                                        popovertarget-id="will_be_replaced"></j-button>
+                                    <j-button class="accountOptionsMenuButton" icon="more-vert" popovertarget-id="will_be_replaced"></j-button>
                                 </div>
                             </div>
 
@@ -1976,20 +1573,17 @@
                                     <j-icon icon="text-format"></j-icon>
                                     <span msg="alias"></span>...
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired"
-                                    contribute-tooltip>must contributetee</j-tooltip>
+                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
                                 <j-icon-item class="colors" contribute>
                                     <j-icon icon="palette"></j-icon>
                                     <span msg="colors"></span>...
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired"
-                                    contribute-tooltip>must contributetee</j-tooltip>
+                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
                                 <j-icon-item class="setAccountIcon" contribute>
                                     <j-icon icon="account-circle"></j-icon>
                                     <span class="setAccountIconLabel" msg="setAccountIcon"></span>
                                 </j-icon-item>
-                                <j-tooltip animation-delay="0" position="end" msg="donationRequired"
-                                    contribute-tooltip>must contributetee</j-tooltip>
+                                <j-tooltip animation-delay="0" position="end" msg="donationRequired" contribute-tooltip>must contributetee</j-tooltip>
                                 <j-icon-item class="showContactPhotos">
                                     <j-icon icon="account-circle"></j-icon>
                                     <span msg="showContactPhotos"></span>
@@ -1997,6 +1591,10 @@
                                 <j-icon-item class="checkSpam">
                                     <j-icon icon="report"></j-icon>
                                     <span msg="viewSpamFolder">view spam folder</span>
+                                </j-icon-item>
+                                <j-icon-item class="checkTrash">
+                                    <j-icon icon="delete"></j-icon>
+                                    <span msg="viewTrashFolder">view trash folder</span>
                                 </j-icon-item>
                                 <j-icon-item class="ignore">
                                     <j-icon icon="do-not-disturb"></j-icon>
@@ -2015,13 +1613,11 @@
                             <div class="mails" opened>
                                 <template class="mailTemplate">
                                     <div class="mail unread layout horizontal">
-                                        <j-icon class="contactPhoto" sizing="cover" preload
-                                            src="/images/noPhoto.svg"></j-icon>
+                                        <j-icon class="contactPhoto" sizing="cover" preload src="/images/noPhoto.svg"></j-icon>
                                         <div class="mail-content layout vertical flex">
                                             <div class="layout horizontal center">
                                                 <div class="sender flex"></div>
-                                                <j-icon class="attachment-icon" icon="attachment" msgTitle="attachments"
-                                                    hidden></j-icon>
+                                                <j-icon class="attachment-icon" icon="attachment" msgTitle="attachments" hidden></j-icon>
                                                 <div class="date">date</div>
                                             </div>
                                             <div class="subject">subject</div>
@@ -2060,11 +1656,9 @@
                         <div id="quickContact">
                             <img id="quickContactPhoto" class="contactPhoto" src="images/noPhoto.svg" />
                         </div>
-                        <j-tooltip id="quickContactLabel" for="quickContactPhoto" position="end" animation-delay="0"
-                            msg="quickComposeEmail"></j-tooltip>
+                        <j-tooltip id="quickContactLabel" for="quickContactPhoto" position="end" animation-delay="0" msg="quickComposeEmail"></j-tooltip>
                         <j-button id="compose" src="images/google-plus-sign.svg" class="filled"></j-button>
-                        <j-tooltip id="composeTooltip" for="compose" position="end" animation-delay="0"
-                            msg="compose"></j-tooltip>
+                        <j-tooltip id="composeTooltip" for="compose" position="end" animation-delay="0" msg="compose"></j-tooltip>
                     </div>
                     <a id="skinWatermark" href="https://jasonsavard.com" target="_blank">Craving Greens</a>
                     <j-tooltip for="skinWatermark" position="top" hidden>Author of image</j-tooltip>
@@ -2077,6 +1671,80 @@
             </div>
         </div>
 
+        <div id="AIComposeSection" class="page">
+            <header class="site-header" no-bg-color>
+                <div class="header-content">
+                    <div class="header-start">
+                        <j-button id="ai-compose-back" icon="arrow-back" role="button" aria-label="search"></j-button>
+                        <div class="logo-and-title">
+                            <img class="logo" src="/images/icons/icon_64.png"/>
+                            <a main-title href="#">Checker Plus for Gmail</a>
+                        </div>
+                    </div>
+
+                    <nav class="primary-nav" aria-label="Main Navigation">
+                    </nav>
+                    
+                    <div class="utility-items">
+                        <j-button id="stop-ai-prompt-audio" class="filled" icon="pause" title="Stop audio playback" aria-label="Stop audio playback" hidden></j-button>
+                        <j-button icon="more-vert" msgTitle="options" popovertarget-id="ai-options-menu"></j-button>
+                        <j-listbox id="ai-options-menu" popover>
+                            <j-icon-item class="checker-plus-compose-options">
+                                <j-icon icon="settings"></j-icon>
+                                <span msg="options"></span>
+                            </j-icon-item>
+                            <j-item id="ai-compose-listen-toggle">
+                                <span>Listen to response</span>
+                                <span id="ai-compose-listen-toggle-state" style="margin-inline-start:8px;opacity:.75">On</span>
+                            </j-item>
+                            <j-item class="separator" disabled></j-item>
+                            <j-item class="contribute"><span msg="contribute">contribute</span></j-item>
+                            <j-item class="checker-plus-compose-help"><span msg="help">help</span></j-item>
+                        </j-listbox>
+                    </div>
+                    <j-button class="close" icon="close"></j-button>
+                </div>
+            </header>
+
+            <div id="AIComposeMainArea">
+                <details id="emailContextSection" class="section" no-animation>
+                    <summary id="emailContextLabel" class="section-label">Email context</summary>
+                    <div id="emailContextWrapper">
+                        <div id="emailContext" readonly></div>
+                    </div>
+                </details>
+
+                <div id="draftSection">
+                    <div class="section-label" style="margin-inline-start: 13px;" msg="draft">Draft</div>
+                    <div id="draft" class="draft-box card"></div>
+                </div>
+            </div>
+
+            <footer>
+                <div id="quickReplyWrapper" class="buttons">
+                    <j-button id="quickReply" class="outline small" msg="quickReply" style="padding: 1px;">Quick Reply</j-button>
+                    <j-button id="respondAccept" class="outline small" msg="accept" icon="thumb-up">Accept</j-button>
+                    <j-button id="respondDecline" class="outline small" msg="decline" icon="thumb-down">Decline</j-button>
+                </div>
+
+                <div id="draftActionsWrapper" class="buttons">
+                    <j-button id="polishDraft" class="small outline" icon="magic-wand" msg="polish">Polish</j-button>
+                    <j-button id="formalizeDraft" class="small outline" icon="work" msg="formalize">Formalize</j-button>
+                    <j-button id="shortenDraft" class="small outline" icon="unfold-less" msg="shorten">Shorten</j-button>
+                    <j-button id="lengthenDraft" class="small outline" icon="unfold-more" msg="elaborate">Elaborate</j-button>
+                    <j-button id="insertDraft" class="colored outline" icon="arrow-downward" msg="insertDraft">Insert draft</j-button>
+                </div>
+
+                <div id="replyPromptWrapper">
+                    <div id="replyPromptIcon">✨</div>
+                    <div id="thinkingIndicator"></div>
+                    <textarea id="replyPromptTextarea" maxlength="1000" msgPlaceholder="brieflyWriteWhatYouWantToSay"></textarea>
+                    <j-button id="send-prompt" icon="arrow-upward" class="filled"></j-button>
+                    <j-button id="stop-prompt" icon="stop" class="colored"></j-button>
+                </div>
+            </footer>
+        </div>
+
         <div id="openEmailSection" class="page">
             <template id="openEmailSectionLayoutTemplate">
 
@@ -2087,42 +1755,36 @@
                         </div>
 
                         <nav class="primary-nav" aria-label="Main Navigation">
-                            <div id="searchInputWrapper">
-                                <j-button id="back" icon="arrow-back" role="button" aria-label="search"></j-button>
-                                <j-input id="searchInput" type="text"></j-input>
-                            </div>
                         </nav>
-
+                        
                         <div class="utility-items">
                             <j-button id="prevMail" icon="expand-less" msgTitle="previous"></j-button>
                             <j-button id="nextMail" icon="expand-more" msgTitle="next"></j-button>
                             <j-button id="archive" msgTitle="archive" icon="archive"></j-button>
-                            <j-button id="markAsSpam" icon="report"
-                                hidden></j-button><!-- default hidden only to fix fouc -->
-                            <j-button id="markAsNotSpam" msgTitle="notSpam" icon="move-to-inbox"
-                                hidden></j-button><!-- default hidden only to fix fouc -->
+                            <j-button id="markAsSpam" icon="report" hidden></j-button><!-- default hidden only to fix fouc -->
+                            <j-button id="markAsNotSpam" msgTitle="notSpam" icon="move-to-inbox" hidden></j-button><!-- default hidden only to fix fouc -->
                             <j-button id="delete" msgTitle="delete" icon="delete"></j-button>
-                            <j-button id="markAsRead" msgTitle="readLinkTitle" icon="drafts"
-                                hidden></j-button><!-- default hidden only to fix fouc -->
+                            <j-button id="markAsRead" msgTitle="readLinkTitle" icon="drafts" hidden></j-button><!-- default hidden only to fix fouc -->
                             <j-button id="markAsUnread" msgTitle="unreadLinkTitle" icon="markunread"></j-button>
                             <j-button id="moveLabel" msgTitle="moveLabel" icon="moveFolderIcon"></j-button>
+                            <j-button id="addToTasks" icon="add-task" msgTitle="addToTasks"></j-button>
                             <j-button id="addToGoogleCalendar" msgTitle="addToGoogleCalendar" icon="event"></j-button>
-                            <j-button id="listenToEmail" class="listenToEmail" msgTitle="listenToYourEmail"
-                                icon="headset" hide-from-firefox></j-button>
+                            <j-button id="listenToEmail" class="listenToEmail" msgTitle="listenToYourEmail" icon="headset" hide-from-firefox></j-button>
                             <j-button id="openEmailInBrowser" msgTitle="openGmailTab" icon="open-in-browser"></j-button>
+                            <j-button id="print" msgTitle="print" icon="print"></j-button>
 
-                            <j-button icon="more-vert" msgTitle="options"
-                                popovertarget-id="open-email-options-dropdown"></j-button>
+                            <j-button id="openEmailOptions" icon="more-vert" msgTitle="options" popovertarget-id="open-email-options-dropdown"></j-button>
                             <j-listbox id="open-email-options-dropdown" popover>
-                                <j-item id="menu-move-label"><span msg="moveLabel">moveLabel</span></j-item>
-                                <j-item id="changeLabels"><span msg="changeLabels">changge labels</span></j-item>
-                                <j-item id="markAsSpam-menu-item"><span msg="reportSpam">reportSpam</span></j-item>
-                                <j-item id="revertAutoSizing"><span
-                                        msg="revertAutoSizing">revertAutoSizing</span></j-item>
-                                <j-item id="menu-add-to-google-calendar"><span
-                                        msg="addToGoogleCalendar">addToGoogleCalendar</span></j-item>
-                                <j-item id="menu-listen-to-email"><span
-                                        msg="listenToYourEmail">listenToYourEmail</span></j-item>
+                                <j-icon-item id="menu-move-label"><j-icon icon="moveFolderIcon"></j-icon><span msg="moveLabel">moveLabel</span></j-icon-item>
+                                <j-icon-item id="changeLabels"><j-icon icon="label"></j-icon><span msg="changeLabels">changge labels</span></j-icon-item>
+                                <j-icon-item id="markAsSpam-menu-item"><j-icon icon="report"></j-icon><span msg="reportSpam">reportSpam</span></j-icon-item>
+                                <j-icon-item id="menu-view-preview-light"><j-icon icon="highlight"></j-icon><span id="menu-view-preview-light-text">Preview in light theme</span></j-icon-item>
+                                <j-icon-item id="revertAutoSizing"><j-icon icon="fullscreen"></j-icon><span msg="revertAutoSizing">revertAutoSizing</span></j-icon-item>
+                                <j-icon-item id="menu-add-to-google-calendar"><j-icon icon="event"></j-icon><span msg="addToGoogleCalendar">addToGoogleCalendar</span></j-icon-item>
+                                <j-icon-item id="menu-listen-to-email"><j-icon icon="headset"></j-icon><span msg="listenToYourEmail">listenToYourEmail</span></j-icon-item>
+                                <j-icon-item class="separator" disabled></j-icon-item>
+                                <j-icon-item id="menu-allow-style"><j-icon icon="format-align-center"></j-icon><span msg="allowStyle">allowStyle</span></j-icon-item>
+                                <j-icon-item id="menu-copy-html"><j-icon icon="content-copy"></j-icon><span msg="copyHtml">copyHtml</span></j-icon-item>
                             </j-listbox>
                         </div>
                         <j-button class="close" icon="close"></j-button>
@@ -2130,17 +1792,13 @@
                 </header>
 
                 <div id="openEmail" class="h-event resized">
-                    <meta class="u-url">
-                    </meta>
+                    <meta class="u-url"></meta>
                     <div id="openEmailHeader" class="layout horizontal center">
                         <div class="layout horizontal flex center">
                             <div class="openEmailSubject p-name flex" title="Open in Gmail">{{title}}</div>
                             <div id="openEmailLabels" class="layout horizontal wrap labels" style="max-width:30%">
                                 <template id="openEmailLabelsTemplate">
-                                    <div class="label layout horizontal">
-                                        <div class="labelName">{{name}}</div>
-                                        <div class="removeLabel">⨯</div>
-                                    </div>
+                                    <div class="label layout horizontal"><div class="labelName">{{name}}</div> <div class="removeLabel">⨯</div></div>
                                 </template>
                             </div>
                         </div>
@@ -2157,31 +1815,23 @@
                             </div>
                             <div id="calendar-details">
                                 <div id="calendar-title">title</div>
-                                <div><span class="calendar-labels" msg="when">When</span><span id="calendar-date">the
-                                        date</span></div>
-                                <div id="calendar-location-wrapper"><span class="calendar-labels"
-                                        msg="where">Where</span><span id="calendar-location">location is here</span>
-                                </div>
-                                <div id="calendar-attendee-wrapper"><span class="calendar-labels"
-                                        msg="who">Who</span><span id="calendar-who">the people</span></div>
+                                <div><span class="calendar-labels" msg="when">When</span><span id="calendar-date">the date</span></div>
+                                <div id="calendar-location-wrapper"><span class="calendar-labels" msg="where">Where</span><span id="calendar-location">location is here</span></div>
+                                <div id="calendar-attendee-wrapper"><span class="calendar-labels" msg="who">Who</span><span id="calendar-who">the people</span></div>
                                 <br>
-                                <j-button id="calendar-add-button" raised><span
-                                        msg="addToGoogleCalendar"></span></j-button>
-                                <j-button id="calendar-view-button" raised><span
-                                        msg="viewOnGoogleCalendar"></span></j-button>
+                                <j-button id="calendar-add-button" class="raised"><span msg="addToGoogleCalendar"></span></j-button>
+                                <j-button id="calendar-view-button" class="raised"><span msg="viewOnGoogleCalendar"></span></j-button>
                             </div>
                         </div>
                         <div id="calendar-description">description</div>
                     </div>
                     <div id="message-translate" hidden>
-                        <j-button id="translate-button" class="raised" icon="translate"><span
-                                id="translate-button-text"></span></j-button>
-                        <j-button id="show-original-text" class="invisible" raised icon="undo"></j-button>
+                        <j-button id="translate-button" class="raised" icon="translate"><span id="translate-button-text"></span></j-button>
+                        <j-button id="show-original-text" class="invisible raised" icon="undo"></j-button>
                         <div id="download-translation" hidden>
-                            Downloading model <progress id="download-translation-progress" style="margin: 0 10px"
-                                max="100"></progress>
+                            Downloading model <progress id="download-translation-progress" style="margin: 0 10px" max="100"></progress>
                         </div>
-                        <j-button id="translation-options-button" icon="settings"></j-button>
+                        <j-button id="translation-options-button" class="raised" icon="settings"></j-button>
                     </div>
                     <div id="openEmailMessages">
                         <template id="openEmailMessageTemplate">
@@ -2191,15 +1841,15 @@
                                         <j-icon class="contactPhoto" sizing="cover" src="/images/noPhoto.svg"></j-icon>
                                         <div class="messageHeaderRight layout vertical flex">
                                             <div class="senderAndDate layout horizontal">
-                                                <div class="flex"><span class="openEmailSender"></span><span
-                                                        class="openEmailSenderEmailAddress"></span></div>
+                                                <div class="horizontal flex" style="flex-wrap: wrap; align-items: center;">
+                                                    <span class="openEmailSender"></span><span class="openEmailSenderEmailAddress"></span> <j-button class="unsubscribe" style="font-size: 14px; --button-padding: 2px; margin-inline-start: 10px;" msg="unsubscribe" hidden>Unsubscribe</j-button>
+                                                </div>
                                                 <div class="date"></div>
                                             </div>
                                             <div class="to-wrapper layout horizontal center">
                                                 <div class="to">to</div>
                                                 <div>
-                                                    <j-button class="expand viewMessageDetails"
-                                                        icon="unfold-more"></j-button>
+                                                    <j-button class="expand viewMessageDetails raised" icon="unfold-more"></j-button>
                                                 </div>
                                             </div>
                                             <div class="messageDetails card"></div>
@@ -2213,7 +1863,7 @@
                         </template>
                     </div>
 
-                    <div id="emoji-popover" popover>
+                    <div id="emoji-popover" popover position="center">
                         <div class="emoji-container layout horizontal center">
                             <j-button class="emoji" id="thumbs-up" title="Thumbs Up">👍</j-button>
                             <j-button class="emoji" id="love" title="Love">❤️</j-button>
@@ -2223,33 +1873,26 @@
 
                 </div>
                 <footer>
-                    <div id="replyArea" hidden class="layout horizontal flex center">
-                        <j-icon class="contactPhoto" sizing="cover" src="/images/noPhoto.svg"
-                            style="margin:0 20px"></j-icon>
+                    <div id="replyArea" hidden class="layout horizontal center">
+                        <j-icon class="contactPhoto" sizing="cover" src="/images/noPhoto.svg" style="margin:0 20px"></j-icon>
                         <div id="reply-textarea-wrapper" class="layout vertical">
-                            <div id="replyPlaceholder">Reply</div>
                             <div id="replyTo">to</div>
-                            <textarea id="reply-textarea" max-rows=6 dir='auto' no-outline></textarea>
+                            <textarea id="reply-textarea" xxmax-rows=6 dir='auto' no-outline></textarea>
                         </div>
                         <div id="replyButtons" class="layout horizontal">
-                            <div>
-                                <j-button id="replyOnlyToSender" icon="reply" msgTitle="replyOnlyToSender"></j-button>
-                            </div>
-                            <div>
-                                <j-button id="forward" icon="forward" msgTitle="forward"></j-button>
-                            </div>
-                            <div>
-                                <j-button id="add-reaction" icon="tag-faces" msgTitle="addReaction"
-                                    popovertarget-id="emoji-popover"></j-button>
-                            </div>
+                            <j-button id="reply-all-button" class="outline" icon="reply" msg="replyToAll">Reply to all</j-button>
+                            <j-button id="reply-button" class="outline" icon="reply" msg="reply">Reply</j-button>
+                            <j-button id="forward" class="outline" icon="forward" msg="forward">Forward</j-button>
+                            <j-button id="add-reaction" icon="tag-faces" msgTitle="addReaction" popovertarget-id="emoji-popover"></j-button>
+                            <j-button class="ai-compose-button">✨</j-button>
+                            <j-tooltip msg="checkerPlusCompose">Checker Plus Compose</j-tooltip>
                         </div>
+                        <j-button id="ai-compose-in-reply-button" class="ai-compose-button">✨</j-button>
+                        <j-tooltip position="end" msg="checkerPlusCompose">Checker Plus Compose</j-tooltip>
                         <div class="sendButtons layout vertical">
-                            <j-button id="send" class="colored sendButton" class="filled" icon="send"
-                                button-look></j-button>
-                            <j-button id="sendAndArchive" class="colored sendButton" hidden class="filled">send and
-                                archive</j-button>
-                            <j-button id="sendAndDelete" class="colored sendButton" hidden class="filled">send and
-                                delete</j-button>
+                            <j-button id="send" class="colored sendButton" class="filled" icon="send" button-look></j-button>
+                            <j-button id="sendAndArchive" class="colored sendButton" hidden class="filled">send and archive</j-button>
+                            <j-button id="sendAndDelete" class="colored sendButton" hidden class="filled">send and delete</j-button>
                         </div>
                     </div>
                 </footer>
@@ -2266,10 +1909,9 @@
 
                         <nav class="primary-nav" aria-label="Main Navigation">
                         </nav>
-
+                        
                         <div class="utility-items">
-                            <j-button icon="more-vert" msgTitle="options"
-                                popovertarget-id="compose-options-dropdown"></j-button>
+                            <j-button icon="more-vert" msgTitle="options" popovertarget-id="compose-options-dropdown"></j-button>
                             <j-listbox id="compose-options-dropdown" popover>
                                 <j-icon-item class="contacts">
                                     <j-icon icon="people"></j-icon>
@@ -2290,14 +1932,12 @@
                     </div>
                     <div class="acSuggestions"></div>
                     <j-button id="fetchContacts" tabIndex=-1>Fetch contacts</j-button>
-                    <div class="fieldRow"><j-input id="composeSubject" class="composeField" type="text"
-                            msgPlaceholder="subject"></j-input></div>
+                    <div class="fieldRow"><j-input id="composeSubject" class="composeField" type="text" msgPlaceholder="subject"></j-input></div>
                     <div class="recordSoundWrapper" style="margin:20px">
                         <j-button id="recordSoundButton" icon="mic" class="colored" button-only></j-button>
                         <div class="audioWrapper" style="margin-top:30px">
                             <audio controls>
-                                <source />Your browser does not support the audio element.
-                            </audio>
+                            <source/>Your browser does not support the audio element.</audio>
                         </div>
                     </div>
                     <div id="recordVideoWrapper" class="layout vertical center">
@@ -2305,8 +1945,7 @@
                             <video id="video" style="height:43vh;cursor:pointer"></video>
                             <j-button class="videoPlayButton" icon="play-circle-filled"></j-button>
                         </div>
-                        <j-button id="recordVideoButton" icon="videocam" class="colored" style="margin-top:4px"
-                            button-only></j-button>
+                        <j-button id="recordVideoButton" icon="videocam" class="colored" style="margin-top:4px" button-only></j-button>
                     </div>
                     <div id="compose-footer">
                         <div class="sendButtons" class="layout vertical" style="margin:8px">
@@ -2316,25 +1955,33 @@
                 </div>
             </template>
         </div>
-    </div>
 
-    <input id="hiddenText" type="text" style="position:absolute;top:-1000px;left:-1000px;width:10px" />
-    <!-- for copyEmailAddress -->
+
+	</div>
+	
+	<input id="hiddenText" type="text" style="position:absolute;top:-1000px;left:-1000px;width:10px" /> <!-- for copyEmailAddress -->
+
+    <j-listbox id="email-list-context-menu" popover>
+        <j-icon-item id="email-list-menu-archive"><j-icon icon="archive"></j-icon><span msg="archive">archive</span></j-icon-item>
+        <j-icon-item id="email-list-menu-delete"><j-icon icon="delete"></j-icon><span msg="delete">delete</span></j-icon-item>
+        <j-icon-item id="email-list-menu-mark-as-read"><j-icon icon="drafts"></j-icon><span msg="readLinkTitle">mark as read</span></j-icon-item>
+        <j-icon-item id="email-list-menu-mark-as-unread"><j-icon icon="markunread"></j-icon><span msg="unreadLinkTitle">mark as unread</span></j-icon-item>
+        <j-icon-item id="email-list-menu-add-to-tasks"><j-icon icon="add-task"></j-icon><span msg="addToTasks">Add to Tasks</span></j-icon-item>
+        <j-icon-item class="separator" disabled></j-icon-item>
+        <j-icon-item id="email-list-menu-move-label"><j-icon icon="moveFolderIcon"></j-icon><span msg="moveLabel">move label</span></j-icon-item>
+        <j-icon-item id="email-list-menu-change-labels"><j-icon icon="label"></j-icon><span msg="changeLabels">change labels</span></j-icon-item>
+    </j-listbox>
 
     <template id="attachmentTemplate">
-        <div class='attachment layout horizontal center card'><img class='attachmentIcon' />
-            <div class='filename'></div><j-button class='downloadIcon' icon='file-download'></j-button>
-        </div>
+        <div class='attachment layout horizontal center card'><img class='attachmentIcon'/> <div class='filename'></div><j-button class='downloadIcon' icon='file-download'></j-button></div>
     </template>
 
     <template id="draftSavedTemplate">
-        <textarea id="draftSavedTextarea" dir="auto" rows=3 no-outline
-            style="width: 93%; margin:5px; height: 70px;"></textarea>
+        <textarea id="draftSavedTextarea" dir="auto" rows=3 no-outline style="width: 90%; margin:5px; height: 70px;"></textarea>
     </template>
 
     <template id="moveLabelDialogTemplate">
-        <div><j-input id="moveLabelSearch" type="text" msgPlaceholder="search" autocomplete="off" no-outline></j-input>
-        </div>
+        <div><j-input id="moveLabelSearch" type="text" msgPlaceholder="search" autocomplete="off" no-outline></j-input></div>
         <j-listbox id="moveLabels" class="layout vertical">
             <template id="moveLabelTemplate">
                 <j-item class="moveLabel">
@@ -2346,13 +1993,11 @@
     </template>
 
     <template id="changeLabelsDialogTemplate">
-        <div><j-input id="changeLabelSearch" type="text" msgPlaceholder="search" autocomplete="off"
-                no-outline></j-input></div>
+        <div><j-input id="changeLabelSearch" type="text" msgPlaceholder="search" autocomplete="off" no-outline></j-input></div>
         <j-listbox id="changeLabelsWrapper" class="layout vertical">
             <template id="changeLabelTemplate">
                 <j-item class="changeLabel">
-                    <label><input type="checkbox" style="display:block"></input> <span
-                            class="label-name"></span></label>
+                    <label style="display:flex;align-items:center;width:100%"><input type="checkbox" style="display:block"></input> <span class="label-name"></span></label>
                 </j-item>
             </template>
         </j-listbox>
@@ -2365,38 +2010,28 @@
     <template id="dndDialogTemplate">
         <div class="layout horizontal center-center">
             <div>
-                <label><input type="radio" name="dnd-option" value="30" /> <span msg="Xminutes"
-                        msgArg1="30">blah</span></label>
-                <label><input type="radio" name="dnd-option" value="60" /> <span msg="Xhour"
-                        msgArg1="1">blah</span></label>
-                <label><input type="radio" name="dnd-option" value="120" /> <span msg="Xhours"
-                        msgArg1="2">blah</span></label>
-                <label><input type="radio" name="dnd-option" value="240" /> <span msg="Xhours"
-                        msgArg1="4">blah</span></label>
-                <label><input type="radio" name="dnd-option" value="480" /> <span msg="Xhours"
-                        msgArg1="8">blah</span></label>
-                <label><input type="radio" name="dnd-option" value="today" /> <span msg="today">today</span></label>
-                <label><input type="radio" name="dnd-option" value="indefinitely" /> <span
-                        msg="indefinitely">indefinitely</span></label>
+                <label><input type="radio" name="dnd-option" value="30"/> <span msg="Xminutes" msgArg1="30">blah</span></label>
+                <label><input type="radio" name="dnd-option" value="60"/> <span msg="Xhour" msgArg1="1">blah</span></label>
+                <label><input type="radio" name="dnd-option" value="120"/> <span msg="Xhours" msgArg1="2">blah</span></label>
+                <label><input type="radio" name="dnd-option" value="240"/> <span msg="Xhours" msgArg1="4">blah</span></label>
+                <label><input type="radio" name="dnd-option" value="480"/> <span msg="Xhours" msgArg1="8">blah</span></label>
+                <label><input type="radio" name="dnd-option" value="today"/> <span msg="today">today</span></label>
+                <label><input type="radio" name="dnd-option" value="indefinitely"/> <span msg="indefinitely">indefinitely</span></label>
             </div>
         </div>
     </template>
 
     <template id="displayDensityDialogTemplate">
-        <div style="font-style:italic;color:gray;margin-block-end: 10px;">Mark some emails as unread to see results.
-        </div>
-        <label><input type="radio" name="display-density" value="comfortable" /><span
-                msg="comfortable">comfortable</span></label>
-        <label><input type="radio" name="display-density" value="cozy" /><span msg="cozy">cozy</span></label>
-        <label><input type="radio" name="display-density" value="compact" /><span msg="compact">compact</span></label>
+        <div style="font-style:italic;color:gray;margin-block-end: 10px;">Mark some emails as unread to see results.</div>
+        <label><input type="radio" name="display-density" value="comfortable"/><span msg="comfortable">comfortable</span></label>
+        <label><input type="radio" name="display-density" value="cozy"/><span msg="cozy">cozy</span></label>
+        <label><input type="radio" name="display-density" value="compact"/><span msg="compact">compact</span></label>
     </template>
 
     <template id="translationOptionsTemplate">
-        <label><input type="radio" name="translate-option" value="ask" /><span class="translate-ask"></span></label>
-        <label><input type="radio" name="translate-option" value="automatically" /><span
-                class="translate-automatically"></span></label>
-        <label><input type="radio" name="translate-option" value="dont-translate" /><span
-                class="translate-dont-translate"></span></label>
+        <label><input type="radio" name="translate-option" value="ask"/><span class="translate-ask"></span></label>
+        <label><input type="radio" name="translate-option" value="automatically"/><span class="translate-automatically"></span></label>
+        <label><input type="radio" name="translate-option" value="dont-translate"/><span class="translate-dont-translate"></span></label>
     </template>
 
     <template id="skinsDialogTemplate">
@@ -2406,18 +2041,15 @@
     <template id="customSkinDialogTemplate">
         <div class="layout vertical">
             <div class="layout horizontal center">
-                <div class="flex" style="color:gray;margin-bottom:2px">Enter <a
-                        href="https://en.wikipedia.org/wiki/Cascading_Style_Sheets" target="_blank">CSS</a> below</div>
+                <div class="flex" style="color:gray;margin-bottom:2px">Enter <a href="https://en.wikipedia.org/wiki/Cascading_Style_Sheets" target="_blank">CSS</a> below</div>
             </div>
             <textarea style="margin-bottom:10px;width:400px;height:200px" autofocus></textarea>
             <j-input id="customBackgroundImageUrl" label="Background image url (Use imgur.com to host it)"></j-input>
         </div>
     </template>
-
+    
     <template id="audioDialogTemplate">
-        <audio id="audio-attachment" controls preload="false">
-            <source />Your browser does not support the audio element.
-        </audio>
+        <audio id="audio-attachment" controls preload="false"><source/>Your browser does not support the audio element.</audio>
     </template>
 
     <template id="videoDialogTemplate">
@@ -2427,88 +2059,55 @@
     <template id="keyboardShortcutDialogTemplate">
         <style>
             #keys {
-                display: grid;
-                grid-template-columns: auto auto;
+                display:grid;
+                grid-template-columns:auto auto;
                 grid-column-gap: 10px;
                 grid-row-gap: 10px;
-                align-items: center;
-                /* Align rows vertically in the middle */
+                align-items: center; /* Align rows vertically in the middle */
             }
-
             #keys div {
                 padding: 1px 5px;
             }
-
             .key-wrapper {
                 justify-self: end;
             }
-
             .key-wrapper div {
                 display: inline-block;
                 border: 1px solid;
-                border-radius: 5px;
+                border-radius:5px;
             }
         </style>
         <div id="keys">
             <div>Newer / older conversation</div>
-            <div class="key-wrapper">
-                <div>k</div> or <div>j</div>
-            </div>
+            <div class="key-wrapper"><div>k</div> or <div>j</div></div>
             <div><span msg="previous">prev</span> / <span msg="next">next</span></div>
-            <div class="key-wrapper">
-                <div>Up arrow</div> or <div>Down arrow</div>
-            </div>
+            <div class="key-wrapper"><div>Up arrow</div> or <div>Down arrow</div></div>
             <div><span msg="inbox"></span> or <span msg="open">open conversation</span></div>
-            <div class="key-wrapper">
-                <div>Left arrow</div> or <div>Right arrow</div>
-            </div>
+            <div class="key-wrapper"><div>Left arrow</div> or <div>Right arrow</div></div>
             <div msg="compose">compose</div>
-            <div class="key-wrapper">
-                <div>c</div>
-            </div>
+            <div class="key-wrapper"><div>c</div></div>
             <div msg="open">open</div>
-            <div class="key-wrapper">
-                <div>o</div> or <div>Enter</div>
-            </div>
+            <div class="key-wrapper"><div>o</div> or <div>Enter</div></div>
             <div msg="delete">delete</div>
-            <div class="key-wrapper">
-                <div>#</div>
-            </div>
+            <div class="key-wrapper"><div>#</div></div>
             <div msg="archive">archive</div>
-            <div class="key-wrapper">
-                <div>e</div>
-            </div>
+            <div class="key-wrapper"><div>e</div></div>
             <div msg="spam">spam</div>
-            <div class="key-wrapper">
-                <div>!</div>
-            </div>
+            <div class="key-wrapper"><div>!</div></div>
             <div msg="starLinkTitle">star</div>
-            <div class="key-wrapper">
-                <div>s</div>
-            </div>
+            <div class="key-wrapper"><div>s</div></div>
             <div><span msg="reply"></span> / <span msg="replyToAll">replyall</span></div>
-            <div class="key-wrapper">
-                <div>r</div> or <div>a</div>
-            </div>
+            <div class="key-wrapper"><div>r</div> or <div>a</div></div>
             <div msg="moveLabel">move label</div>
-            <div class="key-wrapper">
-                <div>v</div>
-            </div>
+            <div class="key-wrapper"><div>v</div></div>
             <div msg="refresh">refresh</div>
-            <div class="key-wrapper">
-                <div><span class="ctrlKey">Ctrl</span> + r</div>
-            </div>
+            <div class="key-wrapper"><div><span class="ctrlKey">Ctrl</span> + r</div></div>
             <div msg="emailAccounts">open account</div>
-            <div class="key-wrapper">
-                <div><span class="ctrlKey">Ctrl</span> + 1,2,3…</div>
-            </div>
+            <div class="key-wrapper"><div><span class="ctrlKey">Ctrl</span> + 1,2,3…</div></div>
             <div msg="close">close</div>
-            <div class="key-wrapper">
-                <div>Esc</div>
-            </div>
+            <div class="key-wrapper"><div>Esc</div></div>
         </div>
     </template>
 
 </body>
-
 </html>

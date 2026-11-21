@@ -1,9 +1,10 @@
 {
 "update_url": "https://clients2.google.com/service/update2/crx",
 
-	"name": "Gmail Checkr",
+	"name": "Checker Plus for Gmail™",
 	"description": "__MSG_description__",
-	"version": "34.0.1",
+	"version": "36.7.1",
+	"homepage_url": "https://jasonsavard.com?ref=homepage_url&ext=gmail",
 	"background": {
 		"service_worker": "js/background.js"
 	},
@@ -12,7 +13,7 @@
 			"19": "images/browserButtons/default/not_logged_in.png",
 			"38": "images/browserButtons/default/not_logged_in_retina.png"
 		},
-		"default_title": "Gmail Checkr",
+		"default_title": "Checker Plus for Gmail™",
 		"default_popup": "popup.html?source=toolbar&setVia=manifest"
 	},
 	"icons": {
@@ -101,8 +102,7 @@
 		"webRequest"
 	],
 	"host_permissions": [
-		"https://mail.google.com/",
-		"https://jaogjaacnemkkjdbjpljjdjeahfiaeic.chromiumapp.org/*"
+		"https://mail.google.com/"
 	],
 	"optional_host_permissions": [
 		"https://*.googleusercontent.com/"
@@ -127,7 +127,7 @@
 				"https://jasonsavard.com/*",
 				"https://checkout.stripe.com/*",
 				"https://www.paypal.com/*",
-				"https://commerce.coinbase.com/*"
+				"https://nowpayments.io/*"
 			]
 		},
 		{

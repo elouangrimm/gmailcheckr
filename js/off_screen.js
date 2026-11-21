@@ -26,12 +26,18 @@ function audioStopped(event) {
 
 function loadImage(image) {
     return new Promise((resolve, reject) => {
-        image.onload = () => {
+        function onLoad() {
+            image.removeEventListener("error", onError);
             resolve();
         }
-        image.onerror = event => {
+
+        function onError(event) {
+            image.removeEventListener("load", onLoad);
             reject(event);
         }
+
+        image.addEventListener("load", onLoad, {once: true});
+        image.addEventListener("error", onError, {once: true});
     });
 }
 
@@ -163,12 +169,20 @@ globalThis.myOffscreenListener = (message, sender, sendResponse) => {
 
             sendResponse(returnObj);
         } else if (message.type == "htmlToText") {
-            const html = message.data
-                .replace(/<br\s?\/?>/ig,"\n")
-                .replace(/<(?:.|\n)*?>/gm, '')
-            ;
+            const html = String(message.data ?? "")
+                .replace(/<br\s*\/?>/ig, "\n")
+                .replace(/\<\/td\>/ig, " "); // added this one because it was removing the space between 2 cells
+
             const doc = new DOMParser().parseFromString(html, "text/html");
-            sendResponse(doc.documentElement.textContent);
+            doc.querySelectorAll("head,style,script,noscript,template,title,meta,link").forEach(node => node.remove());
+
+            const response = (doc.body?.textContent ?? doc.documentElement?.textContent ?? "")
+                .replace(/\u00A0/g, " ")
+                .replace(/\r/g, "")
+                .replace(/[ \t]+\n/g, "\n")
+                .replace(/\n{3,}/g, "\n\n");
+
+            sendResponse(response);
         } else if (message.type == "play-sound") {
             audioMessage = message;
             audioSendResponse = sendResponse;
@@ -322,7 +336,7 @@ globalThis.myOffscreenListener = (message, sender, sendResponse) => {
             let matchResult;
 
             // Look for text nodes that might contain the code
-            Array.from(doc.querySelectorAll('td, span')).find(node => {
+            Array.from(doc.querySelectorAll('td, span, p')).find(node => {
                 const matches = node.textContent.match(new RegExp(message.data.serializedRegex.pattern, message.data.serializedRegex.flags));
                 console.log("matches", matches);
                 if (matches) {
@@ -336,6 +350,41 @@ globalThis.myOffscreenListener = (message, sender, sendResponse) => {
             setTimeout(() => {
                 sendResponse(message.data.delay);
             }, message.data.delay);
+            return true;
+        } else if (message.type == "load-gmail-in-iframe") {
+            // best-effort attempt to force a real navigation to mail.google.com so the browser (ie. Edge) refreshes its cookies/sign-in state
+            // note: we can't read the iframe's contents (cross-origin) so we can only report whether the load/error event fired, not whether Gmail actually rendered
+            const IFRAME_ID = "debugSignInIframe";
+            let iframe = document.getElementById(IFRAME_ID);
+            if (iframe) {
+                iframe.remove();
+            }
+
+            iframe = document.createElement("iframe");
+            iframe.id = IFRAME_ID;
+            iframe.style.display = "none";
+
+            const TIMEOUT = 10000;
+            let settled = false;
+
+            const finish = outcome => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timeoutId);
+                iframe.remove();
+                sendResponse(outcome);
+            };
+
+            const timeoutId = setTimeout(() => finish({loaded: false, timedOut: true}), TIMEOUT);
+
+            iframe.addEventListener("load", () => finish({loaded: true}), {once: true});
+            iframe.addEventListener("error", () => finish({loaded: false}), {once: true});
+
+            iframe.src = message.data?.url;
+            document.body.append(iframe);
+
             return true;
         } else {
             console.warn(`Unexpected message type received: '${message.type}'.`);

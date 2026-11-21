@@ -1,4 +1,4 @@
-// Copyright Gmail Checkr
+// Copyright Jason Savard
 "use strict";
 
 console.log("background.js loaded: " + new Date());
@@ -6,8 +6,7 @@ console.log("background.js loaded: " + new Date());
 try {
     if (!globalThis.commonJSLoaded) {
         importScripts(
-            "lib/Autolinker.js",
-            "config.js",
+            "/lib/Autolinker.js",
             "common.js",
             "checkerPlusForGmail.js",
             "mime/addressparser.js",
@@ -16,10 +15,7 @@ try {
             "mime/encoding.js",
             "mime/mimelib.js",
             "account.js",
-            "mail.js",
-            "sanitizer/html4.js",
-            "sanitizer/uri.js",
-            "sanitizer/sanitizer.js"
+            "mail.js"
         );
     }
 } catch (error) {
@@ -120,17 +116,6 @@ chrome.runtime.onInstalled.addListener(async details => {
         
         // commented because too many for quota
         //sendGA("installed", chrome.runtime.getManifest().version);
-
-        //some users might lose their settings lets help them out...
-		if (details.previousVersion) {
-			var previousVersionMajor = details.previousVersion.split(".")[0];
-			if (previousVersionMajor < 13) {
-				//
-			}
-		}
-		
-		await Controller.processFeatures();
-		console.log("Features unlocked on install");
 	} else if (details.reason == "update") {
 		// seems that Reloading extension from extension page will trigger an onIntalled with reason "update"
 		// so let's make sure this is a real version update by comparing versions
@@ -157,12 +142,12 @@ chrome.runtime.onInstalled.addListener(async details => {
             const options = {
                 type: "basic",
                 title: getMessage("extensionUpdated"),
-                message: "Gmail Checkr " + chrome.runtime.getManifest().version,
+                message: "Checker Plus for Gmail " + chrome.runtime.getManifest().version,
                 iconUrl: Icons.NotificationLogo,
             }
 
             if (supportsNotificationButtons()) {
-                options.buttons = [{title: getMessage("seeUpdates") || "See Updates"}];
+                options.buttons = [{title: getMessage("seeUpdates")}];
             } else {
                 options.message += `\n${getMessage("seeUpdates")}`;
             }
@@ -203,7 +188,10 @@ if (chrome.alarms) {
     chrome.alarms.onAlarm.addListener(async alarm => {
         try {
             console.log("alarm", alarm.name);
-            await initMisc();
+
+            await initMisc().catch(error => {
+                console.error("initMisc error in alarm: ", error);
+            });
 
             if (alarm.name == Alarms.EVERY_MINUTE) {
                 // for detecting and update the DND status to the user
@@ -261,9 +249,10 @@ if (chrome.alarms) {
             } else if (alarm.name == Alarms.CHECK_EMAILS) {
                 await checkEmails("interval");
             } else if (alarm.name == Alarms.RESET_SPAM_CHECKING) {
-                if (await isAnAccountCheckingSpam()) {
-                    console.log("accountsListCheckingSpam so refresh");
+                if (await isAnAccountCheckingSpam() || await isAnAccountCheckingTrash()) {
+                    console.log("temporary system-folder view active so refresh");
                     await storage.remove("_accountsCheckingSpam");
+                    await storage.remove("_accountsCheckingTrash");
 
                     if (await storage.get("accountAddingMethod") == "oauth") {
                         await refreshAccounts({hardRefreshFlag: true});
@@ -329,15 +318,61 @@ if (chrome.alarms) {
                     await getEmailsFromFCMUpdate(account);
                 }
             } else if (alarm.name == Alarms.UPDATE_SKINS) {
-                // Disabled - skins are now local only
-                console.log("UPDATE_SKINS alarm disabled (local skins only)");
+                console.log("updateSkins...");
+                
+                const skinsSettings = await storage.get("skins");
+                const skinsIds = skinsSettings.map(skin => skin.id);
+                const nightModeSkin = await storage.get("nightModeSkin");
+                
+                if (skinsIds.length || nightModeSkin) {
+                    const skins = await Controller.getSkins(skinsIds, await storage.get("_lastUpdateSkins"));
+                    console.log("skins:", skins);
+                    
+                    let foundSkins = false;
+                    skins.forEach(skin => {
+                        skinsSettings.some(skinSetting => {
+                            if (skinSetting.id == skin.id) {
+                                foundSkins = true;
+                                console.log("update skin: " + skin.id);
+                                copyObj(skin, skinSetting);
+                                return true;
+                            }
+                        });
+                    });
+                    
+                    if (foundSkins) {
+                        storage.set("skins", skinsSettings);
+                    }
+
+                    if (nightModeSkin) {
+                        const nightSkinFromDB = skins.find(skin => skin.id == nightModeSkin.id);
+                        if (nightSkinFromDB) {
+                            copyObj(nightSkinFromDB, nightModeSkin);
+                            await storage.set("nightModeSkin", nightModeSkin);
+                        }
+                    }
+                    
+                    storage.setDate("_lastUpdateSkins");
+                }
             } else if (alarm.name == Alarms.UPDATE_UNINSTALL_URL) {
                 // do this every day so that the daysellapsed is updated in the uninstall url
-                //setUninstallUrl(getFirstEmail(accounts)); // Removed setUninstallUrl
+                setUninstallUrl(getFirstEmail(accounts));
             } else if (alarm.name == Alarms.CLEAR_SUBJECTS_SPOKEN) {
                 storage.remove("_subjectsSpoken");
             } else if (alarm.name == Alarms.AUTOMATIC_RESTART) {
                 chrome.runtime.reload();
+            } else if (alarm.name.startsWith(Alarms.EXPIRE_AI_PROMPT_DRAFT_PREFIX)) {
+                await storagePromise;
+                const draft = await storage.get(alarm.name);
+                if (draft) {
+                    const expiresAt = draft.savedAt + AI_PROMPT_DRAFT_MAX_AGE;
+                    if (!Number.isFinite(draft.savedAt) || Date.now() >= expiresAt) {
+                        await storage.remove(alarm.name);
+                    } else {
+                        await chrome.alarms.create(alarm.name, {when: expiresAt});
+                    }
+                }
+                return;
             }
         } catch (error) {
             console.error("error in alarm: ", error);
@@ -498,7 +533,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             sendEmailParams.to = {email:await storage.get("quickComposeEmail")}; // name:storage.get("quickComposeEmailAlias")
             
             var originalMessage = sendEmailParams.message;
-            sendEmailParams.htmlMessage = sendEmailParams.message + "<br><br><span style='color:gray'>Sent from <a style='color:gray;text-decoration:none' href='https://jasonsavard.com/Checker-Plus-for-Gmail?ref=sendpage'>Gmail Checkr</a></span>";
+            sendEmailParams.htmlMessage = sendEmailParams.message + "<br><br><span style='color:gray'>Sent from <a style='color:gray;text-decoration:none' href='https://jasonsavard.com/Checker-Plus-for-Gmail?ref=sendpage'>Checker Plus for Gmail</a></span>";
             // remove message since we put it into the htmlMessage and because it seems when gmail api sends in html only it generates the text/plain
             sendEmailParams.message = null;
             
@@ -549,12 +584,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
-
-
+async function setUninstallUrl(email) {
+	if (chrome.runtime.setUninstallURL) {
+		await storagePromise; // previously used await initMisc() but this caused race condition because setUninstallUrl did not have an await in the rest of the code and thus initMisc was called twice consecutively
+		var url = "https://jasonsavard.com/uninstalled?app=gmail";
+		url += "&version=" + encodeURIComponent(chrome.runtime.getManifest().version);
+		url += "&daysInstalled=" + await daysElapsedSinceFirstInstalled();
+		if (email && !/mail\.google\.com/.test(email)) {
+            url += "&e=" + encodeURIComponent(btoa(email));
+            storage.set("_uninstallEmail", email);
+		}
+		if (await storage.get("donationClicked")) {
+			url += "&c=true";
+		}
+		chrome.runtime.setUninstallURL(url);
+	}
+}
 
 async function onButtonClicked(notificationId, buttonIndex) {
 	console.log("onbuttonclicked", notificationId, buttonIndex);
+    // only load initMisc if needed because it might throw corrupt errors
 	if (notificationId == "extensionUpdate") {
+        await initMisc();
 		if (buttonIndex == -1 || buttonIndex == 0) {
             openChangelog();
 			chrome.notifications.clear(notificationId, function() {});
@@ -579,6 +630,7 @@ async function onButtonClicked(notificationId, buttonIndex) {
 		chrome.notifications.clear(notificationId, function() {});
 		sendGA("errorNotification", "clicked button on notification");
 	} else {
+        await initMisc();
 		stopAllSounds();
 		let notificationButtonValue;
 		if (buttonIndex == -1) { // when Windows native notifications were enabled in Chrome 68 this was equivalent to clicking anywhere
@@ -624,20 +676,17 @@ if (chrome.notifications) {
 
 	// clicked anywhere
 	chrome.notifications.onClicked.addListener(async notificationId => {
-        await initMisc();
 		onButtonClicked(notificationId, -1);
 	});
 
 	// buttons clicked
 	chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
-        await initMisc();
 		onButtonClicked(notificationId, buttonIndex);
 	});
 	
 	// closed notif
 	chrome.notifications.onClosed.addListener(async (notificationId, byUser) => {
 		console.log("notif onclose", notificationId, byUser, new Date());
-        await initMisc();
         
 		if (notificationId == "extensionUpdate") {
 			if (byUser) {
@@ -648,6 +697,7 @@ if (chrome.notifications) {
 		} else if (notificationId == "error") {
 			// nothing
 		} else {
+            await initMisc();
             storage.remove("_richNotifId");
 			
 			// Chrome <=60 byUser happens ONLY when X is clicked ... NOT by closing browser, NOT by clicking action buttons, ** NOT by calling .clear
@@ -687,6 +737,8 @@ if (chrome.runtime.onMessageExternal) {
                 sendResponse({installed:true});
             } else if (message.action == "version") {
                 sendResponse(chrome.runtime.getManifest().version);
+            } else {
+                sendResponse({actionNotSupported: true});
             }
         })();
         return true;
@@ -820,7 +872,8 @@ async function generateNotificationButton(buttons, buttonsWithValues, value, ema
 		} else if (value == "dismiss") {
             button = initButtonObj(maybeAppendAllMsg(getMessage("dismiss"), emails), "checkmark.png");
 		} else if (value == "otp-code") {
-            button = initButtonObj(`${getMessage("copy")} ${strParam}`);
+            const scanNote = emails.first()?.otpCodeUsesFullContent ? " - Full message scan (local)" : "";
+            button = initButtonObj(`${getMessage("copy")} ${strParam}${scanNote}`);
         }
 
 		if (button) {
@@ -1141,14 +1194,19 @@ async function showNotification(params = {}) {
                     var buttonsWithValues = []; // used to associate button values inside notification object
                     var buttonValue;
 
+                    const showCopyOTPInNotification = await storage.get("showCopyOTPInNotification");
+                    globalThis.otpCode = showCopyOTPInNotification ? await firstEmail.getOTPCode() : null;
+                    /*
                     // ignore google emails since most system notification automatically includes copy code, except from google voice
                     if (!firstEmail.authorMail.includes("google.") || firstEmail.authorMail.includes("voice.google.")) { // v1 commented because chrome started showing them: firstEmail.authorMail.includes("voice.google.")
                         globalThis.otpCode = await firstEmail.getOTPCode();
                     } else {
                         globalThis.otpCode = null;
                     }
+                    */
                     
-                    if (globalThis.otpCode) {
+                    const showOtpCopyButton = Boolean(globalThis.otpCode) && showCopyOTPInNotification;
+                    if (showOtpCopyButton) {
                         buttonValue = "otp-code";
                     } else {
                         buttonValue = await storage.get("notificationButton1");
@@ -1160,7 +1218,7 @@ async function showNotification(params = {}) {
                         await generateNotificationButton(buttons, buttonsWithValues, buttonValue, params.emails, globalThis.otpCode);
                     }
                     
-                    if (globalThis.otpCode) {
+                    if (showOtpCopyButton) {
                         buttonValue = await storage.get("notificationButton1");
                     } else {
                         if (await shouldShowReducedDonationMsg()) {
@@ -1515,7 +1573,7 @@ async function createNotification(params) { // expected args: options, buttonsWi
     const showNotificationDuration = await storage.get("showNotificationDuration");
     
     if (showNotificationDuration == "infinite") {
-        if (!DetectClient.isMac()) { // refer to https://jasonsavard.com/forum/discussion/comment/34928#Comment_34928
+        if (!DetectClient.isMac() && !await storage.get("moveIntoActionCenter")) { // refer to https://jasonsavard.com/forum/discussion/comment/34928#Comment_34928
             params.options.requireInteraction = true;
         }
     } else {
@@ -1733,7 +1791,12 @@ function executeAction(mails, actionName) {
 }
 
 async function openInPopup(params = {}) {
-	let url = getPopupFile("notification");
+    let url;
+    if (params.checkerPlusCompose) {
+        url = getPopupFile("aiPrompt");
+    } else {
+        url = getPopupFile("notification");
+    }
 	
 	if (params.previewMail) {
         const notifMails = await restoreLastNotifParams(true);
@@ -1741,7 +1804,7 @@ async function openInPopup(params = {}) {
             const mail = notifMails.first();
             url += "&previewMailId=" + mail.id;
         }
-	}
+    }
 
     const windowId = await storage.get(LS_POPUP_WINDOW_ID);
 	if (windowId) {
@@ -1764,6 +1827,8 @@ async function openInPopup(params = {}) {
 	if (params.notificationId) {
 		clearRichNotification(params.notificationId);
 	}
+
+    return newWindow;
 }
 
 async function performButtonAction(params) {
@@ -1818,7 +1883,7 @@ async function performButtonAction(params) {
 		clearRichNotification(params.notificationId);
 	} else if (params.notificationButtonValue == "reducedDonationAd") {
 		await storage.enable("reducedDonationAdClicked");
-
+		openUrl("contribute.html?ref=reducedDonationFromNotif");
 		clearRichNotification(params.notificationId);
     } else if (params.notificationButtonValue == "otp-code") {
         const width = 180;
@@ -2238,7 +2303,14 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 message.params = JSON.parse(message.params);
             }
 
-            if (message.command == "indexedDBSettingSaved") {
+            if (message.command == "init") {
+                initCalled = false;
+                init();
+                sendResponse();
+            } else if (message.command == "initMisc") {
+                await initMisc();
+                sendResponse();
+            } else if (message.command == "indexedDBSettingSaved") {
                 syncOptions.storageChanged({key:message.key});
                 sendResponse();
             } else if (message.command == "openTabInBackground") {
@@ -2307,7 +2379,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                     mail.account = getAccountById(message.params.mail.account.id);
                 }
 
-                // patch to fetch correct "from" email when user user as sendAs, cause messages are sometimes only fetched from the preview window, so I must put it to the back end so i can generate the reply object. ref: https://jasonsavard.com/forum2/d/8244-replies-in-the-popup-are-not-being-sent-from-the-address-in-the-original-e-mail-being-replied-to/9
+                // patch to fetch correct "from" email when user user as sendAs, cause messages are sometimes only fetched from the preview window, so I must put it to the back end so i can generate the reply object. ref: https://jasonsavard.com/forum/d/8244-replies-in-the-popup-are-not-being-sent-from-the-address-in-the-original-e-mail-being-replied-to/9
                 const messages = message.params.actionParams?.messages;
                 if (message.params.action == "postReply" && !mail.messages?.length && messages) {
                     console.log("patch to to retrieve correct sendAs");
@@ -2330,6 +2402,60 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 }
             } else if (message.command == "cancelReply") {
                 clearTimeout(globalThis.replyingTimeout);
+            } else if (message.command == "openAIPrompt") {
+
+                message.command = "aiPromptData";
+                message.sender = sender;
+
+                if (globalThis.openCheckerPlusComposeInGmailAction == "sidePanel") {
+                    const tabId = sender.tab.id;
+
+                    chrome.sidePanel.setOptions({
+                        path: getPopupFile("sidepanel"),
+                    });
+
+                    await chrome.sidePanel.open({
+                        tabId: tabId
+                    });
+
+                    sendRuntimeMessageWithRetry(message).then(() => {
+                        console.log("sent aiPromptData message to popup");
+                    }).catch(error => {
+                        console.warn("error sending aiPromptData message", error);
+                    });
+                } else {
+                    try {
+                        chrome.action.setPopup({
+                            popup: getPopupFile("aiPrompt")
+                        });
+
+                        await chrome.action.openPopup();
+
+                        chrome.runtime.sendMessage(message).then(() => {
+                            console.log("sent aiPromptData message to popup");
+                            if (chrome.runtime.lastError) {
+                                console.warn("error sending aiPromptData message", chrome.runtime.lastError);
+                            }
+                        }).catch(error => {
+                            console.warn("error sending aiPromptData message", error);
+                        });
+                    } catch (error) {
+                        console.warn("Couldn't open in popup", error);
+                        // fallback to opening a standalone popup window
+                        const newWindow = await openInPopup({
+                            checkerPlusCompose: true,
+                        });
+                        console.log("newwindow", newWindow);
+
+                        sendTabsMessageWithRetry(newWindow.tabs[0].id, message).then(() => {
+                            console.log("sent aiPromptData message to popup");
+                        }).catch(error => {
+                            console.warn("error sending aiPromptData message", error);
+                        });
+                    }
+                }
+
+                sendResponse();
             } else if (message.command == "switchToOauth") {
                 await initMisc();
                 // filter out accounts that have no token (we're probably never granted access)
@@ -2429,6 +2555,7 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 })
                 sendResponse();
             } else if (message.command == "firestore-message") {
+                await initMisc();
                 onRealtimeMessageReceived(message.data, "firebase");
                 sendResponse();
             } else if (message.command == "unread-count-change-gmail-ui") {
@@ -2441,14 +2568,25 @@ chrome.runtime.onMessage.addListener(/* DONT USE ASYNC HERE because of return tr
                 console.log("onMessage: " + message.command);
                 const response = await globalThis[message.command](message.params);
                 sendResponse(response);
+            } else if (message.command == "test") {
+                throw new Error("test error from background.js", {cause: ErrorCause.DB_ERROR});
             } else {
                 console.warn("No matching command for " + message.command + " might be captured in other pages.");
             }
         } catch (error) {
             console.error(error);
-            sendResponse({
-                error: error.message || error
-            });
+            if (error.message) {
+                sendResponse({
+                    error: {
+                        message: error.message,
+                        cause: error.cause
+                    }
+                });
+            } else {
+                sendResponse({
+                    error: error.message || error
+                });
+            }
         }
     })();
 
@@ -2517,41 +2655,44 @@ async function init(source) {
                 }
             });
         } else {
-            let result = await chrome.storage.local.get(["detectedChromeVersion"]);
-            const DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN = 90;
-            if (!result.detectedChromeVersion || result.detectedChromeVersion === true || Math.abs(new Date(result.detectedChromeVersion).diffInDays()) > DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN) {
-                chrome.storage.local.set({"detectedChromeVersion": new Date().toJSON()});
-                result = await DetectClient.getChromeChannel();
-                if (result.oldVersion) {
-                    showWebNotification("You are using an old browser version", {
-                        body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update Chrome.",
-                        icon: Icons.NotificationLogo,
-                        tag: NotificationTags.UPDATE_BROWSER,
-                        newNotificationOnClick: async () => {
-                            openUpdateBrowserLink();
-                        }
-                    });
-                } else if (result?.channel != "stable" && result?.channel != "extended") {
-                    showWebNotification("You are not using the stable channel of Chrome", {
-                        body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update to stable channel of Chrome.",
-                        icon: Icons.NotificationLogo,
-                        tag: NotificationTags.UNSTABLE_BROWSER_CHANNEL,
-                        newNotificationOnClick: async () => {
-                            openUnstableWarningPage("notif");
-                        }
-                    });
+            chrome.storage.local.get(["detectedChromeVersion"]).then(async result => {
+                const DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN = 90;
+                if (!result.detectedChromeVersion || result.detectedChromeVersion === true || Math.abs(new Date(result.detectedChromeVersion).diffInDays()) > DAYS_TO_WAIT_BEFORE_DETECTING_VERSION_AGAIN) {
+                    chrome.storage.local.set({"detectedChromeVersion": new Date().toJSON()});
+                    result = await DetectClient.getChromeChannel();
+                    if (result.oldVersion) {
+                        showWebNotification("You are using an old browser version", {
+                            body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update Chrome.",
+                            icon: Icons.NotificationLogo,
+                            tag: NotificationTags.UPDATE_BROWSER,
+                            newNotificationOnClick: async () => {
+                                openUpdateBrowserLink();
+                            }
+                        });
+                    } else if (result?.channel != "stable" && result?.channel != "extended") {
+                        showWebNotification("You are not using the stable channel of Chrome", {
+                            body: "Click for more info. Bugs might occur, but all issues will be ignored unless you update to stable channel of Chrome.",
+                            icon: Icons.NotificationLogo,
+                            tag: NotificationTags.UNSTABLE_BROWSER_CHANNEL,
+                            newNotificationOnClick: async () => {
+                                openUnstableWarningPage("notif");
+                            }
+                        });
+                    }
                 }
-            }
+            }).catch(error => {
+                console.warn("error getting detectedChromeVersion: " + error);
+            });
         }
 	} catch (e) {
 		logError("error detecting chrome version: " + e);
 	}
-	
+
 	if (!chrome.runtime.onMessage || !globalThis.Promise) {
 		openUrl("https://jasonsavard.com/wiki/Old_Chrome_version");
 		return;
     }
-    
+
     // initialized here to detect disable/enable extension by removing the setVia=manifest
     chrome.action.setPopup({popup: getPopupFile("toolbar")});
 
@@ -2559,7 +2700,7 @@ async function init(source) {
     chrome.action.setTitle({ title: getMessage("loadingSettings") + "..." });
     
 	storagePromise.then(async () => {
-
+        setUninstallUrl();
 
         detectSleepMode.init();
 
@@ -2647,26 +2788,28 @@ async function init(source) {
 
         initAutomaticRestart();
 
-        const GMAIL_PAGE_HOST = "https://mail.google.com/mail/u/*";
-        const GMAIL_PAGE_SCRIPT = ["js/gmail-page.js"];
-
         chrome.scripting.registerContentScripts([{
-            id: 'gmailPageScript',
-            matches: [GMAIL_PAGE_HOST],
-            js: GMAIL_PAGE_SCRIPT
+            id: ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.id,
+            matches: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.host],
+            js: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.js]
         }]).catch(error => {
             console.warn("Error registering content script: " + error);
-        })
+        });
 
-        for (const tab of await chrome.tabs.query({url: GMAIL_PAGE_HOST})) {
+        for (const tab of await chrome.tabs.query({url: ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.host})) {
             try {
                 await chrome.scripting.executeScript({
                     target: {tabId: tab.id},
-                    files: GMAIL_PAGE_SCRIPT,
+                    files: [ContentScriptIds.GMAIL_UNREAD_COUNT_SCRIPT.js],
                 });
             } catch (error) {
                 console.warn("error in executescript: " + error);
             }
+        }
+
+        if (await storage.get("showCheckerPlusComposeInGmail")) {
+            await unregisterAICompose();
+            await registerAICompose();
         }
 	}).catch(error => {
         console.error("init error", error);
@@ -2858,13 +3001,9 @@ async function pollAccounts(params = {}) {
             if (accountsSummary.allSignedOut) {
                 setSignedOut({title:accountsSummary.firstNiceError, source: "polling-accounts"});
             } else {
-                if (!await storage.get("verifyPaymentRequestSent")) {
+                if (!await storage.get("paymentInfo")) {
                     try {
-                        const response = await verifyPayment(accounts);
-                        if (response.unlocked || true) { // Force unlock
-                            await Controller.processFeatures();
-                        }
-                        await storage.enable("verifyPaymentRequestSent");
+                        await verifyPayment(accounts);
                     } catch (error) {
                         console.warn("ignore verifyPayment error", error);
                     }
@@ -3098,7 +3237,11 @@ async function mailUpdate(params = {}) {
     await storage.set("unreadCount", totalUnread);
 	initPopup();
 	
-
+	// update the uninstall url caused we detected an email
+	const firstEmail = getFirstEmail(accounts);
+	if (await storage.get("_uninstallEmail") != firstEmail) {
+		setUninstallUrl(firstEmail);
+    }
     
     await serializeAccounts(accounts, {source: params.pollingAccountsSource ? "polling-accounts" : "mailUpdate"});
 
