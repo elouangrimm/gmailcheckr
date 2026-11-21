@@ -354,9 +354,6 @@ if (chrome.alarms) {
 
                     storage.setDate("_lastUpdateSkins");
                 }
-            } else if (alarm.name == Alarms.UPDATE_UNINSTALL_URL) {
-                // do this every day so that the daysellapsed is updated in the uninstall url
-                setUninstallUrl(getFirstEmail(accounts));
             } else if (alarm.name == Alarms.CLEAR_SUBJECTS_SPOKEN) {
                 storage.remove("_subjectsSpoken");
             } else if (alarm.name == Alarms.AUTOMATIC_RESTART) {
@@ -583,23 +580,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         showMessageNotification("No code assigned to this menu", "Try re-installing the extension.");
     }
 });
-
-async function setUninstallUrl(email) {
-	if (chrome.runtime.setUninstallURL) {
-		await storagePromise; // previously used await initMisc() but this caused race condition because setUninstallUrl did not have an await in the rest of the code and thus initMisc was called twice consecutively
-		var url = "https://jasonsavard.com/uninstalled?app=gmail";
-		url += "&version=" + encodeURIComponent(chrome.runtime.getManifest().version);
-		url += "&daysInstalled=" + await daysElapsedSinceFirstInstalled();
-		if (email && !/mail\.google\.com/.test(email)) {
-            url += "&e=" + encodeURIComponent(btoa(email));
-            storage.set("_uninstallEmail", email);
-		}
-		if (await storage.get("donationClicked")) {
-			url += "&c=true";
-		}
-		chrome.runtime.setUninstallURL(url);
-	}
-}
 
 async function onButtonClicked(notificationId, buttonIndex) {
 	console.log("onbuttonclicked", notificationId, buttonIndex);
@@ -2700,8 +2680,6 @@ async function init(source) {
     chrome.action.setTitle({ title: getMessage("loadingSettings") + "..." });
 
 	storagePromise.then(async () => {
-        setUninstallUrl();
-
         detectSleepMode.init();
 
         // START LEGACY

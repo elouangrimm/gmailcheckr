@@ -89,9 +89,6 @@
             display: none;
         }
 
-		[mustDonate] {opacity:0.4;transition:opacity 0.1s ease-in}
-		[mustDonate]:hover {opacity:1}
-
 		.highlight {
             outline: 4px solid red;
             border-radius: 5px;
@@ -940,9 +937,9 @@
                     </div>
                     <label><input type="checkbox" id="showButtonTooltip" indexdb-storage="showButtonTooltip" style="margin-bottom:6px"><span msg="showButtonTooltip"></span></label>
                     <label><input type="checkbox" id="hide_count" indexdb-storage="hide_count"><span msg="hideUnreadCount"></span></label>
-                    <label><input type="checkbox" id="showOnlyRecentUnreadEmails" indexdb-storage="showOnlyRecentUnreadEmails" mustDonate><span msg="showOnlyRecentUnreadEmails"></span></label>
+                    <label><input type="checkbox" id="showOnlyRecentUnreadEmails" indexdb-storage="showOnlyRecentUnreadEmails"><span msg="showOnlyRecentUnreadEmails"></span></label>
                     <label><input type="checkbox" id="refreshWhenOpeningPopup" indexdb-storage="refreshWhenOpeningPopup"><span msg="refreshWhenOpeningPopup"></span></label>
-                    <label><input type="checkbox" id="resetEmailUnreadIconWhenButtonClicked" indexdb-storage="resetEmailUnreadIconWhenButtonClicked" mustDonate><span msg="resetEmailUnreadIconWhenButtonClicked"></span></label>
+                    <label><input type="checkbox" id="resetEmailUnreadIconWhenButtonClicked" indexdb-storage="resetEmailUnreadIconWhenButtonClicked"><span msg="resetEmailUnreadIconWhenButtonClicked"></span></label>
                     <fieldset>
                         <legend msg="unreadMailCountColor">Unread mail count color</legend>
                         <span id="sample-unread-count" style="margin-inline: 10px;border:1px solid #444;font-size:0.7em;color:black;border-width:1px;padding:0 4px;border-radius:3px">2</span> <j-button id="unread-count-background-color" icon="format-color-fill" class="raised"></j-button>
@@ -952,23 +949,23 @@
                 <fieldset id="checkerPlusButtons" class="layout horizontal start col-gap" style="gap: 30px">
                     <legend msg="selectQuickActionButtons">selectQuickActionButtons</legend>
                     <div>
-                        <label id="showArchive"><input type="checkbox" indexdb-storage="showArchive" mustDonate><j-icon icon="archive"></j-icon></input> <span msg="archive"></span></label>
-                        <label id="showSpam"><input type="checkbox" indexdb-storage="showSpam" mustDonate><j-icon icon="report"></j-icon></input> <span msg="spam"></span></label>
-                        <label id="showDelete"><input type="checkbox" indexdb-storage="showDelete" mustDonate><j-icon icon="delete"></j-icon></input> <span msg="deleteLink"></span></label>
-                        <label id="showMoveLabel"><input type="checkbox" indexdb-storage="showMoveLabel" mustDonate><j-icon icon="moveFolderIcon"></j-icon></input> <span msg="moveLabel"></span></label>
-                        <label id="showReply"><input type="checkbox" indexdb-storage="showReply" mustDonate><j-icon icon="reply"></j-icon></input> <span msg="replyInGmail"></span></label>
-                        <label id="showOpen"><input type="checkbox" indexdb-storage="showOpen" mustDonate><j-icon icon="open-in-browser"></j-icon></input> <span msg="openGmailTab"></span></label>
-                        <label id="showMarkAsUnread"><input type="checkbox" indexdb-storage="showMarkAsUnread" mustDonate><j-icon icon="markunread"></j-icon></input> <span msg="unreadLinkTitle"></span></label>
-                        <label id="showMarkAsRead"><input type="checkbox" indexdb-storage="showMarkAsRead" mustDonate><j-icon icon="drafts"></j-icon></input> <span msg="readLinkTitle"></span></label>
+                        <label id="showArchive"><input type="checkbox" indexdb-storage="showArchive"><j-icon icon="archive"></j-icon></input> <span msg="archive"></span></label>
+                        <label id="showSpam"><input type="checkbox" indexdb-storage="showSpam"><j-icon icon="report"></j-icon></input> <span msg="spam"></span></label>
+                        <label id="showDelete"><input type="checkbox" indexdb-storage="showDelete"><j-icon icon="delete"></j-icon></input> <span msg="deleteLink"></span></label>
+                        <label id="showMoveLabel"><input type="checkbox" indexdb-storage="showMoveLabel"><j-icon icon="moveFolderIcon"></j-icon></input> <span msg="moveLabel"></span></label>
+                        <label id="showReply"><input type="checkbox" indexdb-storage="showReply"><j-icon icon="reply"></j-icon></input> <span msg="replyInGmail"></span></label>
+                        <label id="showOpen"><input type="checkbox" indexdb-storage="showOpen"><j-icon icon="open-in-browser"></j-icon></input> <span msg="openGmailTab"></span></label>
+                        <label id="showMarkAsUnread"><input type="checkbox" indexdb-storage="showMarkAsUnread"><j-icon icon="markunread"></j-icon></input> <span msg="unreadLinkTitle"></span></label>
+                        <label id="showMarkAsRead"><input type="checkbox" indexdb-storage="showMarkAsRead"><j-icon icon="drafts"></j-icon></input> <span msg="readLinkTitle"></span></label>
                     </div>
                     <div>
-                        <label id="showArchiveAll"><input type="checkbox" indexdb-storage="showArchiveAll" mustDonate><j-icon icon="archive"></j-icon> <span msg="archiveAll"></span></input></label>
-                        <label id="showMarkAllAsSpam"><input type="checkbox" indexdb-storage="showMarkAllAsSpam" mustDonate><j-icon icon="report"></j-icon> <span msg="markAllAsSpam"></span></input></label>
-                        <label id="showMarkAllAsRead"><input type="checkbox" indexdb-storage="showMarkAllAsRead" mustDonate><j-icon icon="drafts"></j-icon> <span msg="markAllAsRead"></span></input></label>
-                        <label id="showAddToCalendar"><input type="checkbox" indexdb-storage="showAddToCalendar" mustDonate><j-icon icon="event"></j-icon></input> <span msg="addToGoogleCalendar"></span></label>
-                        <label id="showAddToTasks"><input type="checkbox" indexdb-storage="showAddToTasks" mustDonate><j-icon icon="add-task"></j-icon></input> <span msg="addToTasks"></span></label>
-                        <label id="showListenToEmail" hide-from-firefox><input type="checkbox" indexdb-storage="showListenToEmail" mustDonate><j-icon icon="headset"></j-icon></input> <span msg="listenToYourEmail"></span></label>
-                        <label id="showPrint"><input type="checkbox" indexdb-storage="showPrint" mustDonate><j-icon icon="print"></j-icon></input> <span msg="print"></span></label>
+                        <label id="showArchiveAll"><input type="checkbox" indexdb-storage="showArchiveAll"><j-icon icon="archive"></j-icon> <span msg="archiveAll"></span></input></label>
+                        <label id="showMarkAllAsSpam"><input type="checkbox" indexdb-storage="showMarkAllAsSpam"><j-icon icon="report"></j-icon> <span msg="markAllAsSpam"></span></input></label>
+                        <label id="showMarkAllAsRead"><input type="checkbox" indexdb-storage="showMarkAllAsRead"><j-icon icon="drafts"></j-icon> <span msg="markAllAsRead"></span></input></label>
+                        <label id="showAddToCalendar"><input type="checkbox" indexdb-storage="showAddToCalendar"><j-icon icon="event"></j-icon></input> <span msg="addToGoogleCalendar"></span></label>
+                        <label id="showAddToTasks"><input type="checkbox" indexdb-storage="showAddToTasks"><j-icon icon="add-task"></j-icon></input> <span msg="addToTasks"></span></label>
+                        <label id="showListenToEmail" hide-from-firefox><input type="checkbox" indexdb-storage="showListenToEmail"><j-icon icon="headset"></j-icon></input> <span msg="listenToYourEmail"></span></label>
+                        <label id="showPrint"><input type="checkbox" indexdb-storage="showPrint"><j-icon icon="print"></j-icon></input> <span msg="print"></span></label>
                     </div>
                 </fieldset>
             </div>
@@ -1020,7 +1017,7 @@
                     <label><input type="checkbox" indexdb-storage="24hourMode"> <span msg="24hourMode"></span></label>
 
                     <div class="layout horizontal start" hide-from-firefox>
-                        <label><input type="checkbox" id="setPositionAndSize" indexdb-storage="setPositionAndSize" mustDonate> <span msg="setPositionAndSize"></span></label>
+                        <label><input type="checkbox" id="setPositionAndSize" indexdb-storage="setPositionAndSize"> <span msg="setPositionAndSize"></span></label>
                         <div id="setPositionAndSizeOptions">
                             <j-input msgLabel="positionFromLeft" indexdb-storage="popupLeft"></j-input>
                             <j-input msgLabel="width" indexdb-storage="popupWidth"></j-input>
@@ -1043,7 +1040,7 @@
 
                     <label><input type="checkbox" id="showEOM" indexdb-storage="showEOM"> <span msg="showEOM"></span></label><j-tooltip for="showEOM" animation-delay="0" position="start"><span msg="showEOMToolTip"></span></j-tooltip>
                     <label><input type="checkbox" id="hideSentFrom" indexdb-storage="hideSentFrom"> <span msg="hideSentFrom"></span></label><j-tooltip for="hideSentFrom" animation-delay="0" position="start"><span msg="hideSentFromToolTip"></span></j-tooltip>
-                    <label><input type="checkbox" id="removeShareLinks" indexdb-storage="removeShareLinks" mustDonate> <span msg="removeShareLinks"></span></label><j-tooltip for="removeShareLinks" animation-delay="0" position="start"><span msg="removeShareLinksTooltip"></span></j-tooltip>
+                    <label><input type="checkbox" id="removeShareLinks" indexdb-storage="removeShareLinks"> <span msg="removeShareLinks"></span></label><j-tooltip for="removeShareLinks" animation-delay="0" position="start"><span msg="removeShareLinksTooltip"></span></j-tooltip>
                     <label><input type="checkbox" id="autoCollapseConversations" indexdb-storage="autoCollapseConversations"> <span msg="autoCollapseConversations"></span></label>
                     <label><input type="checkbox" id="progressivelyLoadEmails" indexdb-storage="progressivelyLoadEmails"> <span msg="progressivelyLoadEmails"></span></label>
                     <label><input type="checkbox" id="enableSwiping" indexdb-storage="enableSwiping"> <span msg="enableSwiping"></span></label>
@@ -1055,7 +1052,7 @@
 
                     <label>
                         <span class="label-text" msg="appearance"></span>
-                        <select id="appearance" mustDonate>
+                        <select id="appearance">
                             <option value="light" msg="light">light</option>
                             <option value="dark" msg="dark">dark</option>
                             <option value="system" msg="systemDefault">systemDefault</option>

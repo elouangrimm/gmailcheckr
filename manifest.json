@@ -1,6 +1,4 @@
 {
-"update_url": "https://clients2.google.com/service/update2/crx",
-
 	"name": "Gmail Checkr",
 	"description": "__MSG_description__",
 	"version": "36.7.1",

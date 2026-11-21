@@ -2040,17 +2040,10 @@ async function openContributeDialog(key, params = {}) {
 
 async function setStorage(element, params) {
 	var OFF_OR_DEFAULT = DEFAULT_SETTINGS_ALLOWED_OFF.includes(params.key) && (!params.value || DEFAULT_SETTINGS[params.key] == params.value);
-
-	if ((element.closest("[mustDonate]") || params.mustDonate) && !donationClickedFlagForPreventDefaults && !OFF_OR_DEFAULT) {
-		params.event.preventDefault();
-        //params.event.stopImmediatePropagation(); // commented when using jdom so that other listeners can still process the event (ex. play sound on change)
-		openContributeDialog(params.key);
-		return Promise.reject(JError.DID_NOT_CONTRIBUTE);
-	} else {
-        if (params.key == "sounds" && (params.value == "custom" || params.value == "record")) {
-            // ignore
-            return;
-        }
+    if (params.key == "sounds" && (params.value == "custom" || params.value == "record")) {
+        // ignore
+        return;
+    }
 
 		if (params.account) {
 			return params.account.saveSettingForLabel(params.key, params.label, params.value);
@@ -2058,7 +2051,6 @@ async function setStorage(element, params) {
 			return storage.set(params.key, params.value);
 		}
 	}
-}
 
 function initPaperElement($nodes, params = {}) {
     $nodes = selectorAll($nodes);
@@ -2360,12 +2352,7 @@ function initMessages(node) {
 }
 
 async function donationClicked(action, monthly) {
-	if (await storage.get("donationClicked")) {
-		return true;
-	} else {
-		openContributeDialog(action, {monthly: monthly});
-		return false;
-	}
+  return true;
 }
 
 async function getChromeWindows() {
