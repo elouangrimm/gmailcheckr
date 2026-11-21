@@ -382,13 +382,13 @@ var slideDown = (targets, duration=500) => {
 
                 target.style.transitionProperty = "height";
                 target.style.transitionDuration = duration + 'ms';
-            
+
                 /** Do this after the 0px has applied. */
                 /** It's like a delay or something. MAGIC! */
                 setTimeout(() => {
                     target.style.height = "auto";
-                }, 0) 
-            
+                }, 0)
+
                 //target.style.removeProperty('padding-top');
                 //target.style.removeProperty('padding-bottom');
                 //target.style.removeProperty('margin-top');
@@ -457,8 +457,8 @@ var fadeIn = (targets, duration=500) => {
                 /** It's like a delay or something. MAGIC! */
                 setTimeout(() => {
                     target.style.opacity = "1";
-                }, 0) 
-            
+                }, 0)
+
                 window.setTimeout( () => {
                     target.style.removeProperty('transition-duration');
                     target.style.removeProperty('transition-property');
@@ -494,7 +494,7 @@ var fadeOut = (targets, duration=500) => {
                 setTimeout(() => {
                     hide(target);
                 }, duration);
-            
+
                 window.setTimeout( () => {
                     target.style.removeProperty('transition-duration');
                     target.style.removeProperty('transition-property');
@@ -532,7 +532,7 @@ function addEventListeners(target, type, fn, namespace, listenerOptions) {
                 el[abortControllerFnName].abort(abortReason);
             }
             el[abortControllerFnName] = new AbortController();
-          
+
             if (listenerOptions === true) {
                 thisListenerOptions = {
                 	capture: true,
@@ -608,11 +608,11 @@ class DetectClientClass {
             this.platform = (await navigator.userAgentData.getHighEntropyValues(["platform"])).platform;
         }
     }
-  
+
     findBrand(brandString) {
         return navigator.userAgentData?.brands.some(brands => brands.brand == brandString);
     }
-    
+
     isChrome() {
         return this.findBrand("Google Chrome");
     }
@@ -685,7 +685,7 @@ class DetectClientClass {
     }
 
     async getChromeChannel() {
-        
+
         if (this.isChrome() || this.isChromeOS()) {
             let platform;
 
@@ -720,16 +720,16 @@ class DetectClientClass {
 
             const data = await fetchJSON(`https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/all/versions/all/releases?filter=version=${browserVersion}`);
             const release = data.releases[0];
-        
+
             if (release) {
                 const channel = release.name.split("/")[4];
                 const startTime = new Date(release.serving.startTime);
                 if (release.serving.endTime) {
                     //console.log("et", new Date(release.serving.endTime));
                 }
-    
+
                 const OLD_VERSION_THRESHOLD_IN_DAYS = 90;
-    
+
                 return {
                     channel: channel,
                     oldVersion: Math.abs(startTime.diffInDays()) > OLD_VERSION_THRESHOLD_IN_DAYS
@@ -800,7 +800,7 @@ function displayUncaughtError(error) {
     const indexedDBError = lowerCaseErrorStr.includes("indexeddb");
     const bucketError = lowerCaseErrorStr.includes("bucket data");
     const unrelatedToDB = lowerCaseErrorStr.includes("unrelated to the database"); // refer to: https://jasonsavard.com/forum/discussion/comment/37034#Comment_37034
-    
+
     const messageSendingError = lowerCaseErrorStr.includes("could not establish connection") || lowerCaseErrorStr.includes("a listener indicated an asynchronous");
     const sidePanelError = lowerCaseErrorStr.includes("sidepanel api not available"); // happens for avast users: https://jasonsavard.com/forum/d/8533-error-sidepanel-api-not-available/4
 
@@ -869,7 +869,7 @@ globalThis.addEventListener('error', function(event) {
 globalThis.addEventListener('unhandledrejection', event => {
     console.error("unhandledrejection", event.reason);
     displayUncaughtError(event.reason);
-  
+
     // Prevent the default handling (error in console)
     //event.preventDefault();
 });
@@ -883,7 +883,7 @@ function removeOrigin(url) {
 	} else {
 		linkObject = location;
 	}
-	
+
 	if (linkObject) {
 		return linkObject.pathname + linkObject.search + linkObject.hash;
 	} else {
@@ -937,7 +937,7 @@ function logError(action) {
 	var argumentsArray = [].slice.call(arguments, 0);
 	// exception: usually 'this' is passed but instead its 'console' because console and log are host objects. Their behavior is implementation dependent, and to a large degree are not required to implement the semantics of ECMAScript.
 	console.error.apply(console, argumentsArray);
-	
+
 	sendGAError.apply(this, arguments);
 }
 
@@ -987,7 +987,7 @@ async function _loadLocaleMessagesFile() {
     const localeFormatted = locale.replace("-", "_");
     const lang = localeFormatted.split("_")[0].toLowerCase();
     const region = localeFormatted.split("_")[1];
-        
+
     try {
         globalThis.localeMessages = await readMessagesFile(lang, region);
     } catch (error) {
@@ -1007,13 +1007,13 @@ async function _loadLocaleMessagesFile() {
 }
 
 async function loadLocaleMessages() {
-    // only load locales from files if they are not using their browser language (because i18n.getMessage uses the browser language) 
+    // only load locales from files if they are not using their browser language (because i18n.getMessage uses the browser language)
     if (chrome.i18n.getUILanguage && (locale == chrome.i18n.getUILanguage() || locale == chrome.i18n.getUILanguage().substring(0, 2))) {
         // for english just use native calls to get i18n messages
         globalThis.localeMessages = null;
     } else {
         //console.log("loading locale: " + locale);
-        
+
         // i haven't created a en-US so let's avoid the error in the console and just push the callback
         if (globalThis.locale != "en-US") {
             await _loadLocaleMessagesFile();
@@ -1033,15 +1033,15 @@ function getMessage(messageID, args) {
         }
 
 		if (typeof localeMessages != 'undefined' && localeMessages != null) {
-			var messageObj = localeMessages[messageID];	
+			var messageObj = localeMessages[messageID];
 			if (messageObj) { // found in this language
 				var str = messageObj.message;
-				
+
 				// patch: replace escaped $$ to just $ (because chrome.i18n.getMessage did it automatically)
 				if (str) {
 					str = str.replace(/\$\$/g, "$");
 				}
-				
+
 				if (args != null) {
 					if (args instanceof Array) {
 						for (var a=0; a<args.length; a++) {
@@ -1215,7 +1215,7 @@ function initCalendarNames(obj) {
 Date.prototype.addSeconds = function(seconds, cloneDate) {
 	var date;
 	if (cloneDate) {
-		date = new Date(this);		
+		date = new Date(this);
 	} else {
 		date = this;
 	}
@@ -1349,7 +1349,7 @@ Date.parse = function(dateStr) {
 				tzOffsetFeedMin = -tzOffsetFeedMin;
 			}
 		}
-		return new Date(d.getTime() + tzOffsetFeedMin * ONE_MINUTE); 
+		return new Date(d.getTime() + tzOffsetFeedMin * ONE_MINUTE);
 	}
 
 	parts = DATE_MILLI_REGEX.exec(dateStr);
@@ -1371,12 +1371,12 @@ Date.parse = function(dateStr) {
 	if (exists(parts) && parts.length > 0) {
 		return new Date(parts[1], parseInt(parts[2],10) - 1, parts[3]);
 	}
-	
+
 	// Parse these strings...
 	// Wed, Jan 25, 2012 at 1:53 PM
 	// 25 janvier 2012 13:53
 	// 25 января 2012 г. 13:53
-	
+
 	if (!isNaN(dateStr)) {
 		return new Date(dateStr);
 	}
@@ -1475,7 +1475,7 @@ Date.prototype.isBefore = function(otherDate) {
 		paramDate = new Date(otherDate);
 	} else {
 		paramDate = new Date();
-	}	
+	}
     const thisDate = new Date(this);
     paramDate = normalizeDST(thisDate, paramDate);
 
@@ -1492,7 +1492,7 @@ Date.prototype.diffInMillis = function(otherDate) {
 		d1 = new Date(otherDate);
 	} else {
 		d1 = new Date();
-	}	
+	}
 	var d2 = new Date(this);
     d1 = normalizeDST(d2, d1);
 
@@ -1517,7 +1517,7 @@ Date.prototype.diffInDays = function(otherDate, forHumans) {
 		d1 = new Date(otherDate);
 	} else {
 		d1 = new Date();
-	}	
+	}
 	var d2 = new Date(this);
     if (forHumans) {
 		resetTime(d1);
@@ -1561,7 +1561,7 @@ Array.prototype.uniqueAttr = function(getValueFunction) {
     var retArray = [];
 
     for (const key in result) {
-        if (result.hasOwnProperty(key)) { 
+        if (result.hasOwnProperty(key)) {
             retArray.push(result[key]);
         }
     }
@@ -1640,7 +1640,7 @@ String.prototype.summarize = function(maxLength, EOM_Message) {
 			summary += EOM_Message;
 		}
 	}
-	
+
 	// patch: do not why: but it seem that unless i append a str to summary, it returns an array of the letters in summary?
 	return summary + "";
 }
@@ -1656,10 +1656,10 @@ String.prototype.parseTime = function() {
 		pieces = this.match(/(\d+)([:|\.](\d\d))?\s*(a|p)?/i);
 	}
 	if (pieces && pieces.length >= 5) {
-		// patch: had to use parseFloat instead of parseInt (because parseInt would return 0 instead of 9 when parsing "09" ???		
+		// patch: had to use parseFloat instead of parseInt (because parseInt would return 0 instead of 9 when parsing "09" ???
 		var hours = parseFloat(pieces[1]);
 		var ampm = pieces[4];
-		
+
 		// patch for midnight because 12:12am is actually 0 hours not 12 hours for the date object
 		if (hours == 12) {
 			if (ampm && ampm.toLowerCase().startsWith("a")) {
@@ -1670,7 +1670,7 @@ String.prototype.parseTime = function() {
 		} else if (ampm && ampm.toLowerCase().startsWith("p")) {
 			hours += 12;
 		}
-		d.setHours(hours);		
+		d.setHours(hours);
 		d.setMinutes( parseFloat(pieces[3]) || 0 );
 		d.setSeconds(0, 0);
 		return d;
@@ -1722,7 +1722,7 @@ String.prototype.getFirstName = function() {
 
 /*
 String.prototype.endsWith = function(suffix) {
-	var indexOfSearchStr = this.indexOf(suffix, this.length - suffix.length); 
+	var indexOfSearchStr = this.indexOf(suffix, this.length - suffix.length);
     return indexOfSearchStr != -1 && indexOfSearchStr == this.length - suffix.length;
 };
 */
@@ -1764,7 +1764,7 @@ function parseDate(dateStr) {
 	 */
 
 	  var parts = DATE_TIME_REGEX.exec(dateStr);
-	  
+
 	  // Try out the Z version
 	  if (!parts) {
 	    parts = DATE_TIME_REGEX_Z.exec(dateStr);
@@ -1772,7 +1772,7 @@ function parseDate(dateStr) {
 	  if (!parts) {
 		parts = DATE_TIME_REGEX_Z2.exec(dateStr);
 	  }
-	  
+
 	  if (exists(parts) && parts.length > 0) {
 	    var d = new Date();
 	    d.setUTCFullYear(parts[1], parseInt(parts[2], 10) - 1, parts[3]);
@@ -1790,7 +1790,7 @@ function parseDate(dateStr) {
 	    }
 	    return new Date(d.getTime() + tzOffsetFeedMin * ONE_MINUTE);
 	  }
-	  
+
 	  parts = DATE_MILLI_REGEX.exec(dateStr);
 	  if (exists(parts)) {
 			var d = new Date();
@@ -1830,7 +1830,7 @@ function initAnalytics() {
 			});
 		});
 	}
-} 
+}
 
 function determineAnalyticsLabel(node) {
 	var id = node.getAttribute("ga");
@@ -1899,7 +1899,7 @@ function processNodeForAnalytics(node) {
 				category = id;
 				action = "click";
 			}
-			
+
 			if (label != null) {
 				sendGA(category, action, label);
 			} else {
@@ -1926,7 +1926,7 @@ async function initMisc(params = {}) {
     if (!globalThis.initMiscPromise) {
         console.info("initMisc");
         globalThis.initMiscPromise = new Promise(async (resolve, reject) => {
-            
+
             await DetectClient.init();
 
             if (!params.skipStorageInit) {
@@ -1946,7 +1946,7 @@ async function initMisc(params = {}) {
             initCalendarNames(dateFormat.i18n);
             await initOauthAPIs();
             Controller();
-    
+
             ChromeTTS();
 
             console.time("initAllAccounts");
@@ -1958,7 +1958,7 @@ async function initMisc(params = {}) {
             await buttonIcon.init();
 
             globalThis.openCheckerPlusComposeInGmailAction = await storage.get("openCheckerPlusComposeInGmailAction");
-    
+
             // MUST USE promise with resolve because I could forget an await on one of these async functions above and could lead to race issue and undefined accounts or buttonIcon ref: https://jasonsavard.com/forum/discussion/comment/24170#Comment_24170
             resolve();
         });
@@ -2040,7 +2040,7 @@ async function openContributeDialog(key, params = {}) {
 
 async function setStorage(element, params) {
 	var OFF_OR_DEFAULT = DEFAULT_SETTINGS_ALLOWED_OFF.includes(params.key) && (!params.value || DEFAULT_SETTINGS[params.key] == params.value);
-    
+
 	if ((element.closest("[mustDonate]") || params.mustDonate) && !donationClickedFlagForPreventDefaults && !OFF_OR_DEFAULT) {
 		params.event.preventDefault();
         //params.event.stopImmediatePropagation(); // commented when using jdom so that other listeners can still process the event (ex. play sound on change)
@@ -2068,7 +2068,7 @@ function initPaperElement($nodes, params = {}) {
 		if (DetectClient.isChromium()) {
 			permissions = element.getAttribute("permissions");
 		}
-		
+
         let storageValue;
         if (key) {
             storageValue = await storage.get(key);
@@ -2100,8 +2100,8 @@ function initPaperElement($nodes, params = {}) {
 		}
 
 		// need a 1ms pause or else setting the default above would trigger the change below?? - so make sure it is forgotten
-        //sleep(500);    
-        
+        //sleep(500);
+
         let eventName;
         if (element.nodeName.equalsIgnoreCase("input")) {
             eventName = "change";
@@ -2144,7 +2144,7 @@ function initPaperElement($nodes, params = {}) {
                 }
 
                 let storagePromise;
-                
+
                 if (key) {
                     storagePromise = setStorage(element, {event:event, key:key, value:value});
                 } else if (params.key) {
@@ -2152,7 +2152,7 @@ function initPaperElement($nodes, params = {}) {
                     params.value = value;
                     storagePromise = setStorage(element, params);
                 }
-                
+
                 storagePromise.catch(error => {
                     console.error("could not save setting: " + error);
 
@@ -2166,7 +2166,7 @@ function initPaperElement($nodes, params = {}) {
                             element.value = storageValue;
                         }
                     }
-                    
+
                     if (error != JError.DID_NOT_CONTRIBUTE) {
                         showError(error);
                     }
@@ -2181,7 +2181,7 @@ function initPaperElement($nodes, params = {}) {
                             niceAlert("Might not be supported by this OS");
                         }
                     });
-                } else {			
+                } else {
                     chrome.permissions.remove({permissions: [permissions]}, function(removed) {
                         if (removed) {
                             element.checked = false;
@@ -2313,10 +2313,10 @@ function initMessages(node) {
         $nodes.forEach(el => {
             if (!el._warningAdded) {
                 el._warningAdded = true;
-    
+
                 el.setAttribute("disabled", "");
                 el.style.opacity = "0.5";
-                
+
                 const paperTooltip = document.createElement("j-tooltip");
                 paperTooltip.setAttribute("animation-delay", "0");
                 paperTooltip.textContent = WARNING_MESSAGE;
@@ -2353,7 +2353,7 @@ function initMessages(node) {
         addWarning("hide-from-edge");
         removeAllNodes("[hide-from-edge]");
     }
-    
+
     if (!DetectClient.isWindows()) {
         removeAllNodes("[windows-only]");
     }
@@ -2415,7 +2415,7 @@ async function openUrl(url, params = {}) {
             if (!response?.found) {
                 response = await createTabAndFocusWindow(url);
             }
-                
+
             if (location.href.includes("source=toolbar") && DetectClient.isFirefox() && params.autoClose !== false) {
                 globalThis.close();
             }
@@ -2427,7 +2427,7 @@ async function openUrl(url, params = {}) {
 async function createTabAndFocusWindow(url) {
     let windowId;
     // 2026 commented detection and just do it for all because seems vivaldi also behaved this way, but could not detect it
-    //if (DetectClient.isFirefox()) { // required for Firefox because when inside a popup the tabs.create would open a tab/url inside the popup but we want it to open inside main browser window 
+    //if (DetectClient.isFirefox()) { // required for Firefox because when inside a popup the tabs.create would open a tab/url inside the popup but we want it to open inside main browser window
         const thisWindow = await chrome.windows.getCurrent();
         if (thisWindow?.type == "popup") {
             const lastFocusedWindow = await chrome.windows.getLastFocused({windowTypes:["normal"]});
@@ -2463,13 +2463,13 @@ function addCSS(id, css) {
 	return s;
 }
 
-function pad(str, times, character) { 
+function pad(str, times, character) {
 	var s = str.toString();
 	var pd = '';
 	var ch = character ? character : ' ';
-	if (times > s.length) { 
-		for (var i=0; i < (times-s.length); i++) { 
-			pd += ch; 
+	if (times > s.length) {
+		for (var i=0; i < (times-s.length); i++) {
+			pd += ch;
 		}
 	}
 	return pd + str.toString();
@@ -2545,13 +2545,13 @@ function exists(o) {
 	if (o) {
 		return true;
 	} else {
-		return false;	
-	}	
+		return false;
+	}
 }
 
 function getExtensionIDFromURL(url) {
 	//"chrome-extension://dlkpjianaefoochoggnjdmapfddblocd/options.html"
-	return url.split("/")[2]; 
+	return url.split("/")[2];
 }
 
 function isSameUrl(url1, url2) {
@@ -2594,7 +2594,7 @@ function cleanEmailSubject(subject) {
 		subject = subject.replace(/^re: ?/i, "");
 		subject = subject.replace(/^fwd: ?/i, "");
 	}
-	return subject;	
+	return subject;
 }
 
 function extractEmails(text) {
@@ -2622,7 +2622,7 @@ function getHost(url) {
 	}
 }
 
-function ellipsis(str, cutoffLength) {	
+function ellipsis(str, cutoffLength) {
 	if (cutoffLength && str && str.length > cutoffLength) {
 		str = str.substring(0, cutoffLength) + " ...";
 	}
@@ -2645,7 +2645,7 @@ function beautify(string) {
  *  Function for filtering text from "bad" characters and preppare text
  *  for Google Text to Speech API
  * -----------------------------------------------------------------------------
-*/	
+*/
 function filterTextForGoogleSpeech(text) {
 	var j = 0,
 	str = [],
@@ -2656,7 +2656,7 @@ function filterTextForGoogleSpeech(text) {
 
 	for(var i in badchars) // replacing bad chars
 	{
-		text = text.split(badchars[i]).join(replaces[i]);		
+		text = text.split(badchars[i]).join(replaces[i]);
 	}
 
 	str = text.split(/([.,!?:])/i); // this is where magic happens :) :)
@@ -2699,22 +2699,22 @@ function isDomainEmail(email) {
 	if (email) {
 		email = email.toLowerCase();
 		var POPULAR_DOMAINS = ["zoho", "aim", "videotron", "icould", "inbox", "yandex", "rambler", "ya", "sbcglobal", "msn", "me", "facebook", "twitter", "linkedin", "email", "comcast", "gmx", "aol", "live", "google", "outlook", "yahoo", "gmail", "mail", "comcast", "googlemail", "hotmail"];
-		
+
 		var foundPopularDomainFlag = POPULAR_DOMAINS.some(function(popularDomain) {
 			if (email.includes("@" + popularDomain + ".")) {
 				return true;
 			}
 		});
-		
+
 		return !foundPopularDomainFlag;
 	}
 }
 
 function ChromeTTS() {
-	
+
 	var chromeTTSMessages = [];
 	var speaking = false;
-	
+
 	ChromeTTS.queue = async function(msg, params = {}) {
 		// this might have fixed the endless loop
 		if (msg != null && msg != "") {
@@ -2735,12 +2735,12 @@ function ChromeTTS() {
 	ChromeTTS.isSpeaking = function() {
 		return speaking;
 	}
-	
+
 	function setVoiceByLang(chromeTTSMessage, lang, voices) {
 		const voiceFound = voices.find(voice => {
 			return voice.lang && voice.lang.match(lang);
 		});
-		
+
 		if (voiceFound) {
 			chromeTTSMessage.voiceName = voiceFound.voiceName;
 			chromeTTSMessage.extensionId = voiceFound.extensionId;
@@ -2770,22 +2770,22 @@ function ChromeTTS() {
                 const chromeTTSMessage = chromeTTSMessages[0];
 
                 if (!speaking && !speakingParam && chromeTTSMessage?.utterance) {
-                    
+
                     chromeTTSMessage.utterance = shortenUrls(chromeTTSMessage.utterance);
-                    
+
                     chromeTTSMessage.voiceName = voiceParams.split("___")[0];
                     chromeTTSMessage.extensionId = voiceParams.split("___")[1];
 
                     console.log("speak: " + chromeTTSMessage.utterance);
                     speaking = true;
                     chrome.tts.stop();
-                    
+
                     const detectLanguageResult = await chrome.i18n.detectLanguage(chromeTTSMessage.utterance);
                     const voices = await chrome.tts.getVoices();
                     const voiceUserChose = voices.find(voice => {
                         return voice.voiceName == chromeTTSMessage.voiceName && voice.extensionId == chromeTTSMessage.extensionId;
                     });
-                    
+
                     if (!voiceUserChose || !voiceUserChose.lang) {
                         // user chose voice with a lang (ie. native) don't use auto-detect because it does not have a fallback lang attribute
                     } else if (chromeTTSMessage.forceLang) {
@@ -2805,14 +2805,14 @@ function ChromeTTS() {
                     } else if (chromeTTSMessage.defaultLang) {
                         setVoiceByLang(chromeTTSMessage, chromeTTSMessage.defaultLang, voices);
                     }
-                    
+
                     // check the time between when we executed the speak command and the time between the actual "start" event happened (if it doesn't happen then let's break cause we could be stuck)
                     const speakNotStartedTimer = setTimeout(function() {
                         console.log("start event never happened: so stop voice");
                         // stop will invoke the "interuppted" event below and it will process end/next speak events
                         chrome.tts.stop();
                     }, seconds(5));
-                
+
                     chrome.tts.speak(chromeTTSMessage.utterance, {
                         voiceName: chromeTTSMessage.voiceName,
                         extensionId : chromeTTSMessage.extensionId,
@@ -2821,7 +2821,7 @@ function ChromeTTS() {
                         pitch: pitch,
                         rate: rate,
                         onEvent: function(event) {
-                            console.log('event: ' + event.type);			
+                            console.log('event: ' + event.type);
                             if (event.type == "start") {
                                 clearTimeout(speakNotStartedTimer);
                             } else if (event.type == "interrupted" || event.type == 'error' || event.type == 'end' || event.type == 'cancelled') {
@@ -2905,7 +2905,7 @@ async function fetchText(url, searchStreamFunction) {
                 } else {
                     //console.log("Stream read");
                 }
-            
+
                 data += utf8decoder.decode(value, {stream: true});
 
                 searchResult = searchStreamFunction(data);
@@ -2948,7 +2948,7 @@ async function fetchJSON(url, data, options = {}) {
                 for (const pair of data.entries()) {
                     url.searchParams.append(pair[0], pair[1]);
                 }
-            } else {            
+            } else {
                 Object.keys(data).forEach(key => {
                     if (Array.isArray(data[key])) {
                         data[key].forEach(value => {
@@ -2980,7 +2980,7 @@ async function fetchJSON(url, data, options = {}) {
             }
         }
     }
-    
+
     //console.log("fetchJSON", url, options);
     const response = await fetchWrapper(url, options);
     console.log("fetchresponse", response);
@@ -3036,7 +3036,7 @@ async function fetchJSON(url, data, options = {}) {
 function LineReader(str) {
 	var SEP = "\r\n";
 	this.currentIndex = 0;
-	
+
 	this.readLine = function() {
         // detect if at the end of string
         if (this.currentIndex == str.length) {
@@ -3059,7 +3059,7 @@ function LineReader(str) {
 
 function parseBodyParts(body) {
 	var httpResponses = [];
-    
+
     /*
 	var contentType = jqXHR.getResponseHeader("content-type"); // multipart/mixed; boundary=batch_Al0uYHFsObA=_AAFnntVKyPs=
 	//console.log("contentType", contentType);
@@ -3070,7 +3070,7 @@ function parseBodyParts(body) {
     */
     // fist lines in response contains the boundary ie. --batch_TYfz_-hvxys_ABTBc14rZZI
     const boundary = body.match(/\-\-(.*)\r/i)[1].trim();
-	
+
 	//console.log("boundary: " + boundary);
 
 	const bodyParts = body.split("--" + boundary);
@@ -3078,7 +3078,7 @@ function parseBodyParts(body) {
 		if (bodyPart.length >= 10) { // because -- means end of body
 			/* example:
 			Content-Type: application/http
-			
+
 			HTTP/1.1 200 OK
 			ETag: "gbmbZs68sGGWei7engZdferRE3M/kD5-Hkz3T496rt9xks8mnnwGENY"
 			Content-Type: application/json; charset=UTF-8
@@ -3086,12 +3086,12 @@ function parseBodyParts(body) {
 			Expires: Sun, 20 Jul 2014 15:56:25 GMT
 			Cache-Control: private, max-age=0
 			Content-Length: 1186337
-			
+
 			bodyblahblah...
 		 */
 
 			var httpResponse = {};
-			
+
 			var emptyLines = 0;
 			var lr = new LineReader(bodyPart);
             let line;
@@ -3115,19 +3115,19 @@ function parseBodyParts(body) {
 						}
 					} else {
 						// process other headers here...
-						
+
 					}
 				}
 			}
-			
+
 			/*
 			// get first bunch of characters to parse
 			var firstBunchOfLines = bodyParts[a].substring(0, 1000);
 			// split lines into array
 			firstBunchOfLines = firstBunchOfLines.match(/[^\r\n]+/g);
 			*/
-		
-			httpResponses.push(httpResponse);			
+
+			httpResponses.push(httpResponse);
 		}
 	}
 
@@ -3169,7 +3169,7 @@ MyGAPIClient.getAllHeaderValues = function(headers, name) {
 
 function HttpBatch() {
 	const httpRequests = [];
-	
+
     function chunkArray(array, chunkSize) {
         const chunks = [];
         for (let i = 0; i < array.length; i += chunkSize) {
@@ -3181,19 +3181,19 @@ function HttpBatch() {
 	this.add = function(httpRequest, optParams) {
         httpRequests.push(httpRequest);
 	};
-	
+
 	// Usage: params: .oauthRequest, .tokenResponse OR .email
 	this.execute = async function(sendOAuthParams) {
         if (httpRequests.length) {
             const boundary = "batch_sep";
             const chunks = chunkArray(httpRequests, MAX_REQUESTS_PER_BATCH);
-    
+
             let allHttpResponses = [];
-    
+
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 let data = [];
-    
+
                 for (const httpRequest of chunk) {
                     data.push("");
                     data.push(`--${boundary}`);
@@ -3202,13 +3202,13 @@ function HttpBatch() {
                     data.push(`${httpRequest.method} ${httpRequest.path}`);
                 }
                 data.push(`--${boundary}--`);
-    
+
                 // if no token passed then use email
                 let tokenResponse = sendOAuthParams.tokenResponse;
                 if (!tokenResponse) {
                     tokenResponse = await sendOAuthParams.oauthRequest.findTokenResponse(sendOAuthParams.email);
                 }
-    
+
                 const sendResponse = await sendOAuthParams.oauthRequest.send({
                     tokenResponse: tokenResponse,
                     type: "POST",
@@ -3216,18 +3216,18 @@ function HttpBatch() {
                     contentType: `multipart/mixed; boundary="${boundary}"`,
                     data: data.join("\n")
                 });
-    
+
                 const httpResponses = parseBodyParts(sendResponse);
                 console.log("parsed parts parsed", httpResponses);
-    
+
                 allHttpResponses = allHttpResponses.concat(httpResponses);
-    
+
                 if (i < chunks.length - 1 && chunks.length > MAX_CHUNKS_BEFORE_ADDING_DELAY) {
                     console.log("Sleeping for batch request");
                     await sleep(1000); // trying only 1ms, but should be 1s according to api: https://developers.google.com/gmail/api/reference/quota
                 }
             }
-    
+
             const httpBodies = allHttpResponses.map(httpResponse => {
                 try {
                     httpResponse.body = JSON.parse(httpResponse.body);
@@ -3258,11 +3258,11 @@ function HttpBatch() {
                 }
                 return httpResponse.body;
             });
-    
+
             // must match dummy resolve below if httpRequests.length == 0
             return {httpResponses: allHttpResponses, httpBodies: httpBodies};
         } else {
-            // send out dummy 
+            // send out dummy
             return {httpResponses:[], httpBodies:[]};
         }
 	}
@@ -3354,12 +3354,12 @@ function OAuthForDevices(defaultParams) {
 		// override default with this method
 		this.getUserEmail = defaultParams.getUserEmail;
 	} else {
-		// default getUserEmail	
+		// default getUserEmail
         this.getUserEmail = async function() {
             return {};
         }
     }
-    
+
     function setExpiryDate(tokenResponse) {
         // expires_in params is in seconds (i think)
         tokenResponse.expiryDate = new Date(Date.now() + (tokenResponse.expires_in * 1000));
@@ -3412,7 +3412,7 @@ function OAuthForDevices(defaultParams) {
             throw new Error("No tokenResponse found!");
         }
 	}
-	
+
 	async function sendOAuthRequest(params) {
         let accessToken;
         if (params.tokenResponse) {
@@ -3423,16 +3423,16 @@ function OAuthForDevices(defaultParams) {
         } else {
             throw Error("no tokenResponse or userEmail passed to sendOAuthRequest");
         }
-        
+
         if (params.appendAccessToken) {
             params.data = initUndefinedObject(params.data);
             params.data.access_token = accessToken;
         }
-        
+
         if (/delete/i.test(params.type)) {
             params.data = null;
         }
-        
+
         console.log("sendOAuthRequest: " + params.userEmail + " url: " + params.url);
 
         const options = {
@@ -3466,7 +3466,7 @@ function OAuthForDevices(defaultParams) {
             throw error;
         }
 	}
-	
+
 	async function ensureToken(tokenResponse) {
         if (tokenResponse.chromeProfile) {
             const getAuthTokenParams = {
@@ -3530,7 +3530,7 @@ function OAuthForDevices(defaultParams) {
 
         return {tokenResponse:tokenResponse};
 	}
-	
+
 	// private isExpired
 	function isExpired(tokenResponse) {
         var SECONDS_BUFFER = -300; // 5 min. yes negative, let's make the expiry date shorter to be safe
@@ -3545,7 +3545,7 @@ function OAuthForDevices(defaultParams) {
 
     async function getAuthTokenFromServer(data) {
         data.version = "3";
-        
+
         if (data.refresh_token) {
             data.ert = eStr(data.refresh_token);
             delete data.refresh_token;
@@ -3557,7 +3557,7 @@ function OAuthForDevices(defaultParams) {
                 "content-type": "application/json" // required for golang or would come in as ==part form-data ...
             },
         });
-        
+
         const response = dStr(rawResponse);
         return JSON.parse(response);
     }
@@ -3568,7 +3568,7 @@ function OAuthForDevices(defaultParams) {
         if (!Array.isArray(userEmails)) {
             userEmails = [userEmails];
         }
-        
+
         const responses = [];
         for (const userEmail of userEmails) {
             const tokenResponse = await that.findTokenResponse(userEmail);
@@ -3587,8 +3587,8 @@ function OAuthForDevices(defaultParams) {
         } else {
             return responses;
         }
-	}		
-	
+	}
+
 	this.send = async function(params) {
         let tokenResponse;
         // if tokenresponse directly passsed here then use it, else let's use the userEmail to find the token
@@ -3613,12 +3613,12 @@ function OAuthForDevices(defaultParams) {
             throw new Error(JError.NO_TOKEN_FOR_EMAIL);
         }
 	}
-	
+
 	this.findTokenResponseIndex = async function(params) {
         const tokenResponses = await that.getTokenResponses();
         return tokenResponses.findIndex(element => element.userEmail.equalsIgnoreCase(params.userEmail));
 	}
-	
+
 	this.findTokenResponse = async function(email) {
 		const index = await that.findTokenResponseIndex({userEmail: email});
 		if (index != -1) {
@@ -3658,34 +3658,34 @@ function OAuthForDevices(defaultParams) {
         let newlyGrantedChromeSignInScopes = [];
 
         await storage.setDate("_openOauthFlowDate");
-        
+
         if (params.useGoogleAccountsSignIn) {
             const generateCodeVerifier = () => {
                 const array = new Uint8Array(56);
                 crypto.getRandomValues(array);
                 return base64UrlEncode(array);
             };
-            
+
             const base64UrlEncode = (array) => {
                 return btoa(String.fromCharCode.apply(null, array))
                     .replace(/\+/g, '-')
                     .replace(/\//g, '_')
                     .replace(/=+$/, '');
             };
-            
+
             const generateCodeChallenge = async (codeVerifier) => {
                 const encoder = new TextEncoder();
                 const data = encoder.encode(codeVerifier);
                 const digest = await crypto.subtle.digest('SHA-256', data);
                 return base64UrlEncode(new Uint8Array(digest));
             };
-            
+
             let redirectURI = `${chrome.identity.getRedirectURL()}provider_cb`;
             if (!redirectURI.includes('chromiumapp.org') && !redirectURI.includes('allizom.org')) {
                 niceAlert("Your are using an un-Googled Chromium based browser which might not support a secure sign in.");
                 redirectURI = redirectURI.replace('ch40m1umapp.qjz9zk', 'chromiumapp.org');
             }
-            
+
             const codeVerifier = generateCodeVerifier();
             const codeChallenge = await generateCodeChallenge(codeVerifier);
 
@@ -3758,7 +3758,7 @@ function OAuthForDevices(defaultParams) {
                 interactive: true,
                 scopes: params.scopes || defaultParams.scopes
             };
-            
+
             try {
                 authResponse = await getAuthToken(getAuthTokenParams);
             } catch (error) {
@@ -3806,7 +3806,7 @@ function OAuthForDevices(defaultParams) {
 
                 tokenResponses.push(tokenResponse);
             }
-            
+
             await setTokenResponses(tokenResponses);
             return tokenResponse;
         } else {
@@ -3818,7 +3818,7 @@ function OAuthForDevices(defaultParams) {
 function DetectSleepMode() {
     var PING_INTERVAL = 60; // MUST MATCH the Alarm EVERY_MINUTE
 	var PING_INTERVAL_BUFFER = 15;
-	
+
 	async function lastPingIntervalToolLong() {
         const lastPingTime = await storage.get("lastPingTime");
 		return lastPingTime?.diffInSeconds() < -(PING_INTERVAL+PING_INTERVAL_BUFFER);
@@ -3826,9 +3826,9 @@ function DetectSleepMode() {
 
     this.init = function() {
         storage.setDate("lastPingTime");
-        storage.set("lastWakeupTime", new Date(1)); // make the last wakeup time really old because extension starting up does not equal a wakeup 
+        storage.set("lastWakeupTime", new Date(1)); // make the last wakeup time really old because extension starting up does not equal a wakeup
     }
-	
+
 	this.ping = async function() {
 		if (await lastPingIntervalToolLong()) {
 			console.log("DetectSleepMode.wakeup time: " + new Date());
@@ -3836,7 +3836,7 @@ function DetectSleepMode() {
 		}
 		storage.setDate("lastPingTime");
 	}
-    
+
 	this.isWakingFromSleepMode = async function() {
         const lastPingTime = await storage.get("lastPingTime");
         const lastWakeupTime = await storage.get("lastWakeupTime");
@@ -3853,7 +3853,7 @@ function DetectSleepMode() {
 }
 
 function Controller() {
-	
+
 	Controller.DOMAIN = "https://apps.jasonsavard.com/";
 
 	// internal only for now
@@ -3885,7 +3885,7 @@ function Controller() {
 
         return response;
 	}
-	
+
 	Controller.getSkins = function(ids, timeMin) {
 		const data = {
             action: "getSkins",
@@ -3900,7 +3900,7 @@ function Controller() {
 		if (timeMin) {
 			data.timeMin = Math.round(new Date().diffInSeconds(timeMin)); // seconds elapsed since now
 		}
-		
+
 		return callAjaxController({data:data});
 	}
 
@@ -3910,19 +3910,16 @@ function Controller() {
 		data.id = id;
 		data.offset = offset;
 		data.misc = location.href;
-		
+
 		// had to pass misc as parameter because it didn't seem to be passed with header above
 		return callAjaxController({data:data});
 	}
 
 	Controller.processFeatures = async (paymentInfo) => {
         await storage.set("paymentInfo", paymentInfo);
-
-        if (paymentInfo.unlocked) {
-            await storage.enable("donationClicked");
-            initRealtimeSync();
-            chrome.runtime.sendMessage({command: "featuresProcessed", paymentInfo: paymentInfo}, function(response) {});
-        }
+        await storage.enable("donationClicked");
+        initRealtimeSync();
+        chrome.runtime.sendMessage({command: "featuresProcessed", paymentInfo: paymentInfo}, function(response) {});
 	}
 
     Controller.convertUSDToOtherCurrency = (amount, currency) => {
@@ -3949,7 +3946,7 @@ function Controller() {
             monthly_payment: 2,
             yearly_payment: 20
         });
-        
+
         const DAYS_TO_CACHE = 10;
         if (!minPaymentObj.lastFetchDate || minPaymentObj.lastFetchDate.diffInDays() <= -DAYS_TO_CACHE) {
             try {
@@ -4059,24 +4056,24 @@ var syncOptions = (function() {
 	var INDEXEDDB_CHUNK_PREFIX = "indexedDBChunk";
 	var saveTimeout;
 	var paused;
-	
+
 	// ex. syncChunks(deferreds, localStorageChunks, "localStorageChunk", setDetailsSeparateFromChunks);
 	function syncChunks(deferreds, chunks, chunkPrefix, details, setDetailsSeparateFromChunks) {
-		
+
 		var previousDeferredsCount = deferreds.length;
-		
+
 		chunks.forEach((chunk, index) => {
 			var itemToSave = {};
-			
+
 			// let's set details + chunk together
 			if (!setDetailsSeparateFromChunks) {
 				itemToSave["details"] = details;
 			}
-			
+
 			itemToSave[chunkPrefix + "_" + index + "_" + details.chunkId] = chunk;
-			
+
 			console.log("trying to sync.set json length: ", chunkPrefix + "_" + index + "_" + details.chunkId, chunk.length + "_" + JSON.stringify(chunk).length);
-			
+
 			const promise = new Promise((resolve, reject) => {
 				// firefox
 				chrome.storage.sync.MAX_WRITE_OPERATIONS_PER_MINUTE ??= 120;
@@ -4089,13 +4086,13 @@ var syncOptions = (function() {
 				} else {
 					delay = 0;
 				}
-				setTimeout(function() {					
+				setTimeout(function() {
 					chrome.storage.sync.set(itemToSave, function() {
 						if (chrome.runtime.lastError) {
 							var error = "sync error: " + chrome.runtime.lastError.message;
 							logError(error);
 							reject(error);
-						} else {											
+						} else {
 							console.log("saved " + chunkPrefix + " " + index);
 							resolve("success");
 						}
@@ -4105,8 +4102,8 @@ var syncOptions = (function() {
 			deferreds.push(promise);
 		});
 	}
-	
-	// usage: compileChunks(details, items, details.localStorageChunksCount, LOCALSTORAGE_CHUNK_PREFIX) 
+
+	// usage: compileChunks(details, items, details.localStorageChunksCount, LOCALSTORAGE_CHUNK_PREFIX)
 	function compileChunks(details, items, chunkCount, prefix) {
 		var data = "";
 		for (var a=0; a<chunkCount; a++) {
@@ -4114,11 +4111,11 @@ var syncOptions = (function() {
 		}
 		return JSON.parse(data);
 	}
-	
+
 	function isSyncable(key) {
 		return !key.startsWith("_") && !syncOptions.excludeList.includes(key);
 	}
-	
+
 	return { // public interface
 		init: function(excludeList = []) {
 			// all private members are accesible here
@@ -4133,7 +4130,7 @@ var syncOptions = (function() {
 						storageEventsCount = 0;
 					}
 					await storage.set("_storageEventsCount", ++storageEventsCount);
-					
+
 					// if loaded upon new install then we can proceed immediately to save settings or else want for minium storage event
 					if (await storage.get("lastSyncOptionsLoad") || await storage.get("lastSyncOptionsSave") || storageEventsCount >= MIN_STORAGE_EVENTS_COUNT_BEFORE_SAVING) {
                         console.log("storage event: " + params.key + " will sync it soon...");
@@ -4163,9 +4160,9 @@ var syncOptions = (function() {
                 // watchout because the stringify adds quotes and slashes refer to https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
                 // so let's only use 70% of the max and leave the rest for stringification when the sync.set is called
                 var MAX_CHUNK_SIZE = Math.floor(chrome.storage.sync.QUOTA_BYTES_PER_ITEM * 0.60); // changed from 80 to 70, 60 ref: https://jasonsavard.com/forum/discussion/comment/24198#Comment_24198
-    
+
                 console.log("syncOptions: saving data reason: " + reason + "...");
-                
+
                 // process localStorage
                 var localStorageItemsToSave = {};
 
@@ -4178,13 +4175,13 @@ var syncOptions = (function() {
                         }
                     }
                 }
-                
+
                 const exportIndexedDBResponse = await syncOptions.exportIndexedDB({ exportAll: false });
                 // remove all items first because we might have less "chunks" of data so must clear the extra unsused ones now
                 await chrome.storage.sync.clear();
                 var deferreds = [];
                 var deferred;
-                
+
                 var chunkId = getUniqueId();
 
                 const QUOTA_ERROR_STR = "Settings to large. If you need to replicate the settings you can take screenshots of the option pages and set them manually onto the other device.";
@@ -4198,12 +4195,12 @@ var syncOptions = (function() {
 
                 const localStorageChunks = chunkObject(localStorageItemsToSave, MAX_CHUNK_SIZE);
                 const indexedDBChunks = chunkObject(exportIndexedDBResponse.data, MAX_CHUNK_SIZE);
-                
+
                 const details = {chunkId:chunkId, localStorageChunksCount:localStorageChunks.length, indexedDBChunksCount:indexedDBChunks.length, extensionVersion:chrome.runtime.getManifest().version, lastSync:new Date().toJSON(), syncReason:reason};
-                
+
                 // can we merge details + first AND only chunk into one .set operation (save some bandwidth)
                 var setDetailsSeparateFromChunks;
-                
+
                 if (localStorageChunks.length == 1 && indexedDBChunks.length == 1 && JSON.stringify(details).length + localStorageChunks.first().length + indexedDBChunks.first().length < MAX_CHUNK_SIZE) {
                     setDetailsSeparateFromChunks = false;
                 } else {
@@ -4218,12 +4215,12 @@ var syncOptions = (function() {
                     });
                     deferreds.push(deferred);
                 }
-                
+
                 // in 1st call to syncChunks let's pass the last param setDetailsSeparateFromChunks
                 // in 2nd call to syncChunks let's hard code setDetailsSeparateFromChunks to true
                 syncChunks(deferreds, localStorageChunks, LOCALSTORAGE_CHUNK_PREFIX, details, setDetailsSeparateFromChunks);
                 syncChunks(deferreds, indexedDBChunks, INDEXEDDB_CHUNK_PREFIX, details, true);
-                
+
                 try {
                     await Promise.all(deferreds);
                     storage.setDate("lastSyncOptionsSave");
@@ -4232,7 +4229,7 @@ var syncOptions = (function() {
                     console.error(error);
                     // error occured so let's clear storage because we might have only partially written data
                     chrome.storage.sync.clear();
-                    
+
                     if (error.toString().includes("QUOTA")) {
                         throw Error(QUOTA_ERROR_STR);
                     } else {
@@ -4266,7 +4263,7 @@ var syncOptions = (function() {
 			console.log("syncOptions: load...");
             if (chrome.storage.sync) {
                 if (items) {
-                    const details = items["details"]; 
+                    const details = items["details"];
                     if (details) {
                         // process localstorage
                         if (globalThis.localStorage) {
@@ -4276,7 +4273,7 @@ var syncOptions = (function() {
                                 globalThis.localStorage.setItem(item, dataObj[item]);
                             }
                         }
-                        
+
                         // process indexeddb
                         if (details.indexedDBChunksCount) {
                             dataObj = compileChunks(details, items, details.indexedDBChunksCount, INDEXEDDB_CHUNK_PREFIX);
@@ -4298,11 +4295,11 @@ var syncOptions = (function() {
 		},
 		exportIndexedDB: async function(params = {}) {
             const db = wrappedDB.db;
-        
+
             if (!db) {
                 throw new Error("jerror db not declared");
             }
-        
+
             // Ok, so we begin by creating the root object:
             const data = {};
             const promises = [];
@@ -4314,25 +4311,25 @@ var syncOptions = (function() {
                     new Promise((resolve, reject) => {
                         const objectstore = db.objectStoreNames[i];
                         console.log("objectstore: " + objectstore);
-        
+
                         const transaction = db.transaction([objectstore], "readonly");
                         const content = [];
 
                         if (params.exportToFile) {
                             content.push({ key: "_exportDate", value: { value: new Date() } });
                         }
-        
+
                         transaction.oncomplete = function(event) {
                             console.log("trans oncomplete for " + objectstore + " with " + content.length + " items");
                             resolve({ name: objectstore, data: content });
                         };
-        
+
                         transaction.onerror = function(event) {
                             // Don't forget to handle errors!
                             console.dir(event);
                             reject(event);
                         };
-        
+
                         const handleResult = function(event) {
                             const cursor = event.target.result;
                             if (cursor) {
@@ -4349,7 +4346,7 @@ var syncOptions = (function() {
                                             account.mails = account.unsnoozedEmails = account.emailsInAllLabels = JSON.stringify([]);
                                         });
                                     }
-        
+
                                     if (params.exportToFile) {
                                         // dont do this when exporting to file for security reasons and would need to also handle other aes vars with ArrayBuffer
                                     } else { // to chrome storage
@@ -4364,18 +4361,18 @@ var syncOptions = (function() {
                                         console.warn("could not log this one", error);
                                     }
                                 }
-        
+
                                 cursor.continue();
                             }
                         };
-        
+
                         const objectStore = transaction.objectStore(objectstore);
                         objectStore.openCursor().onsuccess = handleResult;
                     })
                 );
             }
             console.groupEnd(groupLabel);
-        
+
             try {
                 const dataToStore = await Promise.all(promises);
                 console.log(dataToStore);
@@ -4386,7 +4383,7 @@ var syncOptions = (function() {
                 const serializedData = JSON.stringify(dataToStore);
                 console.log("datastore:", dataToStore);
                 console.log("length: " + serializedData.length);
-        
+
                 return { data: dataToStore };
             } catch (error) {
                 console.error(error);
@@ -4515,7 +4512,7 @@ function downloadFile(data, mimeType, filename) {
     a.download = filename;
     a.href = blobUrl;
     a.dataset.downloadurl =  [mimeType, a.download, a.href].join(':');
-    
+
     // inside extenion popup windows CANNOT use .click() to execute on <a href="#"> instead must use e.init and e.dispatch event
     e.initMouseEvent('click', true, false, globalThis, 0, 0, 0, 0, 0, false, false, false, false, 0, null)
     a.dispatchEvent(e);
@@ -4598,10 +4595,10 @@ async function isOnline() {
 
 async function countEvent(eventName) {
 	var lsKey = "_countEvent_" + eventName;
-	
+
 	var countEvent;
 	var countEventStr = await storage.get(lsKey);
-	
+
 	if (countEventStr) {
 		countEvent = JSON.parse(countEventStr);
 		countEvent.startDate = new Date(countEvent.startDate);
@@ -4629,7 +4626,7 @@ function convertBase64ToBlob(base64str, type) {
 	for (var i = 0; i < byteString.length; i++) {
 		ia[i] = byteString.charCodeAt(i);
 	}
-	
+
 	// write the ArrayBuffer to a blob, and you're done
 	return new Blob([ia], {type: type});
 }
@@ -4659,7 +4656,7 @@ function DateTimeHighlighter() {
 	var myDateRegexs = new Array();
 
 	function addDayTimeRegex(myDateRegexs, myDateRegex) {
-		
+
 		// next week
 		var nextWeekDate = new Date(myDateRegex.date);
 		if (today().diffInDays(nextWeekDate) > -7) {
@@ -4679,7 +4676,7 @@ function DateTimeHighlighter() {
 	function getTime(date, pieces, startTimeOffset) {
 		var d = new Date(date);
 
-		// patch: had to use parseFloat instead of parseInt (because parseInt would return 0 instead of 9 when parsing "09" ???		
+		// patch: had to use parseFloat instead of parseInt (because parseInt would return 0 instead of 9 when parsing "09" ???
 		var pos;
 		if (startTimeOffset != null) {
 			pos = startTimeOffset;
@@ -4694,7 +4691,7 @@ function DateTimeHighlighter() {
 			d.setHours(hours);
 			d.setMinutes( parseFloat(pieces[pos+4]) || 0 );
 		} else {
-		
+
             pm = pm?.toLowerCase().startsWith("p");
 
 			if (hours >= 25) { //ie. 745pm was entered without the : (colon) so the hours will appear as 745 hours
@@ -4717,7 +4714,7 @@ function DateTimeHighlighter() {
 				} else if (pm) {
 					hours += 12;
 				}
-				d.setHours(hours);		
+				d.setHours(hours);
 				//if ((pos+2) < pieces.length - ) {
 				//}
 				d.setMinutes( parseFloat(pieces[pos+2]) || 0 );
@@ -4728,18 +4725,18 @@ function DateTimeHighlighter() {
 		d.setSeconds(0, 0);
 		return d;
 	}
-	
+
 	function getMonthNamePattern(monthNameIndex) {
 		var monthName = dateFormat.i18nEnglish.monthNames[monthNameIndex];
 		var monthNameShort = dateFormat.i18nEnglish.monthNamesShort[monthNameIndex];
-		
+
 		var monthNamePattern;
-		
+
 		// add 2nd language
 		if (false && workerParams.i18nOtherLang) {
 			var monthNameOtherLanguage = workerParams.i18nOtherLang.monthNames[monthNameIndex];
 			var monthNameShortOtherLanguage = workerParams.i18nOtherLang.monthNamesShort[monthNameIndex];
-			
+
 			monthNamePattern = "(?:" + monthName + "|" + monthNameShort + "\\.?|" + monthNameOtherLanguage + "|" + monthNameShortOtherLanguage + "\\.?)"; //(?:\\.)
 		} else {
 			monthNamePattern = "(?:" + monthName + "|" + monthNameShort + "\\.?)";
@@ -4754,7 +4751,7 @@ function DateTimeHighlighter() {
 
 		var dateYearPattern = "(\\d+)(st|nd|rd|th)?(,|, | )(\\d{4})";
 		var datePattern = "(\\d+)(st|nd|rd|th)?";
-		
+
 		var yearPattern = "(\\d{4})";
 
 		var SEP = "(?:,|, | | on | around )?";
@@ -4763,10 +4760,10 @@ function DateTimeHighlighter() {
 		for (var dayNameIndex=0; dayNameIndex<dateFormat.i18nEnglish.dayNames.length; dayNameIndex++) {
 			var dayName = dateFormat.i18nEnglish.dayNames[dayNameIndex];
 			var dayNameShort = dateFormat.i18nEnglish.dayNamesShort[dayNameIndex];
-			
+
 			var dayNamesSubPattern;
 			var periodOfDay;
-			
+
 			// add 2nd language
 			if (false && workerParams.i18nOtherLang) {
 				var dayNameOtherLanguage = workerParams.i18nOtherLang.dayNames[dayNameIndex];
@@ -4777,7 +4774,7 @@ function DateTimeHighlighter() {
 				dayNamesSubPattern = "(?:" + dayName + "|" + dayNameShort + "\\.?)";
 				periodOfDay = "(?: " + getMessage("morning") + "| " + getMessage("night") + ")?"
 			}
-			
+
 			var dayNamePattern = dayNamesSubPattern + periodOfDay;
 			var dayNamePatternSolo = dayNamesSubPattern + periodOfDay;
 
@@ -4827,7 +4824,7 @@ function DateTimeHighlighter() {
 					}, allDay:true});
 
 			}
-			
+
 			var todayDayIndex = today().getDay();
 			var daysAway = dayNameIndex-todayDayIndex;
 			if (daysAway < 0) {
@@ -4836,16 +4833,16 @@ function DateTimeHighlighter() {
 
 			var date = today();
 			date.setDate(date.getDate() + daysAway);
-			
+
 			// day + time - time (friday 10-11pm)
 			addDayTimeRegex(myDateRegexs, {pattern:dayNamePattern + SEP + timePattern + TO + timePattern, date:date, startTimeOffset:1, endTimeOffset:7, allDay:false});
-			
+
 			// day + time (friday 10)
 			addDayTimeRegex(myDateRegexs, {pattern:dayNamePattern + SEP + timePattern, date:date, startTimeOffset:1, allDay:false});
 
 			// time + day (10pm friday)
 			addDayTimeRegex(myDateRegexs, {pattern:timePattern + SEP + dayNamePattern, date:date, startTimeOffset:1, allDay:false});
-			
+
 			// day (friday)
 			addDayTimeRegex(myDateRegexs, {pattern:dayNamePatternSolo, date:date, allDay:true});
 		}
@@ -4861,8 +4858,8 @@ function DateTimeHighlighter() {
 				date.setYear(pieces[4]);
 				return date;
 			}, allDay:false});
-			
-			// April 8, 2012, 4:00pm 
+
+			// April 8, 2012, 4:00pm
 			myDateRegexs.push({pattern:monthNamePattern + SEP + dateYearPattern + SEP + timePattern, startTimeOffset:5, month:monthNameIndex, date:function(pieces, month) {
 				var date = new Date();
 				date.setMonth(month);
@@ -4871,7 +4868,7 @@ function DateTimeHighlighter() {
 				return date;
 			}, allDay:false});
 
-			// 8 April 2012, 4:00pm 
+			// 8 April 2012, 4:00pm
 			myDateRegexs.push({pattern:datePattern + SEP + monthNamePattern + SEP + yearPattern + SEP + timePattern, startTimeOffset:4, month:monthNameIndex, date:function(pieces, month) {
 				var date = new Date();
 				date.setMonth(month);
@@ -4898,7 +4895,7 @@ function DateTimeHighlighter() {
 				return date;
 			}, allDay:true});
 
-			// April 8, 4:00pm 
+			// April 8, 4:00pm
 			myDateRegexs.push({pattern:monthNamePattern + SEP + datePattern + SEP + timePattern, startTimeOffset:3, month:monthNameIndex, date:function(pieces, month) {
 				var date = new Date();
 				date.setMonth(month);
@@ -4906,7 +4903,7 @@ function DateTimeHighlighter() {
 				return date;
 			}, allDay:false});
 
-			// April 22 
+			// April 22
 			myDateRegexs.push({pattern:monthNamePattern + SEP + datePattern, month:monthNameIndex, date:function(pieces, month) {
 				var date = new Date();
 				date.setMonth(month);
@@ -4935,7 +4932,7 @@ function DateTimeHighlighter() {
 				return date;
 			}, allDay:true});
 		}
-		
+
 		var tomorrowPattern;
 		if (false && workerParams.i18nOtherLang) {
 			tomorrowPattern = "(?:tomorrow|" + workerParams.messages["tomorrow"] + ")";
@@ -4962,18 +4959,18 @@ function DateTimeHighlighter() {
 		if (originalStr) {
 			var highlightedText = originalStr;
 			var matchCount = 0;
-	
+
 			for (var a=0; a<myDateRegexs.length; a++) {
 			var regex = myDateRegexs[a].compiledRegex;
 			regex.lastIndex = 0; // reset state before each use
-	
+
 				// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/String/replace
 				highlightedText = highlightedText.replace(regex, function(match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10) { // match, p1, p2, p3, p#etc..., offset, string
 					//log("regex/argss: ", match);
 					var matchPosition;
-					
+
 					matchPosition = arguments[arguments.length-2];
-	
+
 					// make sure not already inside <A>
 					var canBeReplaced = true;
 					var beforeStr = highlightedText.substring(0, matchPosition);
@@ -4992,7 +4989,7 @@ function DateTimeHighlighter() {
 					} else {
 						// valid
 					}
-	
+
 					if (canBeReplaced) {
 						// make sure did NOT match an attribute within a tag ie. <div attr='3PM'>
 						var tagNameStart = beforeStr.lastIndexOf("<");
@@ -5009,27 +5006,27 @@ function DateTimeHighlighter() {
 							}
 						}
 					}
-					
+
 					if (!canBeReplaced) {
 						return match;
 					}
-	
+
 					matchCount++;
-	
+
 					// got here means wasn't too close to previous replacements
 					var startTime;
 					var endTime;
-	
+
 					if (typeof myDateRegexs[a].date == "function") {
 						startTime = myDateRegexs[a].date(arguments, myDateRegexs[a].month);
 					} else {
 						startTime = myDateRegexs[a].date;
 					}
-	
+
 					if (typeof myDateRegexs[a].endDate == "function") {
 						endTime = myDateRegexs[a].endDate(arguments, myDateRegexs[a].month);
 					}
-	
+
 					var pieces = arguments;
 					//if (pieces && pieces.length >= 6) {
 					if (myDateRegexs[a].startTimeOffset != null) {
@@ -5038,22 +5035,22 @@ function DateTimeHighlighter() {
 					if (myDateRegexs[a].endTimeOffset) {
 						endTime = getTime(startTime, pieces, myDateRegexs[a].endTimeOffset);
 					}
-	
+
                     if (endTime?.isBefore(startTime)) {
                         // if endtime is before starttime then it's probably a time range that crosses midnight
                         // so add a day to the endtime
                         endTime.setDate(endTime.getDate() + 1);
                     }
-					
+
 					// add starttime and endtime to object (watch out because mydatereg has "functions" called startDATE and endDATE
 					myDateRegexs[a].match = match;
 					myDateRegexs[a].startTime = startTime;
 					myDateRegexs[a].endTime = endTime;
-					
+
 					return highlightHandler(myDateRegexs[a]);
 				});
 			}
-	
+
 			// set to highligtext to null so the worker doesn't have to serialized the data transferred
 			if (matchCount == 0) {
 				highlightedText = null;
@@ -5128,7 +5125,7 @@ function blobToBase64(blob) {
 	});
 }
 
-// usage: getAllAPIData({oauthForDevices:oAuthForPeople, userEmail:userEmail, url:"https://people.googleapis.com/v1/people/me/connections?pageSize=100&requestMask.includeField=" + encodeURIComponent("person.emailAddresses,person.names"), itemsRootId:"connections"}) 
+// usage: getAllAPIData({oauthForDevices:oAuthForPeople, userEmail:userEmail, url:"https://people.googleapis.com/v1/people/me/connections?pageSize=100&requestMask.includeField=" + encodeURIComponent("person.emailAddresses,person.names"), itemsRootId:"connections"})
 async function getAllAPIData(params) {
     if (params.pageToken) {
         params.url = setUrlParam(params.url, "pageToken", params.pageToken);
@@ -5180,7 +5177,7 @@ function insertScript(url) {
 		script.onerror = function (e) {
 			reject(`Coud not load script: ${url}`);
 		};
-		(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(script);	
+		(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(script);
 	});
 }
 
@@ -5208,7 +5205,7 @@ function insertStylesheet(url, id) {
         if (id) {
             link.id = id;
         }
-        link.rel = 'stylesheet'; 
+        link.rel = 'stylesheet';
         link.href = url;
         link.onload = e => {
             resolve(e);
@@ -5228,12 +5225,12 @@ function showMessageNotification(title, message, error, errorType) {
         iconUrl: Icons.NotificationLogo,
         priority: 1
     }
-   
+
     var notificationId;
     if (error) {
         const errorMsg = error.message || error;
         var buttonTitle;
-        
+
         if (errorType == "extensionConflict") {
             notificationId = "extensionConflict";
             buttonTitle = "Click here to resolve issue";
@@ -5261,7 +5258,7 @@ function showMessageNotification(title, message, error, errorType) {
     } else {
         notificationId = "message";
     }
-    
+
     chrome.notifications.create(notificationId, options, async function(notificationId) {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
@@ -5287,7 +5284,7 @@ function showCouldNotCompleteActionNotification(error, extensionConflict) {
 
 function getPreferredLanguage() {
     let lang;
-	
+
     if (navigator.languages?.length) {
 		lang = navigator.languages[0];
 	} else {
@@ -5302,8 +5299,8 @@ function getPreferredLanguage() {
 	return lang;
 }
 
-/* 
-   From: http://setthebarlow.com/indexeddb/ 
+/*
+   From: http://setthebarlow.com/indexeddb/
 */
 
 const wrappedDB = {};
@@ -5389,7 +5386,7 @@ function getObjectStore(storeId, mode, key) {
 
 wrappedDB.open = function(dbName, storeId, version) {
 	return new Promise((resolve, reject) => {
-        
+
 		function createObjectStore(db) {
 			return new Promise((resolve, reject) => {
 				if (db.objectStoreNames.contains(storeId)) {
@@ -5403,7 +5400,7 @@ wrappedDB.open = function(dbName, storeId, version) {
                     console.info("creating object store");
                     const objectStore = db.createObjectStore(storeId, {keyPath: "key"}); // Create unique identifier for store
                     console.info("objectStore", objectStore)
-    
+
                     objectStore.transaction.oncomplete = function() {
                         console.info("object store oncomplete");
                         resolve();
@@ -5412,11 +5409,11 @@ wrappedDB.open = function(dbName, storeId, version) {
                         const error = "Error in creating object store: " + objectStore.transaction.error;
                         logError(error);
                         reject(error);
-                    }			
+                    }
                 }
 			});
 		}
-        
+
         try {
             let request;
 
@@ -5426,12 +5423,12 @@ wrappedDB.open = function(dbName, storeId, version) {
                 request = indexedDB.open(dbName);
             }
             //throw Error("Simulate corrupt indexeddb error");
-            
+
             request.onsuccess = function(e) {
                 const db = e.target.result;
                 resolve(db);
             };
-    
+
             request.onupgradeneeded = function (e) {
                 console.info("onupgradeneeded: " + storeId);
                 const db = e.target.result;
@@ -5441,7 +5438,7 @@ wrappedDB.open = function(dbName, storeId, version) {
                     reject(error);
                 });
             };
-    
+
             request.onblocked = function(e) {
                 console.error("onblocked", e);
                 // you can reproduce this might by uping the db version number, but without restarting the extension - just open the extension options page
@@ -5449,7 +5446,7 @@ wrappedDB.open = function(dbName, storeId, version) {
                 reject("DB version update blocked, try restarting the browser");
                 //e.target.result.close();
             };
-            
+
             request.onerror = function(e) {
                 console.error("onerror", e);
                 reject(e.target.error);
@@ -5481,7 +5478,7 @@ wrappedDB.putObject = function(storeId, key, value) {
         };
     });
 };
- 
+
 wrappedDB.deleteSetting = function(storeId, key) {
 	return new Promise((resolve, reject) => {
         const store = getObjectStore(storeId, "readwrite");
@@ -5497,7 +5494,7 @@ wrappedDB.deleteSetting = function(storeId, key) {
         };
 	});
 };
- 
+
 wrappedDB.readAllObjects = function(storeId) {
 	return new Promise((resolve, reject) => {
         const store = getObjectStore(storeId, "readonly", "readAllObjects");
@@ -5736,9 +5733,9 @@ function IndexedDBStorage() {
                 // make sure not use await supportsRealtime because didn't want the lag
                 "poll": supportsRealtime() ? "realtime": seconds(30)
             };
-    
+
             const DBNAME = "MCP_DB";
-    
+
             that.openingPromise = wrappedDB.open(DBNAME, storeId).then(async () => {
                 /*
                     dec 2025: inverted logic, now only cache/use readAllObjects if cacheIndexedDB is true
@@ -5756,7 +5753,7 @@ function IndexedDBStorage() {
                             }
                         });
                     }
-            
+
                     // as a fail safe I remove the cache after a 2 seconds
                     setTimeout(() => {
                         if (cachedItems) {
@@ -5812,7 +5809,7 @@ async function getInstanceToken() {
                         resolve(token);
                     }
                 });
-                
+
                 // seems Brave browser doesn't respond to success or failure
                 clearTimeout(globalThis.instanceIdTimeout);
                 globalThis.instanceIdTimeout = setTimeout(() => {
@@ -5960,7 +5957,7 @@ class Encryption {
         await storage.set(this.EXPORTED_STORAGE_KEY, exportedKey);
         return key;
     }
-    
+
     static async getAesGcmKey() {
         const exportedKey = await storage.get(this.EXPORTED_STORAGE_KEY);
         let key;
@@ -5980,10 +5977,10 @@ class Encryption {
         } else {
             key = await this.generateAndExportKey();
         }
-    
+
         return key;
     }
-    
+
     static async encrypt(message) {
         const enc = new TextEncoder();
         const encoded = enc.encode(message);
@@ -6196,14 +6193,14 @@ async function createWindow(params) {
 function generateRandomAlarmDelay() {
     const minHours = 2; // Minimum number of hours
     const maxHours = 8; // Maximum number of hours
-  
+
     // Convert hours to minutes
     const minMinutes = minHours * 60;
     const maxMinutes = maxHours * 60;
-  
+
     // Generate a random number of minutes between minMinutes and maxMinutes
     const randomMinutes = Math.floor(Math.random() * (maxMinutes - minMinutes + 1)) + minMinutes;
-  
+
     return randomMinutes;
 }
 

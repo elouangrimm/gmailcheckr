@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  	<title>Checker Plus for Gmail - Options</title>
+  	<title>Gmail Checkr - Options</title>
   	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
     <link rel="stylesheet" href="css/jdom.css">
@@ -38,9 +38,9 @@
             --icon-only-padding: 0;
             margin-inline-start: 10px;
         }
-		
+
 		.hide {display:none}
-		
+
 		@-webkit-keyframes blink {
 		    0% {
 		        opacity:0.5;
@@ -52,29 +52,29 @@
 		        opacity:0.5;
 		    }
 		}
-		
+
         #buttonPage .pin-extension {
             margin-bottom: 15px;
         }
         body.hide-pin .pin-extension {
             display: none;
         }
-		
+
 		.sliders {
             color:gray;
             font-size:0.8em;
         }
-		
+
 		.quote {color:gray}
 
         #generalPage label:has(select) {
             margin-block: 15px;
         }
-		
+
 		#notificationVoice label {transition:none}
-		
+
 		#middle {padding:30px 10px}
-		
+
         #badgeIcon {
             option {
                 gap: 5px;
@@ -91,13 +91,13 @@
 
 		[mustDonate] {opacity:0.4;transition:opacity 0.1s ease-in}
 		[mustDonate]:hover {opacity:1}
-		
+
 		.highlight {
             outline: 4px solid red;
             border-radius: 5px;
             transition: outline 0.5s ease-in-out;
         }
-		
+
 		#setPositionAndSizeOptions {
             margin-inline: 10px;
             display: grid;
@@ -110,11 +110,11 @@
         }
 
 		#accountsAndLabels {margin:30px 0}
-		
+
 		.autoDetect .signature {display:none !important}
 		.autoDetect .conversationView {display:none !important}
 		.autoDetect #addAccountWrapper {display:none}
-		
+
 		.accountError {
             color:red !important;
         }
@@ -124,7 +124,7 @@
                 display: none;
             }
         }
-		
+
         #accountsList j-item.over {
             xxoutline: 3px dotted #666;
             opacity: 0;
@@ -137,26 +137,26 @@
 
 		.labelIcon {opacity:0.5}
 		.disabledLine .labelIcon {opacity:0.1}
-		
+
 		.monitorLabelLine {padding:0 20px}
 		.monitorLabelLine.disabledLine .sound,
         .monitorLabelLine.disabledLine .notification,
         .monitorLabelLine.disabledLine .voice {
             visibility: hidden;
         }
-		
+
 		xx.disabledLine .notification {opacity:0 !important}
 
 		.toggleIcon:not([enabled]) {opacity:0.3}
 		.toggleIcon:hover {opacity:0.1}
 		.toggleIcon:hover:not([enabled]) {opacity:0.3}
 		.toggleIcon:hover[enabled] {opacity:1}
-		
+
 		.openLabel {width:110px}
-		
+
 		.soundOptionsWrapper, .voiceOptionsWrapper {width:220px}
 		body.disabledSound .soundOptionsWrapper, body.disabledVoice .voiceOptionsWrapper, body.disabledNotification .notification {display:none}
-		
+
 		body:not(.browserButtonAction_gmailInbox) .tab {display:none}
 
 		#dndScheduleDialog .row {
@@ -176,7 +176,7 @@
             --icon-padding: 0;
             xx--icon-size: 14px;
         }
-		
+
         #monitorLabels {
             border-top: 1px solid var(--border-color);
             padding-block-start: 13px;
@@ -201,7 +201,7 @@
 
 		.monitorLabelLine .sound:focus {background:#eee}
 		.importantInInbox .tab {opacity:0}
-		
+
         .move-icon {
             opacity: 0.4;
         }
@@ -211,7 +211,7 @@
         }
 
 		#customButtonDialog {overflow-y:hidden}
-		
+
 		.keys {border-collapse: collapse;margin-top:8px;margin-right:10px}
 		.keys td {margin:0;padding:5px;border:1px solid #ddd}
 		.keys td:first-child {font-weight:bold}
@@ -222,7 +222,7 @@
             padding: 10px;
             min-width: 300px;
         }
-		
+
 		.accountsLabelsHeader {
             font-weight:bold;
             padding:10px 20px;
@@ -297,9 +297,9 @@
                 max-height: 230px;
             }
         }
-		
+
   	</style>
-	  
+
     <script src="js/common.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
@@ -308,7 +308,7 @@
     <script defer src="js/account.js"></script>
     <script defer src="js/mail.js"></script>
   	<script defer src="js/options.js"></script>
-  	
+
 </head>
 
 <body>
@@ -320,12 +320,12 @@
                     <j-button class="side-rail-button" icon="menu" aria-label="Open menu"></j-button>
                     <div class="logo-and-title">
                         <img class="logo" src="images/icons/icon_48_white.png"/>
-                        <a main-title href="https://jasonsavard.com?ref=GmailOptionsTitle">Checker Plus for Gmail</a>
+                        <a main-title href="https://jasonsavard.com?ref=GmailOptionsTitle">Gmail Checkr</a>
                     </div>
                 </div>
 
                 <nav class="primary-nav" aria-label="Main Navigation"></nav>
-                
+
                 <div class="utility-items">
                     <j-input id="search" type="search" msgLabel="search"></j-input>
                     <a id="version" class="ripple" href="#"><span id="version-text">v.00.0.0</span></a>
@@ -448,7 +448,7 @@
                         </div>
                     </div>
                 </fieldset>
-    
+
                 <fieldset class="layout horizontal center col-gap" hide-from-firefox>
                     <legend msg="notificationTextToSpeech"></legend>
                     <label>
@@ -468,7 +468,7 @@
                             <option value='addVoice'><span msg="addSpeechEngines">Add voice</span>...</option>
                         </select>
                     </label>
-                    
+
                     <div id="voiceOptions" style="display: flex; align-items: center; gap: var(--gap)">
                         <j-button id="playVoice" icon="play-arrow" class="testButton raised"></j-button>
                         <div class="layout vertical start" style="gap: 20px">
@@ -505,7 +505,7 @@
                         </div>
                     </div>
                 </fieldset>
-                
+
                 <fieldset class="layout horizontal center col-gap">
                     <legend msg="showDesktopNotifications"></legend>
                     <label>
@@ -525,9 +525,9 @@
                     </div>
                     <a href="https://jasonsavard.com/wiki/Desktop_notifications" target="_blank"><j-button icon="help"></j-button></a>
                 </fieldset>
-                
+
                 <div id="desktopNotificationOptions" class="layout vertical start">
-                
+
                     <div id="textNotificationOptions">
                         <label>
                             <span class="label-text" msg="closeAfterX"></span>
@@ -542,11 +542,11 @@
                             </select>
                         </label>
                     </div>
-                
+
                     <div id="richNotificationOptions">
-                    
+
                         <fieldset id="notificationButtons" class="layout horizontal center col-gap">
-                        
+
                             <label>
                                 <span class="label-text" msg="clickingAnywhereOnNotification"></span>
                                 <select indexdb-storage="notificationClickAnywhere">
@@ -631,7 +631,7 @@
                             </label>
 
                         </fieldset>
-                        
+
                         <label style="margin-block: 15px">
                             <span class="label-text" msg="closeAfterX"></span>
                             <select id="showNotificationDuration_rich" indexdb-storage="showNotificationDuration">
@@ -652,9 +652,9 @@
                             <label><input id="showNotificationEmailImagePreview" type="checkbox" indexdb-storage="showNotificationEmailImagePreview"> <span msg="showNotificationEmailImagePreview">showNotificationEmailImagePreview</span></label> <a href="https://jasonsavard.com/wiki/Show_preview_of_first_image_inside_email" target="_blank"><j-button icon="help"></j-button></a>
                         </div>
                         <j-button id="showContactPhotos" class="raised" style="margin-block: 12px;" msg="showContactPhotos">show contact photos</j-button>
-                        
+
                     </div>
-                    
+
                     <fieldset class="layout horizontal center col-gap">
                         <label>
                             <span class="label-text" msg="display"></span>
@@ -931,7 +931,7 @@
                     </label>
 
                     <a href="https://jasonsavard.com/wiki/Popup_window?ref=GmailOptions" target="_blank"><j-button icon="help"></j-button></a>
-                        
+
                 </fieldset>
 
                 <div class="layout vertical start">
@@ -948,7 +948,7 @@
                         <span id="sample-unread-count" style="margin-inline: 10px;border:1px solid #444;font-size:0.7em;color:black;border-width:1px;padding:0 4px;border-radius:3px">2</span> <j-button id="unread-count-background-color" icon="format-color-fill" class="raised"></j-button>
                     </fieldset>
                 </div>
-                
+
                 <fieldset id="checkerPlusButtons" class="layout horizontal start col-gap" style="gap: 30px">
                     <legend msg="selectQuickActionButtons">selectQuickActionButtons</legend>
                     <div>
@@ -1002,12 +1002,12 @@
                     <div id="dnd-accounts" class="card"></div>
                 </div>
             </div>
-        </template>        
+        </template>
 
         <template id="generalPageTemplate">
             <div id="generalPage" class="page" value="general">
                 <div class="layout vertical start">
-                
+
                     <div class="layout vertical">
                         <label><input type="checkbox" id="previewingMarksAsRead" indexdb-storage="previewing_marks_as_read"> <span msg="previewingMarksAsRead"></span></label>
                         <label><input type="checkbox" indexdb-storage="archive_read"> <span msg="archive_read"></span></label>
@@ -1036,11 +1036,11 @@
                     </div>
 
                     <label id="emailPreview"><input type="checkbox" indexdb-storage="emailPreview"> <span msg="emailPreview"></span></label><j-tooltip for="emailPreview" animation-delay="0" position="start"><span msg="emailPreviewToolTip"></span></j-tooltip>
-                    
+
                     <div id="alwaysDisplayExternalContentWrapper" class="layout horizontal">
                         <label id="alwaysDisplayExternalContent"><input type="checkbox" indexdb-storage="alwaysDisplayExternalContent"> <span msg="alwaysDisplayExternalContent"></span></label> <a href="https://support.google.com/mail/answer/145919" target="_blank"><j-button icon="help"></j-button></a>
                     </div>
-                    
+
                     <label><input type="checkbox" id="showEOM" indexdb-storage="showEOM"> <span msg="showEOM"></span></label><j-tooltip for="showEOM" animation-delay="0" position="start"><span msg="showEOMToolTip"></span></j-tooltip>
                     <label><input type="checkbox" id="hideSentFrom" indexdb-storage="hideSentFrom"> <span msg="hideSentFrom"></span></label><j-tooltip for="hideSentFrom" animation-delay="0" position="start"><span msg="hideSentFromToolTip"></span></j-tooltip>
                     <label><input type="checkbox" id="removeShareLinks" indexdb-storage="removeShareLinks" mustDonate> <span msg="removeShareLinks"></span></label><j-tooltip for="removeShareLinks" animation-delay="0" position="start"><span msg="removeShareLinksTooltip"></span></j-tooltip>
@@ -1052,7 +1052,7 @@
                         <label><input type="checkbox" id="openGmailInNewTab" indexdb-storage="openGmailInNewTab"> <span msg="openGmailInNewTab"></span></label> <span style="color:gray;font-size:small">(For actions inside popup window)</span>
                     </div>
                     <label><input type="checkbox" id="insertSignatureBeforeQuotedText" indexdb-storage="insertSignatureBeforeQuotedText"> <span msg="insertSignatureBeforeQuotedText"></span></label>
-                    
+
                     <label>
                         <span class="label-text" msg="appearance"></span>
                         <select id="appearance" mustDonate>
@@ -1111,7 +1111,7 @@
                             </select>
                         </label>
                     </div>
-                    
+
                     <div class="layout horizontal center">
                         <label>
                             <span class="label-text" msg="extensionUpdates"></span>
@@ -1134,7 +1134,7 @@
                 </div>
             </div>
         </template>
-        
+
         <template id="accountsPageTemplate">
             <div id="accountsPage" class="page" value="accounts">
                 <div class="layout vertical" style="width:807px">
@@ -1178,7 +1178,7 @@
                                 <j-button id="syncSignInOrder" icon="sort"></j-button>
                                 <j-tooltip for="syncSignInOrder" msg="syncSignInOrderTooltip"></j-tooltip>
                                 <j-button id="addAccount" raised class="colored" icon="add" msg="addAccount"></j-button>
-                            </div>							   		
+                            </div>
                         </div>
 
                         <j-listbox id="accountsList">
@@ -1212,7 +1212,7 @@
                 </div>
             </div>
         </template>
-            
+
         <template id="skinsAndThemesPageTemplate">
             <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
                 <a href="https://jasonsavard.com/wiki/Skins_and_Themes?ref=skinOptionsTab" target="_blank"><j-button raised class="raised" msg="help">helpp</j-button></a>
@@ -1222,7 +1222,7 @@
                 </table>
             </div>
         </template>
-        
+
         <template id="keysPageTemplate">
             <div id="keysPage" class="page" value="keys">
                 <a class="inherit" target="_blank" href="https://jasonsavard.com/wiki/Keyboard_shortcuts"><j-button class="raised" msg="keyboardShortcuts">keyboard shortcuts</j-button></a>
@@ -1231,7 +1231,7 @@
                 <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R" value="markAsRead"> <span>R = </span> <span msg="readLink">Mark as Read</span></label>
             </div>
         </template>
-        
+
         <template id="voiceInputPageTemplate">
             <div id="voiceInputPage" class="page" value="voiceInput">
                 <div>
@@ -1274,7 +1274,7 @@
                 </label>
             </div>
         </template>
-        
+
         <template id="adminPageTemplate">
             <div id="adminPage" class="page" value="admin">
                 <div class="layout horizontal col-gap">
@@ -1312,7 +1312,7 @@
                                 <option value='3'>3</option>
                             </select>
                         </label>
-                    
+
                         <label>
                             <span class="label-text">Restart Interval</span>
                             <select id="restartInterval" indexdb-storage="restartInterval" style="width: 200px;">
@@ -1334,14 +1334,14 @@
             </div>
         </template>
     </div>
-    
+
     <template id="runInBackgroundDialogTemplate">
         <ol>
             <li>You must enable the Chrome > Setting > System (chrome://settings/system) <b>Continue running background apps when Google Chrome is closed"</b></li>
             <li>Make sure you are not clearing data that prevents your Google Account from automatically sign in when you restart the browser</li>
         </ol>
     </template>
-    
+
     <input id="notificationSoundInputButton" type="file" accept="audio/*" hidden/>
 
   	<template id="soundsDropDown">
@@ -1402,7 +1402,7 @@
             </select>
         </label>
   	</template>
-  	
+
    	<template id="voiceHearOptionsDropDown">
         <label>
             <span class="label-text" msg="hearEmail">blah</span>

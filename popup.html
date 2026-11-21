@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Checker Plus for Gmail</title>
+	<title>Gmail Checkr</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
 	<link rel="icon" href="images/icons/icon_32.png" sizes="32x32"/>
 	<link rel="icon" href="images/icons/icon_64.png" sizes="64x64"/>
 
     <link rel="stylesheet" href="css/jdom.css">
-	
+
    	<style>
         :root {
             --primary-background-color-rgb: 255, 255, 255;
@@ -36,11 +36,11 @@
 
   	 	a {color:#3c80f6}
   	 	a:visited {color:#3f51b5}
-  	 	
+
   	 	input, textarea, keygen, select {font-size:14px}
-  	 	
+
   	 	.hide {display:none}
-  	 	
+
 		/* for some reason the body opacity was not always transitioning? polymer inteference? */
 		[unresolved] .pageWrapper {opacity:0}
 
@@ -52,13 +52,13 @@
         }
 		body.mac {text-rendering: geometricPrecision}
         body.opera {background-color: var(--bg-color)}
-   		@-moz-document url-prefix() { 
+   		@-moz-document url-prefix() {
  			body {height:550px;padding-left:1px} /* patch height because i can't resize window and padding because there was black border on the right?? */
 		}
 		body.comfortable {width:700px}
    		body.cozy {width:650px}
    		body.compact {width:600px}
-   		
+
 		.full-width-and-height body {width:100% !important;height:100% !important}
 
         .site-header {
@@ -74,7 +74,7 @@
             --icon-size: 14px;
             --icon-only-padding: 5px;
         }
-   		
+
 		#inboxSection {
             background-color: var(--inbox-section-bg-color);
             display: flex;
@@ -124,7 +124,7 @@
             padding: 2px 5px;
             border: 1px solid var(--border-color);
             font-size: x-small;
-        }        
+        }
 
         .accountOptionsMenu {
             white-space: nowrap;
@@ -139,8 +139,8 @@
 		#inbox.hasVerticalScrollbars {
             overflow-y: scroll;
         }
-		
-		/* 
+
+		/*
             v2 aut 2024 commented due to to fix different issue https://jasonsavard.com/forum/discussion/8462/white-lines-in-firefox-but-not-in-edge-chrome, but scroll issue seems resolved...
             v1 ff patch for black background issue when scrolling ref https://bugzilla.mozilla.org/show_bug.cgi?id=1417286 */
         /*
@@ -149,7 +149,7 @@
 			body.background-skin #inbox, #openEmailScrollArea {background-color:rgba(255,255,255,0.1)}
 		}
         */
-		
+
         body.background-skin {
             header {
                 --header-color: white;
@@ -199,7 +199,7 @@
 
 		#prevMail:not(.visible),
         #nextMail:not(.visible) {opacity:0.2}
-		
+
 		.hideArchive .archive,
         .hideArchive #archive,
 		.hideSpam .markAsSpam,
@@ -225,7 +225,7 @@
         #calendar-box {
             text-align: center;
         }
-        
+
         #calendar-logo,
         #calendar-details {
             padding: 16px;
@@ -316,7 +316,7 @@
         }
         html.tabletView #tabletViewWrapper {display: block; width: 100%}
 		html.tabletView #tabletViewFrame {display: block}
-		
+
 		#tabs {display:none;width:97%;clear:both;padding-top:10px;margin-bottom:-1px;position: relative}
 		html.tabletView.hasTabs #tabs {display:flex}
 		.tab {display:none;overflow: hidden;text-overflow: ellipsis;margin-right:-1px;white-space:nowrap;width:100px;padding:9px 12px;cursor:pointer;xxborder-top-left-radius:4px;xxborder-top-right-radius:4px;border:1px solid #ccc;background:rgb(243,243,243)}
@@ -326,7 +326,7 @@
 		.tab.visible {display:inline-block}
 		.tab.selected {border-bottom:1px solid white}
 		.tab.selected, .tab:hover {background:white}
-		
+
 		.accountHeader {
             display: flex;
             align-items: center;
@@ -346,9 +346,9 @@
 			animation: 0.7s ease-in-out 0s normal none 3 swing;
 			transform-origin: center top;
 		}
-		
+
 		#newsNotification {--icon-color:green}
-		
+
 		.account {transition:opacity 0.15s ease-in-out}
         .account:not(.hasUnread) .markAllAsSpamButton,
 		.account:not(.hasUnread) .markAllAsReadButton,
@@ -388,10 +388,10 @@
 		.accountHeader {
             height:17px !important;
         }
-        
+
 		.autoDetect .accountHeader .videoEmail,
         .autoDetect .accountHeader .voiceEmail {display:none}
-		
+
 		.accountErrorWrapper {
             background:red;
             color:white;
@@ -473,7 +473,7 @@
             overflow: hidden;
             line-height: 130%;
         }
-		
+
         .accountPhoto {
             width: 26px;
             height: 26px;
@@ -491,10 +491,10 @@
             margin-inline-end: 16px;
             --j-icon-img-border-radius: 50%;
         }
-		
+
 		.showTrimmedContent {-webkit-user-select: none;text-align:center;padding:0px 1px;cursor:pointer;margin-top:10px;color:#8E8E8E;background-color: #f1f1f1;border: 1px solid #ddd;clear: both;line-height:0px;outline:none;font-size:15px;height:9px;width:15px;overflow:hidden !important}
 		.showTrimmedContent:hover {background-color:#d8d8d8;color:black}
-		
+
 		.message .snippet {white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
 
         .labels {
@@ -519,7 +519,7 @@
             margin-inline-end: 10px;
         }
 		#openEmail .attachment-icon {pointer-events: none}
-        
+
 		[icon='star'] {--icon-color: rgb(244, 180, 4)}
         .orange-star {--icon-color: #ec9900}
         .red-star {--icon-color: red}
@@ -530,7 +530,7 @@
         .mail.mail:not(.unread) {
             background-color: rgb(var(--primary-background-color-rgb), 0.35);
         }
-		
+
 		.mail.unread {
             .sender span.unread,
             .subject,
@@ -538,7 +538,7 @@
                 font-weight: bold;
             }
         }
-		
+
 		.mail.unread .markAsUnread {display:none}
 		.mail:not(.unread) .markAsRead {display:none}
         .mail.is-spam .markAsSpam {display: none}
@@ -549,7 +549,7 @@
             min-width: 280px;
             min-height: 330px;
         }
-		
+
 		.label {
             xxmargin-inline-start: 7px;
             xxmargin-bottom: 5px;
@@ -559,7 +559,7 @@
             font-size:0.9em;
             border-radius:5px;
         }
-		
+
         .labelName,
         .removeLabel {xxheight:1.5em;padding:1px 5px}
 
@@ -568,12 +568,12 @@
 		#openEmailLabels .removeLabel {border-radius:0 5px 5px 0}
 		.removeLabel {cursor:pointer}
 		.removeLabel:hover {background-color:rgb(102, 102, 102) !important;color:rgb(221, 221, 221) !important}
-		
+
 		.moveLabel,
         .changeLabel {
             --j-item-padding: 0px 4px;
         }
-		
+
 		#moveLabelSearch,
         #changeLabelSearch {
             margin-bottom: 8px;
@@ -581,7 +581,7 @@
             width: 100%;
             opacity: 0;
         }
-		
+
 		.accountOptions {text-transform: capitalize}
 
         #email-list-context-menu j-item {
@@ -620,7 +620,7 @@
 
 		#openEmailProgress {width:100%;height:2px;opacity:0}
 		#openEmailProgress.visible {opacity:1}
-		
+
 		#openEmail {padding-top:13px;xxoverflow-x:auto;xxoverflow-y:hidden} /* overflow-y hidden because when using highlighter and changing the .html it would get scrollbar?? */
         #openEmail:focus {outline:none}
 		.openEmailSubject {font-size:1.5em;cursor:pointer}
@@ -800,14 +800,14 @@
             max-width:none !important; /* messed up facebook emails */
         }
 		#openEmail.resized .messageBody pre {white-space: pre-wrap}
-		
+
 		.message .messageHeaderRight {overflow-x:hidden} /* required to keep the photo icons (with letters only) from not being squeazed out */
 		.message.collapsed .openEmailSenderEmailAddress {display:none !important}
 		.message.collapsed .to {display:none !important}
 		.message.collapsed .viewMessageDetails {display:none !important}
 		.message.collapsed .messageBody {display:none !important}
 		.message.hide {display:none !important}
-		
+
         .expand {
             --icon-size: 15px;
             --icon-only-padding: 2px;
@@ -820,11 +820,11 @@
             padding: 5px;
             align-self: flex-start;
         }
-		
+
 		#messageExpander {cursor:pointer;position:relative}
 		#messageExpander::before, #messageExpander::after {content: ' ';border-top: 1px solid #e5e5e5;position: absolute;left: 0;line-height: 0;right: 0}
    		#messageExpander::before {top: 18px}
-  		#messageExpander::after {top: 21px}	
+  		#messageExpander::after {top: 21px}
 		#messagesHidden {
             background-color: #fff;
             color: #999;
@@ -839,7 +839,7 @@
             width: 40px;
             z-index: 1;
         }
-		
+
 		#replyArea {
             padding: 5px;
             border-top: 1px solid var(--border-color);
@@ -895,7 +895,7 @@
             --icon-color: white;
             --icon-padding: 0 3px;
         }
-		
+
 		#replyArea.clicked {padding:10px 5px}
 
 		#replyArea.clicked,
@@ -946,7 +946,7 @@
         }
 
         #reply-from .pretty-email {margin: 0 5px}
-		
+
 		#reply-textarea {
             display: none;
             width: 98%;
@@ -956,12 +956,12 @@
             background-color: transparent;
             border-radius: 0;
         }
-		
+
 		#replyButtons {
             align-items: center;
             gap: 5px;
         }
-		
+
 		#composeArea {position:fixed;right:30px;bottom:20px;z-index:2}
 		.rtl #composeArea {right:auto;left:30px}
 
@@ -976,7 +976,7 @@
 		#quickContactPhoto:hover {box-shadow:0 0 6px rgba(0,0,0,.16),0 6px 12px rgba(0,0,0,.32)}
 		#composeArea:hover #quickContact {transform:scale(1);height:auto;opacity:1}
 		#composeArea:hover #compose {margin-top:5px}
-		
+
 		#composeArea j-tooltip {white-space:nowrap}
 
         #compose-footer {
@@ -987,7 +987,7 @@
             padding: 5px;
             border: 1px solid var(--border-color);
         }
-		
+
 		.inboxMailActionButtons {
 			opacity: 0;
 			position: absolute;
@@ -996,12 +996,12 @@
 			transition: opacity 150ms ease-out;
 			white-space: nowrap;
 		}
-		
+
 		.rtl .inboxMailActionButtons {
 			left: var(--inbox-mail-action-buttons-position);
 			right: auto;
 		}
-		
+
 		.mail:hover .inboxMailActionButtons {opacity:1}
 		xx.mail:hover .attachment-icon {opacity:0}
 
@@ -1053,7 +1053,7 @@
 		#skinsDialog .addButton:not(.selected).highlight {
 			transform: translateX(var(--skin-translate-add-button)) rotate(180deg) scale(2);
 		}
-		
+
 		#skinAuthorWrapper {
             min-width: 69px;
             min-height: 26px;
@@ -1077,7 +1077,7 @@
                 visibility: visible;
             }
         }
-        
+
         @media screen and (max-width: 699px) {
             .skin-by {
                 display: none;
@@ -1099,22 +1099,22 @@
             right: var(--skin-water-position);
         }
 		#skinWatermark.visible {display:block}
-		
+
 		.showMoreEmails {
             text-align:center;
             margin-bottom: 10px;
         }
-		
+
 		.fieldRow {padding:0 10px}
 		.composeField {padding:6px 0}
-		.composeField:focus {outline:none} 
-		
+		.composeField:focus {outline:none}
+
 		.chip {background-color:#f6f6f6;margin: 3px 6px 3px 3px;border-radius: 12px;font-size:1.1em}
 		.chip .contactPhoto {width:24px;height:24px;margin-inline-end:0}
 		.chipName {padding:0 5px;vertical-align:middle;color:#555;font-size:0.9em}
 		.removeChip {--icon-color: gray}
 		#fetchContacts {display:none;position:absolute}
-		
+
 		.acSuggestions {position:absolute;display:none;background:white;z-index:1;margin-top:50px;margin-left:10px;border:1px solid #eee}
 		.acItem {padding:12px;cursor:pointer}
 		.acItem.selected, .acItem:hover {background-color:#f5f5f5}
@@ -1126,17 +1126,17 @@
         #video-attachment:focus-visible {
             outline: none;
         }
-		
+
 		.videoWrapper {position:relative}
 		.videoWrapper video {cursor:pointer;margin:8px;max-height:100px}
 		.videoWrapper .videoPlayButton {opacity:0;position:absolute;background: rgba(0,0,0,0.2);width:46px;height:46px;left:40%;top:33%;border-radius:50%;pointer-events:none;transition:0.1s transform ease-in}
 		.videoWrapper.loaded .videoPlayButton {opacity:1}
 		.videoWrapper:hover .videoPlayButton {transform:scale(1.2)}
-		
+
 		#recordVideoWrapper {margin:5px auto; text-align: center;}
 		#recordVideoWrapper .videoPlayButton {opacity:0;position:absolute;background: rgba(0,0,0,0.2);width:56px;height:56px;left:43%;top:43%;padding:0;border-radius:50%;pointer-events:none;transition:0.1s transform ease-in}
 		#recordVideoWrapper.recordedVideo:not(.playing) .videoPlayButton {opacity:1}
-		
+
         .emoji-container {
             display: flex;
             flex-wrap: wrap;
@@ -1173,7 +1173,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-		
+
         #AIComposeSection {
             display: flex;
             flex-direction: column;
@@ -1335,7 +1335,7 @@
                 }
             }
         }
-		
+
 		.DTH {border-bottom:1px dashed black;color:black;text-decoration:none}
 		a.DTH:-webkit-any-link {
   			color: inherit;
@@ -1375,7 +1375,7 @@
         @media (max-width: 556px) {
             #addToGoogleCalendar {display:none}
         }
-		
+
 		@media (max-width: 550px) and (max-resolution: 1dppx) {
 			xx[main-title] {display:none}
 		}
@@ -1399,11 +1399,11 @@
 	<script src="js/common.js"></script>
     <script src="js/jdom.js"></script>
     <script src="js/icons.js"></script>
-	
+
 	<script defer src="lib/Autolinker.js"></script>
     <script defer src="lib/ical.js"></script>
     <script defer src="js/checkerPlusForGmail.js"></script>
-       
+
     <script defer src="js/mime/addressparser.js"></script>
     <script defer src="js/mime/buffer.js"></script>
     <script defer src="js/mime/iconv.js"></script>
@@ -1426,7 +1426,7 @@
                         <j-button class="side-rail-button" icon="menu" aria-label="Open menu" hidden></j-button>
                         <div class="logo-and-title">
                             <img class="logo" src="/images/icons/icon_64.png"/>
-                            <a main-title href="#">Checker Plus for Gmail</a>
+                            <a main-title href="#">Gmail Checkr</a>
                         </div>
                     </div>
 
@@ -1435,7 +1435,7 @@
                             <j-button icon="arrow-back" role="button" aria-label="search"></j-button> <j-input id="searchInput" type="text"></j-input>
                         </div>
                     </nav>
-                    
+
                     <div class="utility-items">
                         <j-button id="newsNotification" icon="new-releases" hidden></j-button>
                         <j-tooltip for="newsNotification" animation-delay="100">
@@ -1678,13 +1678,13 @@
                         <j-button id="ai-compose-back" icon="arrow-back" role="button" aria-label="search"></j-button>
                         <div class="logo-and-title">
                             <img class="logo" src="/images/icons/icon_64.png"/>
-                            <a main-title href="#">Checker Plus for Gmail</a>
+                            <a main-title href="#">Gmail Checkr</a>
                         </div>
                     </div>
 
                     <nav class="primary-nav" aria-label="Main Navigation">
                     </nav>
-                    
+
                     <div class="utility-items">
                         <j-button id="stop-ai-prompt-audio" class="filled" icon="pause" title="Stop audio playback" aria-label="Stop audio playback" hidden></j-button>
                         <j-button icon="more-vert" msgTitle="options" popovertarget-id="ai-options-menu"></j-button>
@@ -1756,7 +1756,7 @@
 
                         <nav class="primary-nav" aria-label="Main Navigation">
                         </nav>
-                        
+
                         <div class="utility-items">
                             <j-button id="prevMail" icon="expand-less" msgTitle="previous"></j-button>
                             <j-button id="nextMail" icon="expand-more" msgTitle="next"></j-button>
@@ -1909,7 +1909,7 @@
 
                         <nav class="primary-nav" aria-label="Main Navigation">
                         </nav>
-                        
+
                         <div class="utility-items">
                             <j-button icon="more-vert" msgTitle="options" popovertarget-id="compose-options-dropdown"></j-button>
                             <j-listbox id="compose-options-dropdown" popover>
@@ -1958,7 +1958,7 @@
 
 
 	</div>
-	
+
 	<input id="hiddenText" type="text" style="position:absolute;top:-1000px;left:-1000px;width:10px" /> <!-- for copyEmailAddress -->
 
     <j-listbox id="email-list-context-menu" popover>
@@ -2047,7 +2047,7 @@
             <j-input id="customBackgroundImageUrl" label="Background image url (Use imgur.com to host it)"></j-input>
         </div>
     </template>
-    
+
     <template id="audioDialogTemplate">
         <audio id="audio-attachment" controls preload="false"><source/>Your browser does not support the audio element.</audio>
     </template>

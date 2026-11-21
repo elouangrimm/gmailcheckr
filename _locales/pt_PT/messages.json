@@ -1,7 +1,7 @@
 {
     "showCopyOTPInNotification": {"message": "Mostrar botão Copiar OTP nas notificações"},
     "refreshWhenOpeningPopup": {"message": "Atualizar e-mails ao abrir a janela pop-up"},
-	"nameNoTM": {"message": "Checker Plus for Gmail"},
+	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "Receba notificações, leia, ouça ou elimine e-mails sem abrir o Gmail e faça a gestão de várias contas facilmente."},
 
 	"dir": {"message": "ltr"},
@@ -24,11 +24,11 @@
 	"refresh": {"message": "Atualizar"},
 	"or": {"message": "ou"},
 	"hours": {"message": "horas"},
-	
+
 	"delete": {"message": "Eliminar"},
 	"print": {"message": "Imprimir"},
 	"unsubscribe": {"message": "Cancelar subscrição"},
-	
+
 	"enterAnAmount": {"message": "Deve introduzir um montante!"},
 	"minimumAmount": {"message": "Deve contribuir com um mínimo de $1"},
 	"amount": {"message": "Montante"},
@@ -62,7 +62,7 @@
 	"undo": {"message": "Anular"},
 
 	"failureWithPayPalPurchase": {"message": "Cancelado ou falha na transação! Tente $1?"},
-	
+
 	"thankYouForYourContribution": {"message": "As funcionalidades estão agora desbloqueadas. Obrigado pela sua contribuição!"},
 
 	"volume": {"message": "Volume"},
@@ -102,17 +102,17 @@
 	"showIconAnimationToolTip": {"message": "Anima o ícone quando há e-mail novo"},
 
 	"archive_read": {"message": "Ao arquivar, marcar como lido"},
-	"archive_readToolTip": {"message": "Marca um e-mail como lido ao arquivá-lo"},	
+	"archive_readToolTip": {"message": "Marca um e-mail como lido ao arquivá-lo"},
 	"deletingMarksAsRead": {"message": "Ao eliminar, marcar como lido"},
-	"deletingMarksAsReadToolTip": {"message": "Marca um e-mail como lido ao eliminá-lo"},	
+	"deletingMarksAsReadToolTip": {"message": "Marca um e-mail como lido ao eliminá-lo"},
 	"starringMarksAsRead": {"message": "Ao marcar com estrela, marcar como lido"},
     "movingMarksAsRead": {"message": "Ao mover, marcar como lido"},
 	"previewingMarksAsRead": {"message": "Ao pré-visualizar, marcar como lido"},
-	"previewingMarksAsReadToolTip": {"message": "Marca um e-mail como lido ao pré-visualizá-lo na janela pop-up"},	
+	"previewingMarksAsReadToolTip": {"message": "Marca um e-mail como lido ao pré-visualizá-lo na janela pop-up"},
 	"openComposeInTab": {"message": "Abrir 'Compor novo e-mail' num separador"},
-	"openComposeInTabToolTip": {"message": "Abre a composição de novo e-mail num separador em vez de uma pequena janela pop-up (aplica-se também a links mailto)"},	
+	"openComposeInTabToolTip": {"message": "Abre a composição de novo e-mail num separador em vez de uma pequena janela pop-up (aplica-se também a links mailto)"},
 	"hideUnreadCount": {"message": "Ocultar contagem de não lidos"},
-	"hideUnreadCountToolTip": {"message": "Oculta o número de não lidos no ícone da extensão"},	
+	"hideUnreadCountToolTip": {"message": "Oculta o número de não lidos no ícone da extensão"},
 
 	"openPopupPreview": {"message": "Abrir Checker Plus"},
 	"openPopupPreviewToolTip": {"message": "Veja e aja rapidamente sobre e-mails não lidos de qualquer marcador que monitorize. Altamente personalizável, otimizado para múltiplas contas."},
@@ -309,9 +309,9 @@
 
 	"duplicateLabelWarning": {"message": "Selecione apenas 1 dos marcadores principais (A receber, Principal, Importante, Todos os e-mails) ou terá duplicados!"},
 
-	"showAllEmails": {"message": "Mostrar todos os e-mails"},	
+	"showAllEmails": {"message": "Mostrar todos os e-mails"},
 	"hideReadEmails": {"message": "Ocultar e-mails lidos"},
-	
+
 	"openComposeReplyAction": {"message": "Botões Compor e Responder"},
 	"openComposeReplyActionInTab": {"message": "Abrir em separador"},
 	"openComposeReplyActionInPopupWindow": {"message": "Abrir em janela pop-up externa"},
@@ -324,36 +324,36 @@
 	"cancel": {"message": "Cancelar"},
 
 	"keys": {"message": "Teclas"},
-	
+
 	"ignoreThisAccount": {"message": "Ignorar esta conta"},
 	"ignored": {"message": "Ignorada"},
 
 	"notificationTryItOutInstructions": {"message": "Marque pelo menos um dos seus e-mails como não lido, clique aqui e aguarde para ver a janela de notificação!"},
 
-	"alias": {"message": "Alias"},	
-	"addEmailAlias": {"message": "Adicionar um alias ao seu endereço de e-mail"},	
+	"alias": {"message": "Alias"},
+	"addEmailAlias": {"message": "Adicionar um alias ao seu endereço de e-mail"},
 
-	"voiceInput": {"message": "Entrada de voz"},	
-	"enableVoiceInputToolTip": {"message": "Adiciona um microfone na parte inferior de uma nova mensagem ou caixa de resposta na página web do Gmail"},	
+	"voiceInput": {"message": "Entrada de voz"},
+	"enableVoiceInputToolTip": {"message": "Adiciona um microfone na parte inferior de uma nova mensagem ou caixa de resposta na página web do Gmail"},
 	"voiceInputSuggestions": {"message": "Ativar sugestões"},
-		
+
 	"differentSounds": {"message": "Sons para diferentes contas, marcadores ou pessoas"},
 
-	"send": {"message": "Enviar"},	
-	"sending": {"message": "A enviar"},	
-	"sent": {"message": "Enviado"},	
-	"hearEmail": {"message": "Ouvir e-mail"},	
-	"hearEmailToolTip": {"message": "Selecione as partes do e-mail que deseja ouvir... remetente, assunto ou mensagem (corpo) do e-mail"},	
+	"send": {"message": "Enviar"},
+	"sending": {"message": "A enviar"},
+	"sent": {"message": "Enviado"},
+	"hearEmail": {"message": "Ouvir e-mail"},
+	"hearEmailToolTip": {"message": "Selecione as partes do e-mail que deseja ouvir... remetente, assunto ou mensagem (corpo) do e-mail"},
 
 	"textNotification": {"message": "Notificação básica"},
 	"textNotificationToolTip": {"message": "Notificações simples"},
-	"richNotification": {"message": "Notificação completa"},	
+	"richNotification": {"message": "Notificação completa"},
 	"richNotificationToolTip": {"message": "Notificações com botões"},
 
-	"doNotShowNotificationIfGmailTabOpen": {"message": "Não mostrar notificações se um separador do Gmail estiver aberto"},	
+	"doNotShowNotificationIfGmailTabOpen": {"message": "Não mostrar notificações se um separador do Gmail estiver aberto"},
 
 	"accountsAndLabels": {"message": "Contas / Marcadores"},
-	
+
 	"shortcutKeysHeader": {"message": "Estas teclas aplicam-se apenas à janela pop-up superior ativada pelo botão"},
 	"standard": {"message": "Padrão"},
 	"keyboardShortcuts": {"message": "Atalhos de teclado"},
@@ -369,7 +369,7 @@
 
 	"subject": {"message": "Assunto"},
 	"message": {"message": "Mensagem"},
-	
+
 	"email_from": {"message": "remetente"},
 	"email_subject": {"message": "assunto"},
 	"email_message": {"message": "mensagem"},
@@ -396,14 +396,14 @@
 	"showUpdateNotificationsForEvertyhing": {"message": "Mostrar notificações para todas as atualizações e correções"},
 
 	"default": {"message": "Predefinido"},
-	
+
 	"changelog": {"message": "Registo de alterações"},
 	"discoverMyApps": {"message": "Descobrir as minhas aplicações"},
 	"aboutMe": {"message": "Acerca de"},
-	
+
 	"reducedDonationAd_popup": {"message": "Boas notícias, utilizador de longa data! Obtenha o $1 por apenas $2"},
 	"reducedDonationAd_notification": {"message": "Boas notícias, utilizador de longa data [Clique para dispensar]"},
-	
+
 	"voiceTest": {"message": "Testar voz"},
 	"feedback": {"message": "Feedback"},
 
@@ -416,11 +416,11 @@
 	"recommended": {"message": "Recomendado"},
 
 	"switchToInbox": {"message": "Mudar para Caixa de entrada"},
-	
+
 	"switchToCheckerPlus": {"message": "Mudar para Checker Plus"},
-	
+
 	"ifNoUnreadMail": {"message": "Se não houver e-mail não lido"},
-	
+
 	"tab": {"message": "Separador"},
 	"tabToolTip": {"message": "Adicionar separadores na janela pop-up do Gmail para telemóvel"},
 	"primary": {"message": "Principal"},
@@ -608,7 +608,7 @@
     "importOptions": {"message": "Importar opções"},
 
 	"hideButton": {"message": "Ocultar botão"},
-	
+
 	"showGrayIconInDND": {"message": "Mostrar sempre ícone cinzento"},
 
 	"tryAgain": {"message": "Por favor tente novamente"},
@@ -685,7 +685,7 @@
     "moveIntoActionCenter": {"message": "Mover para o centro de ação"},
     "notificationWakesUpScreenTemporarily": {"message": "A notificação acorda o ecrã temporariamente"},
     "disableTransitions": {"message": "Desativar transições"},
-    
+
     "yourOffline": {"message": "Está offline! Desative/reative a ligação de rede, reinicie o navegador ou tente Opções > Admin > Desativar verificação online"},
     "networkProblem": {"message": "Problema de rede"},
 

@@ -330,7 +330,7 @@
 	"promotions": {"message": "Kampanjer"},
 	"updates": {"message": "Oppdateringer"},
 	"forums": {"message": "Forum"},
-	"clickingCheckerPlusLogo": {"message": "Å klikke Checker Plus for Gmail logo"},
+	"clickingCheckerPlusLogo": {"message": "Å klikke Gmail Checkr logo"},
 	"openHelp": {"message": "Åpne hjelp"},
 	"useBasicHTMLView": {"message": "Bruke grunnleggende HTML-visning"},
 	"markAsReadInNotificationWindow": {"message": "Mark email idet lese i varslingsvindu"},

@@ -20,7 +20,7 @@ if (!extensionName) {
 	} catch (e) {
 		console.error("Manifest has not been loaded yet: " + e);
 	}
-	
+
 	var prefix = "__MSG_";
 	// look for key name to message file
 	if (extensionName?.match(prefix)) {
@@ -66,7 +66,7 @@ async function initCurrencyAndMinimums(currencyCode) {
             hide("#onetimeAmountSelections");
             hide("#monthlyAmountSelections");
             show("#yearlyAmountSelections");
-            
+
             hide("#amount");
         } else {
             selectorAll("#onetimeAmountSelections j-button").forEach(el => {
@@ -83,7 +83,7 @@ async function initCurrencyAndMinimums(currencyCode) {
 
             show("#amount");
         }
-		
+
 		if (isMonthly() || isYearlyForAllExtensions()) {
 			if (isPayPalSubscriptionsSupported()) {
 				show("#paypal");
@@ -95,7 +95,7 @@ async function initCurrencyAndMinimums(currencyCode) {
 		} else {
             show("#paymentMethods j-button");
 		}
-		
+
 		if (currencyCode == "crypto") {
             niceAlert(getMessage("selectFiatCurrencyForCrypto"));
             byId("currency").value = "USD";
@@ -120,10 +120,10 @@ async function initCurrencyAndMinimums(currencyCode) {
         byId("amount").min = minimumDonation;
 	}
 }
-	
+
 function initPaymentDetails(buttonClicked) {
 	donateButtonClicked = buttonClicked;
-	
+
 	if (ITEM_ID == "screenshots" && !email && (isMonthly() || isYearlyForAllExtensions() || buttonClicked == "alipay" || buttonClicked == "wechat" || buttonClicked == "nowpayments")) {
 		let promptMessage;
 		if (isMonthly() || isYearlyForAllExtensions()) {
@@ -154,16 +154,16 @@ function isZeroDecimalCurrency(currencyCode) {
 
 function getAmountNumberOnly() {
 	let amount = byId("amount").value;
-	
+
 	if (amount.indexOf(".") == 0) {
 		amount = "0" + amount;
 	}
-	
+
 	// make sure 2 decimal positions ie. 0.5 > 0.50
 	if (/\..$/.test(amount)) {
 		amount += "0";
 	}
-	
+
 	amount = amount.trim();
 	return amount;
 }
@@ -173,26 +173,22 @@ function hideBeforeSuccessfulPayment() {
 }
 
 async function showSuccessfulPayment(paymentInfo) {
+  // if paymentInfo does not exist then assume contributed and call Controller.processFeatures
+  paymentInfo = {
+      unlocked: true,
+  }
+  const billingPeriod = getUrlValue("billingPeriod");
+  if (billingPeriod) {
+      paymentInfo.billingPeriod = billingPeriod;
+  }
+  await Controller.processFeatures(paymentInfo);
 
-    // if paymentInfo does not exist then assume contributed and call Controller.processFeatures
-    if (!paymentInfo) {
-        paymentInfo = {
-            unlocked: true,
-        }
-
-        const billingPeriod = getUrlValue("billingPeriod");        
-        if (billingPeriod) {
-            paymentInfo.billingPeriod = billingPeriod;
-        }
-        await Controller.processFeatures(paymentInfo);
-    }
-	
 	hideBeforeSuccessfulPayment();
 
 	byId("thank-you-video").src = getYouTubeEmbedUrl("https://www.youtube.com/embed/Ue-li7gl3LM?rel=0&autoplay=1&theme=light");
 
 	hide("#extraFeaturesWrapper");
-	
+
 	if (localStorage._amountForAllExtensions) {
 		show("#unlockOtherExtensions");
 	}
@@ -237,7 +233,7 @@ function openMobilePayDialog(params) {
         hideSpinner();
     });
 
-    emptyAppend($content, 
+    emptyAppend($content,
         params.message,
         document.createElement("br"),
         document.createElement("br"),
@@ -254,21 +250,8 @@ function openMobilePayDialog(params) {
                 onClick: (dialog) => {
                     showLoading();
                     Controller.verifyPayment(ITEM_ID, email).then(response => {
-                        hideLoading();
-                        if (response.unlocked) {
-                            dialog.close();
-                            showSuccessfulPayment(response);
-                        } else {
-                            const content = new DocumentFragment();
-
-                            const $link = document.createElement("a");
-                            $link.href = "https://jasonsavard.com/contact";
-                            $link.textContent = getMessage("contact");
-
-                            content.append(getMessage("mustCompleteQrPayment"), createBR(), createBR(), getMessage("ifCompletedContact"), $link, "!");
-
-                            niceAlert(content);
-                        }
+                      hideLoading();
+                      showSuccessfulPayment(response);
                     }).catch(error => {
                         dialog.close();
                         hideLoading();
@@ -295,7 +278,7 @@ async function initPaymentProcessor(price) {
         }
 
 		sendGA("paypal", 'start');
-		
+
 		showLoading();
 
 		// seems description is not used - if item name is entered, but i put it anyways
@@ -313,7 +296,7 @@ async function initPaymentProcessor(price) {
 		if (email) {
 			data.email = email;
 		}
-		
+
 		if (licenseType == "multipleUsers") {
 			data.license = licenseSelected.number;
 			data.action = "recurring";
@@ -322,11 +305,11 @@ async function initPaymentProcessor(price) {
         } else if (isYearlyForAllExtensions()) {
 			data.action = "yearly";
 		}
-        
+
         location.href = await paymentFetch(Controller.DOMAIN + "paymentSystems/paypal/createPayment.php", data, {method: "POST"});
 	} else if (donateButtonClicked == "stripe" || donateButtonClicked == "wechat") {
 		sendGA("stripe", 'start');
-		
+
 		function addFormField(form, name, value) {
             const $input = document.createElement("input");
             $input.name = name;
@@ -348,7 +331,7 @@ async function initPaymentProcessor(price) {
 		addFormField(form, "description", 	extensionName);
 		addFormField(form, "livemode", 		stripeLiveMode);
 		addFormField(form, "returnUrl", 	donationPageUrl);
-		        
+
 		if (email) {
 			addFormField(form, "email", email);
 		}
@@ -361,20 +344,20 @@ async function initPaymentProcessor(price) {
 		} else if (isYearlyForAllExtensions()) {
             addFormField(form, "billingPeriod", "yearly");
         }
-		        
+
         document.body.append(form);
         form.submit();
         form.remove();
 	} else if (donateButtonClicked == "applePay") {
 		sendGA("applePay", 'start');
-		
+
 		let url = "https://jasonsavard.com/contribute?action=applePay";
 
 		function appendParam(url, name, value) {
 			return url + "&" + name + "=" + encodeURIComponent(value);
 		}
 
-		url = appendParam(url, "amount", price);	
+		url = appendParam(url, "amount", price);
 		url = appendParam(url, "currency", getCurrencyCode());
 		url = appendParam(url, "itemId", ITEM_ID);
 		url = appendParam(url, "itemName", extensionName);
@@ -383,7 +366,7 @@ async function initPaymentProcessor(price) {
 		if (window.email) {
 			url = appendParam(url, "email", window.email);
 		}
-		
+
 		if (licenseType == "multipleUsers") {
 			url = appendParam(url, "license", licenseSelected.number);
 			url = appendParam(url, "billingPeriod", "monthly");
@@ -395,12 +378,12 @@ async function initPaymentProcessor(price) {
 
 		openMobilePayDialog({
 			message:	"Scan this QR code with your mobile.",
-			url:	url, 
+			url:	url,
 			type:	"applePay"
 		});
 	} else if (donateButtonClicked == "nowpayments") {
 		sendGA("nowpayments", 'start');
-		
+
 		var data = {
 			action: "createNowPaymentsInvoice",
 			name: extensionName,
@@ -418,7 +401,7 @@ async function initPaymentProcessor(price) {
 		if (licenseType == "multipleUsers") {
 			data.license = licenseSelected.number;
 		}
-			
+
         showLoading();
 		data = await paymentFetch(`${Controller.DOMAIN}paymentSystems/nowpayments/ajax.php`, data, {method: "post"});
         location.href = data.url;
@@ -452,7 +435,7 @@ function isPayPalSubscriptionsSupported() {
 	function isInThisLang(thisLang) {
 		return locale.includes(thisLang) || chrome.i18n.getUILanguage().includes(thisLang);
 	}
-	
+
 	if (isInThisLang("de") || isInThisLang("zh")) {
 		return false;
 	} else {
@@ -525,7 +508,7 @@ function amountSelected(amount) {
 }
 
 function getYouTubeEmbedUrl(url, size) {
-    let sizeParam = ""; 
+    let sizeParam = "";
     if (size) {
         sizeParam = `&size=${size}`;
     }
@@ -536,7 +519,7 @@ function getYouTubeEmbedUrl(url, size) {
 
     await docReady();
     await initUI();
-	
+
 	selectorAll("title, .titleLink").forEach(el => el.textContent = extensionName);
 	hide("#multipleUserLicenseWrapper");
 
@@ -580,66 +563,47 @@ function getYouTubeEmbedUrl(url, size) {
 	} else {
         hide("#individual-businesses-choice");
     }
-	
+
     const action = getUrlValue("action");
 
-    if (action == "paypalSuccess" || action == "stripeSuccess") {
-        hideBeforeSuccessfulPayment();
-        
-        new Promise((resolve, reject) => {
-            if (ITEM_ID == "screenshots") {
-                resolve();
-            } else {
-                showLoading();
-                Controller.verifyPayment(ITEM_ID, email).then(response => {
-                    hideLoading();
-                    if (response.unlocked) {
-                        resolve(response);
-                    } else {
-                        const content = new DocumentFragment();
+    hideBeforeSuccessfulPayment();
 
-                        const $link = document.createElement("a");
-                        $link.href = "https://jasonsavard.com/contact";
-                        $link.textContent = getMessage("contact");
+  new Promise((resolve, reject) => {
+      showSuccessfulPayment();
+        if (ITEM_ID == "screenshots") {
+            resolve();
+        } else {
+            showLoading();
+            Controller.verifyPayment(ITEM_ID, email).then(response => {
+                hideLoading();
+                if (response.unlocked) {
+                    resolve(response);
+                } else {
+                    const content = new DocumentFragment();
 
-                        content.append("Could not match your email, please ", $link, " the developer!");
+                    const $link = document.createElement("a");
+                    $link.href = "https://jasonsavard.com/contact";
+                    $link.textContent = getMessage("contact");
 
-                        openDialog(content, {
-                            title: getMessage("theresAProblem")
-                        });
-                    }
-                }).catch(error => {
-                    hideLoading();
-                    // show success anyways because they might just have extensions preventing access to my server
-                    showSuccessfulPayment();
-                    sendGA("paypal", 'failure ' + error + ' but show success anyways');
-                });
-            }
-        }).then(response => {
-            showSuccessfulPayment(response);
-        });
-    } else if (action == "paypalError" || action == "stripeError") {
-        const error = getUrlValue("error") || "";
-        
-        openDialog(getMessage("tryAgainLater") + " " + getMessage("or") + " " + getMessage("tryAnotherPaymentMethodInstead"), {
-            title: getMessage("theresAProblem") + " " + error
-        });
-        
-        if (action == "paypalError") {
-            sendGA("paypal", 'failure ' + error);
-        } else if (action == "stripeError") {
-            sendGA("stripe", 'failure ' + error);
+                    content.append("Could not match your email, please ", $link, " the developer!");
+
+                    openDialog(content, {
+                        title: getMessage("theresAProblem")
+                    });
+                }
+            }).catch(error => {
+                hideLoading();
+                // show success anyways because they might just have extensions preventing access to my server
+                showSuccessfulPayment();
+                sendGA("paypal", 'failure ' + error + ' but show success anyways');
+            });
         }
-    } else if (action == "stripeCancel") {
-        niceAlert(getMessage("tryAnotherPaymentMethodInstead"));
-    } else if (action == "nowpaymentsSuccess") {
-        showSuccessfulPayment();
-	} else {
-		// nothing
-	}
-	
+    }).then(response => {
+        showSuccessfulPayment(response);
+    });
+
 	var contributionType = getUrlValue("contributionType");
-	
+
 	if (contributionType == "monthly") {
 		// nothing
 	}
@@ -648,7 +612,7 @@ function getYouTubeEmbedUrl(url, size) {
         setPaymentType(value);
 
         initCurrencyAndMinimums(getCurrencyCode());
-		
+
 		if (false && window.matchMedia && window.matchMedia("(min-height: 800px)").matches) {
 			showAmountSelections();
 		} else {
@@ -680,12 +644,12 @@ function getYouTubeEmbedUrl(url, size) {
         byId("yearlyButton").classList.add("filled");
         onPaymentTypeChange("yearly-all-extensions");
     });
-	
+
     byId("currency").addEventListener("change", function(e) {
         const currencyCode = e.target.value;
 		initCurrencyAndMinimums(currencyCode);
 	});
-	
+
     function attachClickToInitPayment(selector, name) {
         onClick(selector, () => {
             initPaymentDetails(name);
@@ -743,7 +707,7 @@ function getYouTubeEmbedUrl(url, size) {
             byId("submitDonationAmount").classList.add("visible");
         }
     });
-	
+
     onClick("#alreadyDonated", () => {
 		if (email) {
 			showLoading();
@@ -753,34 +717,34 @@ function getYouTubeEmbedUrl(url, size) {
 					showSuccessfulPayment(response);
 				} else {
                     const $dialog = document.createElement("div");
-                    
+
                     const $noPaymentText = document.createElement("span");
                     $noPaymentText.textContent = getMessage("noPaymentFoundForEmail");
-                    
+
                     const $separator = document.createTextNode(": ");
-                    
+
                     const $emailSpan = document.createElement("span");
                     $emailSpan.id = "noPaymentEmail";
                     $emailSpan.style.fontWeight = "bold";
                     $emailSpan.textContent = email;
-                    
+
                     const $instructionDiv = document.createElement("div");
                     $instructionDiv.textContent = getMessage("makeSureSignedIntoContributingAccount");
-                    
+
                     const $helpText = document.createElement("span");
                     $helpText.textContent = getMessage("contributionNotRecognizedUse");
-                    
+
                     const $link = document.createElement("a");
                     $link.href = "https://jasonsavard.com/already-contributed-form";
                     $link.textContent = getMessage("alreadyContributedForm");
-                    
+
                     $helpText.append($link);
-                    
+
                     $dialog.append($noPaymentText, $separator, $emailSpan, createBR(), createBR(), $instructionDiv, createBR(), $helpText);
-                    
+
                     openDialog($dialog).then(response => {
 						if (response == "ok") {
-							
+
 						}
 					});
 				}
@@ -795,7 +759,7 @@ function getYouTubeEmbedUrl(url, size) {
 			ensureEmail();
 		}
 	});
-	
+
     onClick("#multipleUserLicenseLink, #businesses", () => {
 
         if (ITEM_ID == "screenshots") {
@@ -821,13 +785,13 @@ function getYouTubeEmbedUrl(url, size) {
                 hide("#licenseOnlyValidFor");
                 show("#signInAsUserOfOrg");
                 //hide("#licenseOptions");
-                
+
                 const exampleEmail = byId("exampleEmail");
                 emptyNode(exampleEmail);
-				
+
                 const span = document.createElement("span");
                 span.textContent = email.split("@")[0];
-            
+
                 const company = document.createElement("b");
                 company.textContent = "@mycompany.com";
 
@@ -835,14 +799,14 @@ function getYouTubeEmbedUrl(url, size) {
             }
 
             slideUp("#paymentMethods");
-                
+
             selectorAll("#licenseOptions j-item").forEach(el => {
                 var users = el.getAttribute("users");
                 var price = el.getAttribute("price");
-                
+
                 var userText;
                 var priceText;
-                
+
                 if (users == 1) {
                     userText = getMessage("Xuser", 1);
                     priceText = getMessage("anyAmount");
@@ -856,12 +820,12 @@ function getYouTubeEmbedUrl(url, size) {
                     }
                     priceText = "$" + price + "/" + getMessage("month").toLowerCase();
                 }
-                
+
                 if (userText) {
                     el.querySelectorAll("div")[0].textContent = userText;
                     el.querySelectorAll("div")[1].textContent = priceText;
                 }
-                
+
                 onClickReplace(el, event => {
                     sendGA("license", users + "");
                     if (users == 1) {
@@ -891,10 +855,10 @@ function getYouTubeEmbedUrl(url, size) {
 		} else {
 			ensureEmail();
 		}
-		
+
 		sendGA("license", "start");
 	});
-	
+
     onClick("#changeDomain", () => {
         openDialog(getMessage("changeThisDomain", getMessage("changeThisDomain2")), {
             buttons: [
@@ -907,15 +871,15 @@ function getYouTubeEmbedUrl(url, size) {
             ]
 		});
 	});
-	
+
     onClick("#options", () => {
 		location.href = "options.html";
 	});
-	
+
 	onClick(".signOutAndSignIn", () => {
         signOut();
 	});
-	
+
     onClick(".driveExtraFeatures", () => {
 		chrome.tabs.create({url:"https://jasonsavard.com/Checker-Plus-for-Google-Drive?ref=contributePage"});
 	});
@@ -941,7 +905,7 @@ function getYouTubeEmbedUrl(url, size) {
     });
 
 	// load these things at the end
-	
+
 	// prevent jumping due to anchor # and because we can't javascript:; or else content security errors appear
     onClick("a[href='#']", event => {
         event.preventDefault();

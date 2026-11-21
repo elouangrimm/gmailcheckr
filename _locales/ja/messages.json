@@ -329,7 +329,7 @@
 	"promotions": {"message": "プロモーション"},
 	"updates": {"message": "新着"},
 	"forums": {"message": "フォーラム"},
-	"clickingCheckerPlusLogo": {"message": "Checker Plus for Gmail のロゴをクリック"},
+	"clickingCheckerPlusLogo": {"message": "Gmail Checkr のロゴをクリック"},
 	"openHelp": {"message": "ヘルプを開く"},
 	"useBasicHTMLView": {"message": "簡易HTMLを使用する"},
 	"markAsReadInNotificationWindow": {"message": "通知ウィンドウで既読にする"},

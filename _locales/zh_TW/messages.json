@@ -1,7 +1,7 @@
 {
     "showCopyOTPInNotification": {"message": "在通知中顯示「複製 OTP」按鈕"},
     "refreshWhenOpeningPopup": {"message": "開啟彈出式視窗時重新整理電子郵件"},
-	"nameNoTM": {"message": "Checker Plus for Gmail"},
+	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "不需打開網頁就能收信、閱讀、聆聽和刪除信件，並可輕鬆管理多個帳戶。"},
 	"dir": {"message": "ltr"},
 	"yesterday": {"message": "昨天"},
@@ -332,7 +332,7 @@
 	"promotions": {"message": "宣傳"},
 	"updates": {"message": "最新消息"},
 	"forums": {"message": "論壇"},
-	"clickingCheckerPlusLogo": {"message": "點擊 Checker Plus for Gmail 的 logo"},
+	"clickingCheckerPlusLogo": {"message": "點擊 Gmail Checkr 的 logo"},
 	"openHelp": {"message": "打開說明頁面"},
 	"useBasicHTMLView": {"message": "使用基本的 HTML 檢視"},
 	"markAsReadInNotificationWindow": {"message": "在通知視窗中標記信件已讀"},

@@ -333,7 +333,7 @@
 	"promotions": {"message": "Промоакции"},
 	"updates": {"message": "Оповещения"},
 	"forums": {"message": "Форумы"},
-	"clickingCheckerPlusLogo": {"message": "Нажатие логотипа Checker Plus for Gmail"},
+	"clickingCheckerPlusLogo": {"message": "Нажатие логотипа Gmail Checkr"},
 	"openHelp": {"message": "Открытие справки"},
 	"useBasicHTMLView": {"message": "Использовать базовую HTML-версию"},
 	"markAsReadInNotificationWindow": {"message": "Помечать письма как прочитанные в окне уведомлений"},

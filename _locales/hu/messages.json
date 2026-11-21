@@ -325,7 +325,7 @@
 	"promotions": {"message": "Promóciók"},
 	"updates": {"message": "Frissítések"},
 	"forums": {"message": "Fórumok"},
-	"clickingCheckerPlusLogo": {"message": "Checker Plus for Gmail logóra kattintás"},
+	"clickingCheckerPlusLogo": {"message": "Gmail Checkr logóra kattintás"},
 	"openHelp": {"message": "Súgó megnyitása"},
 	"useBasicHTMLView": {"message": "Alap HTML nézet használata"},
 	"markAsReadInNotificationWindow": {"message": "E-mail megjelölése olvasottként az értesítési ablakban"},

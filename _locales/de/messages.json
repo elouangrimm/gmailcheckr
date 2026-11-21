@@ -1,7 +1,7 @@
 {
     "showCopyOTPInNotification": {"message": "Schaltfläche zum Kopieren des OTP in Benachrichtigungen anzeigen"},
     "refreshWhenOpeningPopup": {"message": "E-Mails beim Öffnen des Pop-up-Fensters aktualisieren"},
-	"nameNoTM": {"message": "Checker Plus for Gmail"},
+	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "Zeigt neue E-Mails mit Kontaktbild an. Bietet Desktop-Benachrichtigungen oder das Löschen von E-Mails ohne Gmail zu öffnen!"},
 	"yesterday": {"message": "Gestern"},
 	"minutesAgo": {"message": "vor $1 Minuten"},

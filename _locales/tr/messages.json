@@ -459,7 +459,7 @@
 	"updates": {"message": "Güncellemeler"},
 	"forums": {"message": "Forumlar"},
 	"clickForMoreInfo": {"message": "Daha fazla bilgi için tıklayın"},
-	"clickingCheckerPlusLogo": {"message": "Checker Plus for Gmail logosuna tıklayarak"},
+	"clickingCheckerPlusLogo": {"message": "Gmail Checkr logosuna tıklayarak"},
 	"openHelp": {"message": "Yardım'ı aç"},
 	"showCheckerPlusButtonsOnlyOnHover": {"message": "Düğmeleri yalnızca üzerinde gezinince göster"},
 	"showCheckerPlusButtonsOnlyOnHoverToolTip": {"message": "Dokunmatik bir cihazı faresiz kullanıyorsanız önerilmez."},

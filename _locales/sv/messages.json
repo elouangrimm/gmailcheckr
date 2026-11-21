@@ -4,7 +4,7 @@
 	"200": {"message": "Återkommande problem, försök igen!"},
 	"401": {"message": "Obehöriga!"},
 	"403": {"message": "Den e-post eller lösenordet du angav är felaktigt."},
-	"nameNoTM": {"message": "Checker Plus for Gmail"},
+	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "Visar hur många olästa meddelanden du har i inkorgen i Google Mail. Du kan också klicka på knappen om du vill öppna inkorgen"},
 	"today": {"message": "Idag"},
 	"tomorrow": {"message": "I morgon"},

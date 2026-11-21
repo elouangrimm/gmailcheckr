@@ -1,7 +1,7 @@
 {
     "showCopyOTPInNotification": {"message": "在通知中显示“复制 OTP”按钮"},
     "refreshWhenOpeningPopup": {"message": "打开弹出窗口时刷新电子邮件"},
-	"nameNoTM": {"message": "Checker Plus for Gmail"},
+	"nameNoTM": {"message": "Gmail Checkr"},
 	"description": {"message": "无需打开 Gmail 或 Inbox，即可收到桌面邮件通知，方便地查看、收听或删除邮件，并且支持多账户。"},
 	"dir": {"message": "ltr"},
 	"yesterday": {"message": "昨天"},
@@ -335,7 +335,7 @@
 	"promotions": {"message": "推广"},
 	"updates": {"message": "动态"},
 	"forums": {"message": "论坛"},
-	"clickingCheckerPlusLogo": {"message": "点击 Checker Plus for Gmail 的 Logo"},
+	"clickingCheckerPlusLogo": {"message": "点击 Gmail Checkr 的 Logo"},
 	"openHelp": {"message": "打开帮助"},
 	"useBasicHTMLView": {"message": "使用基本 HTML 视图"},
 	"markAsReadInNotificationWindow": {"message": "在通知窗口标记邮件为已读"},

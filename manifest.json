@@ -1,10 +1,9 @@
 {
 "update_url": "https://clients2.google.com/service/update2/crx",
 
-	"name": "Checker Plus for Gmail™",
+	"name": "Gmail Checkr",
 	"description": "__MSG_description__",
 	"version": "36.7.1",
-	"homepage_url": "https://jasonsavard.com?ref=homepage_url&ext=gmail",
 	"background": {
 		"service_worker": "js/background.js"
 	},
@@ -13,7 +12,7 @@
 			"19": "images/browserButtons/default/not_logged_in.png",
 			"38": "images/browserButtons/default/not_logged_in_retina.png"
 		},
-		"default_title": "Checker Plus for Gmail™",
+		"default_title": "Gmail Checkr",
 		"default_popup": "popup.html?source=toolbar&setVia=manifest"
 	},
 	"icons": {
