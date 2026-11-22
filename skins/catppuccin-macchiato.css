@@ -120,6 +120,13 @@ body.popup app-toolbar {
     z-index: 1;
 }
 
+/* email subject line - near-white instead of Catppuccin's lavender --ctp-text.
+   Read/unread is already conveyed by font-weight and row background, so a single
+   colour is correct here and avoids reintroducing the blue cast. */
+.subject {
+    color: #f7f8ff !important;
+}
+
 /* mail snippet text */
 .snippet {
     color: var(--secondary-text-color) !important;

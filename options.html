@@ -4,6 +4,10 @@
   	<title>Gmail Checkr - Options</title>
   	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
+    <link rel="stylesheet" href="js/lib/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="js/lib/codemirror/dracula.min.css">
+    <link rel="stylesheet" href="js/lib/codemirror/show-hint.css">
+
     <!-- must run before the stylesheet paints, not deferred -->
     <script src="js/color-scheme-early.js"></script>
 
@@ -295,22 +299,99 @@
             background-color:#0080008c;
         }
 
-        #skinsAndThemesPage th {
+        #appearancePage th {
             text-align: left;
         }
-        #skinsAndThemesPage .name {max-width:300px;overflow:hidden;padding-right:10px}
-        #skinsAndThemesPage .author a[href] {color: var(--link-color); text-decoration: none}
-        #skinsAndThemesPage .skinImageWrapper {width:80px;text-align:center}
-        #skinsAndThemesPage .skinImage {width:40px;transition:width 0.2s ease-in}
-        #skinsAndThemesPage .addSkin {opacity:0.35;transition:opacity 0.15s ease-in}
-        #skinsAndThemesPage .skinLine:hover .addSkin,
-        #skinsAndThemesPage .addSkin.selected {opacity:1}
+        #appearancePage .name {max-width:300px;overflow:hidden;padding-right:10px}
+        #appearancePage .author a[href] {color: var(--link-color); text-decoration: none}
+        #appearancePage .skinImageWrapper {width:80px;text-align:center}
+        #appearancePage .skinImage {width:40px;transition:width 0.2s ease-in}
+        #appearancePage .addSkin {opacity:0.35;transition:opacity 0.15s ease-in}
+        #appearancePage .skinLine:hover .addSkin,
+        #appearancePage .addSkin.selected {opacity:1}
 
-        /* two-column skin editor: controls left, live popup preview right */
+        /* shared layout primitives for the reorganised pages */
+        .options-section {
+            margin-block: 26px;
+        }
+
+        .options-section > h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 4px;
+            letter-spacing: 0.01em;
+        }
+
+        .options-hint {
+            font-size: small;
+            color: gray;
+            margin: 0 0 12px;
+        }
+
+        .options-keytable {
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .options-keytable td {
+            padding: 5px 18px 5px 0;
+            vertical-align: middle;
+        }
+
+        kbd {
+            display: inline-block;
+            min-width: 18px;
+            padding: 2px 7px;
+            border: 1px solid var(--separator-color);
+            border-bottom-width: 2px;
+            border-radius: 6px;
+            background: var(--bg-light-color);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        .appearance-toolbar-section {
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--separator-color);
+        }
+
+        .appearance-toolbar-section > h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 12px;
+        }
+
+        .appearance-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .appearance-badge-row > fieldset {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .appearance-badge-row > fieldset > legend {
+            float: left;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        /* two-column skin editor: controls left, live popup preview right.
+           The preview column matches the real popup width (600-700px) so the
+           theme is judged at the size you actually see it. */
         .skin-editor-layout {
             display: grid;
-            grid-template-columns: minmax(360px, 1fr) 400px;
-            gap: 24px;
+            grid-template-columns: minmax(340px, 1fr) 716px;
+            gap: 28px;
             align-items: start;
         }
 
@@ -376,14 +457,42 @@
 
         .skin-mini-button:hover { background: var(--bg-light-color-hover, rgba(0,0,0,0.06)); }
 
-        #inlineCssEditor {
-            width: 100%;
-            min-height: 420px;
-            resize: vertical;
-            box-sizing: border-box;
-            padding: 12px;
+        /* CodeMirror mount; the widget itself is styled by codemirror.min.css */
+        .css-editor-host {
             border: 1px solid var(--separator-color);
             border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .css-editor-host .CodeMirror {
+            height: 520px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            background: var(--input-bg-color, white);
+            color: var(--text-color);
+        }
+
+        .css-editor-host .CodeMirror-gutters {
+            background: var(--bg-light-color);
+            border-right: 1px solid var(--separator-color);
+        }
+
+        /* dark page + dracula theme: keep the gutter blend, not a black lockup */
+        :root[color-scheme='dark'] .css-editor-host .CodeMirror {
+            background: #1a1a1a;
+            color: #ddd;
+        }
+
+        /* fallback when CodeMirror is unavailable */
+        .css-editor-fallback {
+            width: 100%;
+            min-height: 520px;
+            box-sizing: border-box;
+            padding: 12px;
+            border: none;
+            outline: none;
+            resize: vertical;
             background: var(--input-bg-color, white);
             color: var(--text-color);
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -392,9 +501,13 @@
             tab-size: 4;
         }
 
-        #inlineCssEditor:focus {
-            outline: none;
-            border-color: var(--accent-color, #1a73e8);
+        /* inline autocomplete popup */
+        .CodeMirror-hints {
+            z-index: 1000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            border-radius: 8px;
+            border: 1px solid var(--separator-color);
         }
 
         .skin-css-status { font-size: small; color: gray; }
@@ -417,7 +530,7 @@
         }
 
         #skinPreviewFrame {
-            width: 400px;
+            width: 700px;
             height: 620px;
             border: 1px solid var(--separator-color);
             border-radius: 10px;
@@ -425,10 +538,10 @@
             display: block;
         }
 
-        @media (max-width: 1000px) {
+        /* below this the two columns stop fitting; stack them */
+        @media (max-width: 1180px) {
             .skin-editor-layout { grid-template-columns: 1fr; }
             .skin-editor-right { position: static; }
-            #skinPreviewFrame { width: 100%; }
         }
 
         #compose-button-placement-section {
@@ -449,6 +562,9 @@
     <script src="js/common.js"></script>
     <script src="js/skins-local.js"></script>
     <script src="js/local-overrides.js"></script>
+    <script src="js/oauth-config.js"></script>
+    <script src="js/oauth-local.js"></script>
+    <script src="js/oauth-native.js"></script>
     <script src="js/storage-selfheal.js"></script>
     <script src="js/custom-css-apply.js"></script>
     <script src="js/jdom.js"></script>
@@ -457,6 +573,11 @@
     <script defer src="js/checkerPlusForGmail.js"></script>
     <script defer src="js/account.js"></script>
     <script defer src="js/mail.js"></script>
+    <script src="js/lib/codemirror/codemirror.min.js"></script>
+    <script src="js/lib/codemirror/css.min.js"></script>
+    <script src="js/lib/codemirror/show-hint.js"></script>
+    <script src="js/lib/codemirror/closebrackets.js"></script>
+    <script src="js/lib/codemirror/matchbrackets.js"></script>
   	<script defer src="js/options.js"></script>
 
 </head>
@@ -469,7 +590,7 @@
                 <div class="header-start">
                     <j-button class="side-rail-button" icon="menu" aria-label="Open menu"></j-button>
                     <div class="logo-and-title">
-                        <img class="logo" src="images/icons/icon_48_white.png"/>
+                        <svg class="logo app-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.95,22.13l-4.34-4.34l1.56-1.56L15.95,19l5.58-5.57l1.56,1.56l-7.14,7.14ZM12,10.91l7.93-4.84H4.07L12,10.91Zm0,2.19L4.07,8.26v9.67H8.95l2.28,2.28H4.07q-0.94,0-1.61-0.67T1.8,17.93V6.07q0-0.94 0.67-1.61T4.07,3.8H19.93q0.94,0 1.61,0.67T22.2,6.07V9.94l-2.28,2.28V8.26L12,13.1Z"/></svg>
                         <a main-title href="https://jasonsavard.com?ref=GmailOptionsTitle">Gmail Checkr</a>
                     </div>
                 </div>
@@ -485,15 +606,14 @@
             <nav class="secondary-nav" aria-label="Secondary Navigation">
                 <ul>
                     <li value="welcome"><a href="#" msg="welcome">Welcome</a></li>
+                    <li value="general"><a href="#" msg="general">General</a></li>
                     <li value="notifications"><a href="#" msg="notifications">Notifications</a></li>
-                    <li value="button"><a href="#" msg="button">Button</a></li>
+                    <li value="button"><a href="#" msg="button">Toolbar button</a></li>
+                    <li value="appearance"><a href="#" msg="addSkinsOrThemes">Appearance</a></li>
                     <li value="accounts"><a href="#" msg="accountsAndLabels">Accounts / Labels</a></li>
                     <li value="compose"><a href="#">✨<span msg="compose">Compose</span></a></li>
                     <li value="dnd"><a href="#" msg="doNotDisturb">Do Not Disturb</a></li>
-                    <li value="general"><a href="#" msg="general">General</a></li>
-                    <li value="skinsAndThemes"><a href="#" msg="addSkinsOrThemes">Skins & Themes</a></li>
-                    <li value="keys"><a href="#" msg="keys">Keys</a></li>
-                    <!--li value="voiceInput"><a href="#" msg="voiceInput">Voice Input</a></li-->
+                    <li value="shortcuts"><a href="#" msg="keys">Shortcuts</a></li>
                     <li value="admin"><a href="#" msg="admin">Admin</a></li>
                 </ul>
             </nav>
@@ -503,68 +623,6 @@
     <div class="site-main">
         <template id="welcomePageTemplate">
             <div id="welcomePage" class="page" value="welcome">
-                <label style="margin-block: 15px">
-                    <span class="label-text" msg="language"></span>
-                    <select id="lang" indexdb-storage="language">
-                        <option value="ar">العربية</option>
-                        <option value="bg">български</option>
-                        <option value="ca">català</option>
-                        <option value="cs">čeština</option>
-                        <option value="da">dansk</option>
-                        <option value="de">Deutsch</option>
-                        <option value="en">English</option>
-                        <option value="en-GB">English (UK)</option>
-                        <option value="es">español</option>
-                        <!--option value='es-419'>
-                            <option-body two-line>
-                                <div>español</div>
-                                <div secondary>América latina</div>
-                            </option-body>
-                        </option-->
-                        <option value="et">eesti</option>
-                        <option value="fa">فارسی</option>
-                        <option value="fr">français</option>
-                        <option value="fr-CA">français (Canada)</option>
-                        <option value="el">Ελληνικά</option>
-                        <option value="he">עברית</option>
-                        <option value="hi">हिंदी</option>
-                        <option value="hr">Hrvatski</option>
-                        <option value="hu">magyar</option>
-                        <option value="it">italiano</option>
-                        <option value="lv">latviešu</option>
-                        <option value="lt">lietuvių</option>
-                        <option value="nl">Nederlands</option>
-                        <option value="no">Norsk</option>
-                        <option value="pl">polski</option>
-                        <option value='pt-BR'>
-                            <div two-line>
-                                <div>português</div>
-                                <div secondary>Brasil</div>
-                            </div>
-                        </option>
-                        <option value='pt-PT'>
-                            <div two-line>
-                                <div>português</div>
-                                <div secondary>Portugal</div>
-                            </div>
-                        </option>
-                        <option value="ro">Română</option>
-                        <option value="fi">Suomi</option>
-                        <option value="ru">pусский</option>
-                        <option value="sr">Српски</option>
-                        <option value="sk">Slovenčina</option>
-                        <option value="sl">Slovenščina</option>
-                        <option value="sv">svenska</option>
-                        <option value="th">Thai</option>
-                        <option value="tr">Türkçe</option>
-                        <option value="uk">Українська</option>
-                        <option value="vi">Tiếng Việt</option>
-                        <option value="ja">日本語</option>
-                        <option value="zh-CN">简体中文</option>
-                        <option value="zh-TW">繁體中文</option>
-                        <option value="ko">한국어</option>
-                    </select>
-                </label>
                 <div class="layout vertical" style="align-items: stretch; gap: 18px;">
                     <j-button class="pin-extension colored" icon="pin" msg="pinExtensionToToolbar"></j-button>
                     <j-button id="notificationsGuide" class="colored" icon="notifications" msg="customizeNotifications"></j-button>
@@ -577,6 +635,11 @@
                     <a style="display: contents" href="https://jasonsavard.com/wiki/Too_many_unread_emails?ref=welcomeTab" target="_blank">
                         <j-button id="guideForTooManyUnreadEmails" class="colored" icon="markunread-mailbox" msg="guideForTooManyUnreadEmails"></j-button>
                     </a>
+
+                    <hr style="border:none;border-top:1px solid var(--separator-color);margin:4px 0">
+
+                    <j-button id="welcomeGeneralSettings" class="colored" icon="settings">General settings</j-button>
+                    <j-tooltip for="welcomeGeneralSettings" animation-delay="0" position="start">Language, popup size, read behaviour</j-tooltip>
                 </div>
             </div>
         </template>
@@ -867,86 +930,6 @@
                 <div class="layout horizontal center">
                     <j-icon id="currentBadgeIcon" src="images/browserButtons/default/new.png"></j-icon>
 
-                    <label>
-                        <span class="label-text" msg="buttonIcon"></span>
-                        <select id="badgeIcon" indexdb-storage="icon_set">
-                            <option value="default" msgFF="default">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/default/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/default/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/default/new.png"></j-icon>
-                                </div>
-                                <span msg="default"></span>
-                            </option>
-                            <option value="blue" msgFF="blue">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/blue/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/blue/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/blue/new.png"></j-icon>
-                                </div>
-                                <span msg="blue"></span>
-                            </option>
-                            <option value="green" msgFF="green">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/green/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/green/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/green/new.png"></j-icon>
-                                </div>
-                                <span msg="green"></span>
-                            </option>
-                            <option value="yellow" msgFF="yellow">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/yellow/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/yellow/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/yellow/new.png"></j-icon>
-                                </div>
-                                <span msg="yellow"></span>
-                            </option>
-                            <option value="native" msgFF="native">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/native/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/native/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/native/new.png"></j-icon>
-                                </div>
-                                <span msg="native"></span>
-                            </option>
-                            <option value="mini" msgFF="mini">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/mini/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/mini/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/mini/new.png"></j-icon>
-                                </div>
-                                <span msg="mini"></span>
-                            </option>
-                            <option value="osx">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/osx/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/osx/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/osx/new.png"></j-icon>
-                                </div>
-                                <span>OS X</span>
-                            </option>
-                            <option value="bubbly" msgFF="bubbly">
-                                <div secondary>
-                                    <j-icon src="images/browserButtons/bubbly/not_logged_in.png"></j-icon>
-                                    <j-icon src="images/browserButtons/bubbly/no_new.png"></j-icon>
-                                    <j-icon src="images/browserButtons/bubbly/new.png"></j-icon>
-                                </div>
-                                <span msg="bubbly"></span>
-                            </option>
-                            <hr>
-                            <option value="custom" msgFF="custom">
-                                <div secondary>
-                                    <j-icon id="customButtonIconSignedOut"></j-icon>
-                                    <j-icon id="customButtonIconNoUnread"></j-icon>
-                                    <j-icon id="customButtonIconUnread"></j-icon>
-                                </div>
-                                <span msg="custom"></span>
-                            </option>
-                        </select>
-                    </label>
-                </div>
-
                 <fieldset id="all-browser-button-dropdowns" class="layout horizontal center col-gap">
                     <label id="browserButtonAction">
                         <span class="label-text" msg="buttonClickAction"></span>
@@ -1080,20 +1063,16 @@
                     <a href="https://jasonsavard.com/wiki/Popup_window?ref=GmailOptions" target="_blank"><j-button icon="help"></j-button></a>
 
                 </fieldset>
+                </div>
 
                 <div class="layout vertical start">
                     <div class="layout horizontal center">
                         <label><input type="checkbox" id="animateButtonIcon" indexdb-storage="animateButtonIcon"><span msg="showIconAnimation"></span></label> <j-button id="testButtonIconAnimation" icon="play-arrow" class="testButton raised" style="margin-inline: 15px"></j-button><j-tooltip for="testButtonIconAnimation" animation-delay="0"><span msg="testIt"></span></j-tooltip>
                     </div>
                     <label><input type="checkbox" id="showButtonTooltip" indexdb-storage="showButtonTooltip" style="margin-bottom:6px"><span msg="showButtonTooltip"></span></label>
-                    <label><input type="checkbox" id="hide_count" indexdb-storage="hide_count"><span msg="hideUnreadCount"></span></label>
                     <label><input type="checkbox" id="showOnlyRecentUnreadEmails" indexdb-storage="showOnlyRecentUnreadEmails"><span msg="showOnlyRecentUnreadEmails"></span></label>
                     <label><input type="checkbox" id="refreshWhenOpeningPopup" indexdb-storage="refreshWhenOpeningPopup"><span msg="refreshWhenOpeningPopup"></span></label>
                     <label><input type="checkbox" id="resetEmailUnreadIconWhenButtonClicked" indexdb-storage="resetEmailUnreadIconWhenButtonClicked"><span msg="resetEmailUnreadIconWhenButtonClicked"></span></label>
-                    <fieldset>
-                        <legend msg="unreadMailCountColor">Unread mail count color</legend>
-                        <span id="sample-unread-count" style="margin-inline: 10px;border:1px solid #444;font-size:0.7em;color:black;border-width:1px;padding:0 4px;border-radius:3px">2</span> <j-button id="unread-count-background-color" icon="format-color-fill" class="raised"></j-button>
-                    </fieldset>
                 </div>
 
                 <fieldset id="checkerPlusButtons" class="layout horizontal start col-gap" style="gap: 30px">
@@ -1279,6 +1258,71 @@
                     <a target="_blank" href="https://jasonsavard.com/wiki/Mailto_links?ref=gmailOptions"><j-button class="filled" msg="mailtoLinks">Open mailto links with Gmail</j-button></a>
 
                 </div>
+                <div class="options-section">
+                    <h3>Language</h3>
+                <label style="margin-block: 15px">
+                    <span class="label-text" msg="language"></span>
+                    <select id="lang" indexdb-storage="language">
+                        <option value="ar">العربية</option>
+                        <option value="bg">български</option>
+                        <option value="ca">català</option>
+                        <option value="cs">čeština</option>
+                        <option value="da">dansk</option>
+                        <option value="de">Deutsch</option>
+                        <option value="en">English</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="es">español</option>
+                        <!--option value='es-419'>
+                            <option-body two-line>
+                                <div>español</div>
+                                <div secondary>América latina</div>
+                            </option-body>
+                        </option-->
+                        <option value="et">eesti</option>
+                        <option value="fa">فارسی</option>
+                        <option value="fr">français</option>
+                        <option value="fr-CA">français (Canada)</option>
+                        <option value="el">Ελληνικά</option>
+                        <option value="he">עברית</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="hr">Hrvatski</option>
+                        <option value="hu">magyar</option>
+                        <option value="it">italiano</option>
+                        <option value="lv">latviešu</option>
+                        <option value="lt">lietuvių</option>
+                        <option value="nl">Nederlands</option>
+                        <option value="no">Norsk</option>
+                        <option value="pl">polski</option>
+                        <option value='pt-BR'>
+                            <div two-line>
+                                <div>português</div>
+                                <div secondary>Brasil</div>
+                            </div>
+                        </option>
+                        <option value='pt-PT'>
+                            <div two-line>
+                                <div>português</div>
+                                <div secondary>Portugal</div>
+                            </div>
+                        </option>
+                        <option value="ro">Română</option>
+                        <option value="fi">Suomi</option>
+                        <option value="ru">pусский</option>
+                        <option value="sr">Српски</option>
+                        <option value="sk">Slovenčina</option>
+                        <option value="sl">Slovenščina</option>
+                        <option value="sv">svenska</option>
+                        <option value="th">Thai</option>
+                        <option value="tr">Türkçe</option>
+                        <option value="uk">Українська</option>
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="ko">한국어</option>
+                    </select>
+                </label>
+                </div>
             </div>
         </template>
 
@@ -1360,8 +1404,106 @@
             </div>
         </template>
 
-        <template id="skinsAndThemesPageTemplate">
-            <div id="skinsAndThemesPage" class="page" value="skinsAndThemes">
+        <template id="appearancePageTemplate">
+            <div id="appearancePage" class="page" value="appearance">
+                <div class="appearance-toolbar-section">
+                    <h3>Toolbar icon</h3>
+                    <label>
+                        <span class="label-text" msg="buttonIcon"></span>
+                        <select id="badgeIcon" indexdb-storage="icon_set">
+                            <option value="default" msgFF="default">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/default/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/default/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/default/new.png"></j-icon>
+                                </div>
+                                <span msg="default"></span>
+                            </option>
+                            <option value="blue" msgFF="blue">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/blue/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/blue/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/blue/new.png"></j-icon>
+                                </div>
+                                <span msg="blue"></span>
+                            </option>
+                            <option value="green" msgFF="green">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/green/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/green/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/green/new.png"></j-icon>
+                                </div>
+                                <span msg="green"></span>
+                            </option>
+                            <option value="yellow" msgFF="yellow">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/yellow/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/yellow/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/yellow/new.png"></j-icon>
+                                </div>
+                                <span msg="yellow"></span>
+                            </option>
+                            <option value="native" msgFF="native">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/native/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/native/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/native/new.png"></j-icon>
+                                </div>
+                                <span msg="native"></span>
+                            </option>
+                            <option value="mini" msgFF="mini">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/mini/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/mini/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/mini/new.png"></j-icon>
+                                </div>
+                                <span msg="mini"></span>
+                            </option>
+                            <option value="osx">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/osx/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/osx/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/osx/new.png"></j-icon>
+                                </div>
+                                <span>OS X</span>
+                            </option>
+                            <option value="bubbly" msgFF="bubbly">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/bubbly/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/bubbly/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/bubbly/new.png"></j-icon>
+                                </div>
+                                <span msg="bubbly"></span>
+                            </option>
+                            <option value="material">
+                                <div secondary>
+                                    <j-icon src="images/browserButtons/material/not_logged_in.png"></j-icon>
+                                    <j-icon src="images/browserButtons/material/no_new.png"></j-icon>
+                                    <j-icon src="images/browserButtons/material/new.png"></j-icon>
+                                </div>
+                                <span>Material</span>
+                            </option>
+                            <hr>
+                            <option value="custom" msgFF="custom">
+                                <div secondary>
+                                    <j-icon id="customButtonIconSignedOut"></j-icon>
+                                    <j-icon id="customButtonIconNoUnread"></j-icon>
+                                    <j-icon id="customButtonIconUnread"></j-icon>
+                                </div>
+                                <span msg="custom"></span>
+                            </option>
+                        </select>
+                    </label>
+
+                    <div class="appearance-badge-row">
+                        <label><input type="checkbox" id="hide_count" indexdb-storage="hide_count"><span msg="hideUnreadCount"></span></label>
+                        <fieldset>
+                            <legend msg="unreadMailCountColor">Unread mail count color</legend>
+                            <span id="sample-unread-count" style="margin-inline: 10px;border:1px solid #444;font-size:0.7em;color:black;border-width:1px;padding:0 4px;border-radius:3px">2</span> <j-button id="unread-count-background-color" icon="format-color-fill" class="raised"></j-button>
+                        </fieldset>
+                    </div>
+                </div>
+
                 <div class="skin-editor-layout">
 
                     <section class="skin-editor-left">
@@ -1372,7 +1514,7 @@
 
                         <div id="skinModeSkins" class="skin-mode-panel">
                             <p class="skin-hint">Click + to install a skin. Changes preview instantly on the right.</p>
-                            <table id="skinsAndThemesListing">
+                            <table id="appearanceListing">
                                 <tr><th>Name</th><th style="text-align:center">Preview</th><th>Author</th></tr>
                             </table>
                         </div>
@@ -1382,8 +1524,7 @@
                                 <span class="skin-hint">Styles the popup and this options page.</span>
                                 <button type="button" id="cssEditorFormat" class="skin-mini-button">Format</button>
                             </div>
-                            <textarea id="inlineCssEditor" spellcheck="false" autocomplete="off"
-                                placeholder="/* e.g. --header-bg-color: #1e1e2e; */"></textarea>
+                            <div id="inlineCssEditor" class="css-editor-host"></div>
                             <div class="skin-css-footer">
                                 <span id="inlineCssStatus" class="skin-css-status">Ready</span>
                                 <button type="button" id="cssEditorReset" class="skin-mini-button">Clear</button>
@@ -1403,12 +1544,29 @@
             </div>
         </template>
 
-        <template id="keysPageTemplate">
-            <div id="keysPage" class="page" value="keys">
-                <a class="inherit" target="_blank" href="https://jasonsavard.com/wiki/Keyboard_shortcuts"><j-button class="raised" msg="keyboardShortcuts">keyboard shortcuts</j-button></a>
-                <br><br>
-                <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R" value="reply"> <span>R = </span> <span msg="reply">Reply</span></label>
-                <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R" value="markAsRead"> <span>R = </span> <span msg="readLink">Mark as Read</span></label>
+        <template id="shortcutsPageTemplate">
+            <div id="shortcutsPage" class="page" value="shortcuts">
+                <div class="options-section">
+                    <h3>Popup keys</h3>
+                    <p class="options-hint">Single-key shortcuts that work while the popup has focus.</p>
+                    <table class="options-keytable">
+                        <tr><td><kbd>R</kbd></td><td>Reply to the open email</td></tr>
+                        <tr><td><kbd>E</kbd></td><td>Archive</td></tr>
+                        <tr><td><kbd>#</kbd></td><td>Delete</td></tr>
+                        <tr><td><kbd>S</kbd></td><td>Star</td></tr>
+                        <tr><td><kbd>U</kbd></td><td>Mark read / unread</td></tr>
+                        <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>Next / previous email</td></tr>
+                        <tr><td><kbd>C</kbd></td><td>Compose</td></tr>
+                        <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+                    </table>
+                </div>
+
+                <div class="options-section">
+                    <h3><kbd>R</kbd> key behaviour</h3>
+                    <p class="options-hint">Gmail already binds <kbd>R</kbd>; choose what the extension should do instead.</p>
+                    <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R" value="reply"> <span><kbd>R</kbd> = </span> <span msg="reply">Reply</span></label>
+                    <label><input type="radio" indexdb-storage="keyboardException_R" name="keyboardException_R" value="markAsRead"> <span><kbd>R</kbd> = </span> <span msg="readLink">Mark as Read</span></label>
+                </div>
             </div>
         </template>
 
@@ -1474,7 +1632,7 @@
                 <fieldset class="options selected" style="margin-block:20px">
                     <legend>Local build</legend>
                     <div class="layout horizontal col-gap" style="align-items:center">
-                        <j-button id="premiumUnlockButton" class="filled" icon="lock-open">Re-unlock premium features</j-button>
+                        <j-button id="premiumUnlockButton" class="filled" icon="done">Re-unlock premium features</j-button>
                         <span id="premiumUnlockStatus" style="font-size:small;color:gray"></span>
                     </div>
                     <div style="color:gray;font-size:small;margin-top:6px">

@@ -201,28 +201,7 @@ async function initPage(tabName) {
         }
 
 		if (tabName == "welcome") {
-			const navLang = await storage.get("language");
-            const $lang = byId("lang");
-			if ($lang.querySelector("[value='" + navLang + "']")) {
-				$lang.value = navLang;
-			} else if ($lang.querySelector(`[value='${navLang.substring(0, 2)}']`)) {
-				$lang.value = navLang.substring(0, 2);
-			} else {
-				$lang.value = "en";
-			}
-
-			byId("lang").addEventListener("change", async function () {
-                try {
-                    delete window.initMiscPromise;
-                    await initUI();
-                    storage.remove("tabletViewUrl");
-                    await sendMessageToBG("resetInitMiscWindowVars");
-                    sendMessageToBG("updateBadge");
-                } catch (error) {
-                    showError(error);
-                }
-            });
-
+            // the language select now lives on the General page
 			onClick("#notificationsGuide", function() {
 				showOptionsSection("notifications");
 				sendGA("guide", "notifications");
@@ -728,7 +707,7 @@ async function initPage(tabName) {
 
 		} else if (tabName == "button") {
 
-            addEventListeners("#hide_count, #showButtonTooltip", "change", async function () {
+            addEventListeners("#showButtonTooltip", "change", async function () {
                 await waitForStorageSync();
                 sendMessageToBG("updateBadge");
 			});
@@ -739,7 +718,7 @@ async function initPage(tabName) {
 			});
 
             // pointer up to support touch surfaces also
-			byId("badgeIcon").addEventListener("change", async function(event) {
+			globalThis.onBadgeIconChange = async function(event) {
 				await waitForStorageSync();
 
                 buttonIcon.setIcon({ force: true });
@@ -866,8 +845,8 @@ async function initPage(tabName) {
                         }]
                     });
 				}
-				byId("currentBadgeIcon").setAttribute("src", await buttonIcon.generateButtonIconPath());
-			});
+				byId("currentBadgeIcon")?.setAttribute("src", await buttonIcon.generateButtonIconPath());
+			};
 			
 			initPopupWindowOptions();
 
@@ -892,30 +871,6 @@ async function initPage(tabName) {
                 buttonIcon.startAnimation({testAnimation:true});
 			});
 
-            function setSampleBadgeColors(color) {
-                const $sampleUnreadColor = byId("sample-unread-count");
-                $sampleUnreadColor.style["background-color"] = color;
-
-                const button = byId("unread-count-background-color");
-
-                if (isColorTooLight(color, 0.60)) {
-                    $sampleUnreadColor.style.color = "black";
-                    //button.style.backgroundColor = "#555";
-                } else {
-                    $sampleUnreadColor.style.color = "white";
-                    //button.style.backgroundColor = "transparent";
-                }
-            }
-
-			setSampleBadgeColors(await storage.get("unreadCountBackgroundColor"));
-
-            onClick("#unread-count-background-color", async e => {
-                const color = await openColorChooser();
-                await storage.set("unreadCountBackgroundColor", color);
-                setSampleBadgeColors(color);
-                sendMessageToBG("updateBadge");
-            });
-
             /*
 			byId("unread-count-background-color").setAttribute("color", await storage.get("unreadCountBackgroundColor"));
             addEventListeners("#unread-count-background-color", "color-changed", async e => {
@@ -927,6 +882,7 @@ async function initPage(tabName) {
             */
 
 		} else if (tabName == "general") {
+            await initLanguageSelect();
 			setTimeout(function () {
 				if (location.href.match("highlight=quickContact")) {
 					byId("quickComposeWrapper").classList.add("highlight");
@@ -1014,16 +970,23 @@ async function initPage(tabName) {
                 pollAndLoad({showNotification:false, refresh:true});
             });
 
-            byId("appearance").value = await getColorSchemeSetting();
+            // Guard: initPage() is not awaited by showOptionsSection(), so this
+            // branch can run before the template has been injected.
+            const $appearance = byId("appearance");
+            if ($appearance && !$appearance._localWired) {
+                $appearance._localWired = true;
 
-            byId("appearance").addEventListener("click", function(e) {
-                e.target.dataset.previousValue = e.target.value;
-            });
+                $appearance.value = await getColorSchemeSetting();
 
-            byId("appearance").addEventListener("change", async function (e) {
-                await storage.set("darkMode", e.target.value);
-                initColorScheme();
-            });
+                $appearance.addEventListener("click", function(e) {
+                    e.target.dataset.previousValue = e.target.value;
+                });
+
+                $appearance.addEventListener("change", async function (e) {
+                    await storage.set("darkMode", e.target.value);
+                    await initColorScheme();
+                });
+            }
 
 		} else if (tabName == "accounts") {
 			setTimeout(function () {
@@ -1170,8 +1133,9 @@ async function initPage(tabName) {
 				});
             });
             
-        } else if (tabName == "skinsAndThemes") {
+        } else if (tabName == "appearance") {
             await initSkinsAndThemesTab();
+            await initAppearanceToolbarControls();
 		} else if (tabName == "voiceInput") {
 			if (!('webkitSpeechRecognition' in window)) {
 				byId("voiceInput").setAttribute("disabled", true);
@@ -1265,19 +1229,27 @@ async function initPage(tabName) {
             // re-lock, and an accidental toggle would silently disable features.
             // "donationClicked" is the flag every gated call site already reads.
             const $premiumStatus = byId("premiumUnlockStatus");
+            if (!$premiumStatus) {
+                return;
+            }
 
             const describePremiumState = async () => {
+                if (!$premiumStatus) { return; }
                 const unlocked = toBool(await storage.get("donationClicked"));
                 $premiumStatus.textContent = unlocked ? "Currently unlocked" : "Currently locked — click the button";
                 $premiumStatus.style.color = unlocked ? "#2e7d32" : "#c62828";
             };
             await describePremiumState();
 
-            onClick("#premiumUnlockButton", async function () {
-                await storage.set("donationClicked", true);
-                await describePremiumState();
-                showToast("Premium features unlocked");
-            });
+            const $unlockButton = byId("premiumUnlockButton");
+            if ($unlockButton && !$unlockButton._localWired) {
+                $unlockButton._localWired = true;
+                $unlockButton.addEventListener("click", async function () {
+                    await storage.set("donationClicked", true);
+                    await describePremiumState();
+                    showToast("Premium features unlocked");
+                });
+            }
 
             onClick("#refreshSkinsCatalog", async function () {
                 const $status = byId("skinsCatalogStatus");
@@ -1819,7 +1791,7 @@ function initSelectedTab() {
 	if (tabId) {
 		showOptionsSection(tabId);
 	} else {
-		showOptionsSection("notifications");
+		showOptionsSection("welcome");
 	}
 }
 
@@ -2817,21 +2789,115 @@ async function loadAccountsOptions(loadAccountsParams = {}) {
 // editor; right panel is a live popup preview that re-renders on change.
 // ---------------------------------------------------------------------------
 
-let skinsTabInitialised = false;
+// The toolbar-icon and badge controls live on the Appearance page, but their
+// handlers used to sit in the Button branch. Keeping them here means they are
+// bound when the page that actually contains the elements is shown.
+async function initAppearanceToolbarControls() {
+    if (byId("unread-count-background-color")?._localWired) {
+        return;
+    }
+
+    const color = await storage.get("unreadCountBackgroundColor");
+    setSampleBadgeColors(color);
+
+    // Toolbar style picker also lives here now
+    const $badgeIcon = byId("badgeIcon");
+    if ($badgeIcon && !$badgeIcon._localWired) {
+        $badgeIcon._localWired = true;
+        $badgeIcon.addEventListener("change", function (event) {
+            if (typeof globalThis.onBadgeIconChange == "function") {
+                return globalThis.onBadgeIconChange(event);
+            }
+        });
+    }
+
+    const $hideCount = byId("hide_count");
+    if ($hideCount && !$hideCount._localWired) {
+        $hideCount._localWired = true;
+        $hideCount.addEventListener("change", async () => {
+            await waitForStorageSync();
+            sendMessageToBG("updateBadge");
+        });
+    }
+
+    const $button = byId("unread-count-background-color");
+    if ($button) {
+        $button._localWired = true;
+        $button.addEventListener("click", async () => {
+            const pickedColor = await openColorChooser();
+            if (!pickedColor) {
+                return;
+            }
+            await storage.set("unreadCountBackgroundColor", pickedColor);
+            setSampleBadgeColors(pickedColor);
+            sendMessageToBG("updateBadge");
+        });
+    }
+}
+
+function setSampleBadgeColors(color) {
+    const $sample = byId("sample-unread-count");
+    if (!$sample) {
+        return;
+    }
+    $sample.style["background-color"] = color;
+
+    if (isColorTooLight(color, 0.60)) {
+        $sample.style.color = "black";
+    } else {
+        $sample.style.color = "white";
+    }
+}
 
 async function initSkinsAndThemesTab() {
-    const $frame = byId("skinPreviewFrame");
+    // initPage() injects the page template asynchronously and is not awaited by
+    // showOptionsSection(), so the DOM may not exist yet on the first call.
+    // Wait for the nodes rather than using a module-level "already did it" flag.
+    const $listing = await waitForElement("appearanceListing");
+    if (!$listing) {
+        console.warn("appearance tab: listing never appeared");
+        return;
+    }
 
-    if (!skinsTabInitialised) {
-        skinsTabInitialised = true;
+    // Wire each control exactly once, keyed off the node itself.
+    const $skinPanel = byId("skinModeSkins");
+    if ($skinPanel && !$skinPanel._localWired) {
+        $skinPanel._localWired = true;
         initSkinModeToggle();
-        initInlineCssEditor();
         initSkinPreviewToolbar();
+    }
+
+    const $cssPanel = byId("skinModeCss");
+    if ($cssPanel && !$cssPanel._localWired) {
+        $cssPanel._localWired = true;
+        initInlineCssEditor();
     }
 
     await renderSkinsList();
     await loadInlineCssEditor();
     await refreshSkinPreview();
+}
+
+// Resolve once an element exists, polling briefly. Returns null on timeout.
+function waitForElement(id, timeoutMs = 2000) {
+    const existing = byId(id);
+    if (existing) {
+        return Promise.resolve(existing);
+    }
+
+    return new Promise(resolve => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+            const el = byId(id);
+            if (el) {
+                clearInterval(timer);
+                resolve(el);
+            } else if (Date.now() - started > timeoutMs) {
+                clearInterval(timer);
+                resolve(null);
+            }
+        }, 30);
+    });
 }
 
 function initSkinModeToggle() {
@@ -2845,18 +2911,25 @@ function initSkinModeToggle() {
 
             byId("skinModeSkins").classList.toggle("hide", mode != "skins");
             byId("skinModeCss").classList.toggle("hide", mode != "css");
+
+            // CodeMirror measures itself on creation. If it was built while its
+            // panel was display:none it renders collapsed (gutter numbers
+            // overlapping the code), so re-measure once it becomes visible.
+            if (mode == "css" && cssEditor && cssEditor.refresh) {
+                requestAnimationFrame(() => cssEditor.refresh());
+            }
         });
     });
 }
 
 async function renderSkinsList() {
-    const $skinsListing = byId("skinsAndThemesListing");
+    const $skinsListing = byId("appearanceListing");
     if (!$skinsListing) {
         return;
     }
 
     // keep the header row, drop previously rendered rows (tab can be revisited)
-    selectorAll("#skinsAndThemesListing .skinLine").forEach($row => $row.remove());
+    selectorAll("#appearanceListing .skinLine").forEach($row => $row.remove());
 
     let skins = [];
     try {
@@ -2945,18 +3018,84 @@ async function renderSkinsList() {
 // ---- inline CSS editor ----------------------------------------------------
 
 let inlineCssSaveTimer = null;
+let cssEditor = null; // CodeMirror instance
+
+// Custom properties exposed by jdom.css, offered by the autocomplete.
+const CSS_HINT_PROPERTIES = [
+    "--text-color", "--bg-color", "--bg-light-color", "--bg-light-color-hover",
+    "--border-color", "--button-text-color", "--input-bg-color", "--input-focus-color",
+    "--checkbox-radio-bg-color", "--default-icon-color", "--light-theme-icon-color",
+    "--dark-theme-icon-color", "--icon-color", "--icon-invert", "--separator-color",
+    "--link-color", "--header-bg-color", "--header-color", "--accent-color",
+    "--icon-size", "--icon-only-padding", "--icon-padding",
+    "--inbox-section-bg-color", "--nav-selected-color", "--gap",
+    "--input-border-radius", "--input-focus-box-shadow", "--focus-visible-color",
+    "--input-font-size", "--input-padding", "--ctp-base", "--ctp-mantle", "--ctp-crust",
+    "--ctp-text", "--ctp-subtext0", "--ctp-subtext1", "--ctp-surface0", "--ctp-surface1",
+    "--ctp-surface2", "--ctp-overlay0", "--ctp-overlay1", "--ctp-overlay2",
+    "--ctp-blue", "--ctp-lavender", "--ctp-mauve", "--ctp-green", "--ctp-peach",
+    "--ctp-red", "--ctp-yellow", "--ctp-teal", "--ctp-sky", "--ctp-sapphire"
+];
+
+const CSS_HINT_SELECTORS = [
+    "body", "html", "header", "dialog", "label", "input", "select", "textarea",
+    "#inboxSection", "#inbox", ".site-header", ".mail", ".accountHeader",
+    "j-button", "j-icon", "j-item", "j-icon-item", "j-tooltip", "j-input",
+    "@media", "@supports", ":root", "*"
+];
 
 function initInlineCssEditor() {
-    const $editor = byId("inlineCssEditor");
     const $status = byId("inlineCssStatus");
+    const $host = byId("inlineCssEditor");
 
-    $editor.addEventListener("input", function () {
+    if (typeof CodeMirror == "undefined" || !$host) {
+        initFallbackCssEditor($host, $status);
+        return;
+    }
+
+    // Guard against double-init when the tab is revisited.
+    if (cssEditor) {
+        return;
+    }
+
+    const isDark = document.documentElement.getAttribute("color-scheme") == "dark";
+
+    cssEditor = CodeMirror($host, {
+        // CodeMirror cannot measure a hidden container; this makes it lay out
+        // correctly the moment the panel becomes visible.
+        viewportMargin: Infinity,
+        mode: "css",
+        theme: isDark ? "dracula" : "default",
+        lineNumbers: true,
+        lineWrapping: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        styleActiveLine: true,
+        extraKeys: {
+            "Tab": cm => cm.execCommand("indentMore"),
+            "Shift-Tab": cm => cm.execCommand("indentLess"),
+            "Ctrl-Space": "autocomplete"
+        }
+    });
+
+    // suggest on demand while typing
+    cssEditor.on("inputRead", (cm, change) => {
+        const typed = change.text[0];
+        if (/[a-zA-Z#.\-]/.test(typed) || typed == ":") {
+            cm.showHint({hint: cssHintProvider, completeSingle: false});
+        }
+    });
+
+    cssEditor.on("change", () => {
         $status.textContent = "Saving...";
         $status.className = "skin-css-status saving";
 
         clearTimeout(inlineCssSaveTimer);
         inlineCssSaveTimer = setTimeout(async () => {
-            await saveInlineCss($editor.value);
+            await saveInlineCss(cssEditor.getValue());
             $status.textContent = "Saved";
             $status.className = "skin-css-status saved";
 
@@ -2967,29 +3106,70 @@ function initInlineCssEditor() {
         }, 500);
     });
 
-    // keep tab-in-textarea behaviour instead of moving focus
-    $editor.addEventListener("keydown", function (e) {
-        if (e.key == "Tab") {
-            e.preventDefault();
-            const start = this.selectionStart;
-            const end = this.selectionEnd;
-            this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
-            this.selectionStart = this.selectionEnd = start + 4;
-        }
-    });
-
     onClick("#cssEditorFormat", function () {
-        $editor.value = formatCssText($editor.value);
-        $editor.dispatchEvent(new Event("input"));
+        cssEditor.setValue(formatCssText(cssEditor.getValue()));
     });
 
     onClick("#cssEditorReset", async function () {
-        $editor.value = "";
+        cssEditor.setValue("");
         await saveInlineCss("");
         $status.textContent = "Cleared";
         $status.className = "skin-css-status";
         await refreshSkinPreview();
     });
+}
+
+function initFallbackCssEditor($host, $status) {
+    console.warn("CodeMirror unavailable, falling back to a plain textarea");
+    const $textarea = document.createElement("textarea");
+    $textarea.className = "css-editor-fallback";
+    $textarea.spellcheck = false;
+    $host.append($textarea);
+
+    $textarea.addEventListener("input", function () {
+        $status.textContent = "Saving...";
+        $status.className = "skin-css-status saving";
+        clearTimeout(inlineCssSaveTimer);
+        inlineCssSaveTimer = setTimeout(async () => {
+            await saveInlineCss($textarea.value);
+            $status.textContent = "Saved";
+            $status.className = "skin-css-status saved";
+        }, 500);
+    });
+
+    cssEditor = {
+        getValue: () => $textarea.value,
+        setValue: v => { $textarea.value = v; }
+    };
+}
+
+// Suggests custom properties in a block, values after a colon, selectors at top level.
+function cssHintProvider(cm) {
+    const cursor = cm.getCursor();
+    const line = cm.getLine(cursor.line);
+    const before = line.slice(0, cursor.ch);
+
+    const inBlock = before.lastIndexOf("{") > before.lastIndexOf("}");
+    const afterColon = /:[^;]*$/.test(before);
+
+    let list;
+    if (afterColon) {
+        list = ["var(--text-color)", "var(--bg-color)", "var(--header-bg-color)",
+                "#fff", "#000", "transparent", "none", "inherit", "!important",
+                "1px solid", "center", "flex", "grid", "hidden", "block"];
+    } else if (inBlock) {
+        list = CSS_HINT_PROPERTIES;
+    } else {
+        list = CSS_HINT_SELECTORS;
+    }
+
+    const word = (before.match(/[-\w#.]+$/) || [""])[0];
+
+    return {
+        list,
+        from: CodeMirror.Pos(cursor.line, cursor.ch - word.length),
+        to: CodeMirror.Pos(cursor.line, cursor.ch)
+    };
 }
 
 async function saveInlineCss(css) {
@@ -3002,12 +3182,11 @@ async function saveInlineCss(css) {
 }
 
 async function loadInlineCssEditor() {
-    const $editor = byId("inlineCssEditor");
-    if (!$editor || $editor._loaded) {
+    if (!cssEditor || cssEditor._loaded) {
         return;
     }
-    $editor._loaded = true;
-    $editor.value = (await storage.get("customCss")) || "";
+    cssEditor._loaded = true;
+    cssEditor.setValue((await storage.get("customCss")) || "");
 }
 
 // Minimal CSS pretty-printer: one declaration per line, braces on their own line.
@@ -3069,8 +3248,61 @@ function refreshSkinPreview() {
     // debounce: a burst of changes should only paint once
     clearTimeout(previewRefreshTimer);
     previewRefreshTimer = setTimeout(() => {
-        $frame.src = chrome.runtime.getURL(`popup.html?source=preview&t=${Date.now()}`);
+        const url = chrome.runtime.getURL("popup.html?source=preview&t=" + Date.now());
+        console.log("preview: loading", url);
+
+        $frame.onerror = () => {
+            console.error("preview: iframe failed to load", url);
+        };
+        $frame.onload = () => {
+            // a blank document means the navigation was blocked or the popup
+            // threw before rendering; surface that instead of showing white
+            try {
+                const doc = $frame.contentDocument;
+                if (doc && doc.body && doc.body.childElementCount === 0) {
+                    console.warn("preview: popup rendered an empty document");
+                }
+            } catch (error) {
+                console.warn("preview: cannot inspect iframe", error);
+            }
+        };
+
+        $frame.src = url;
     }, 250);
+}
+
+
+async function initLanguageSelect() {
+    const navLang = await storage.get("language");
+    const $lang = byId("lang");
+    if (!$lang) {
+        return;
+    }
+
+    if ($lang.querySelector("[value='" + navLang + "']")) {
+        $lang.value = navLang;
+    } else if ($lang.querySelector(`[value='${navLang.substring(0, 2)}']`)) {
+        $lang.value = navLang.substring(0, 2);
+    } else {
+        $lang.value = "en";
+    }
+
+    if ($lang._localWired) {
+        return;
+    }
+    $lang._localWired = true;
+
+    $lang.addEventListener("change", async function () {
+        try {
+            delete window.initMiscPromise;
+            await initUI();
+            storage.remove("tabletViewUrl");
+            await sendMessageToBG("resetInitMiscWindowVars");
+            sendMessageToBG("updateBadge");
+        } catch (error) {
+            showError(error);
+        }
+    });
 }
 
 async function loadVoices() {

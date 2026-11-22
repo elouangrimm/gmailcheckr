@@ -7,8 +7,8 @@
 	},
 	"action": {
 		"default_icon": {
-			"19": "images/browserButtons/default/not_logged_in.png",
-			"38": "images/browserButtons/default/not_logged_in_retina.png"
+			"19": "images/browserButtons/material/not_logged_in.png",
+			"38": "images/browserButtons/material/not_logged_in_retina.png"
 		},
 		"default_title": "Gmail Checkr",
 		"default_popup": "popup.html?source=toolbar&setVia=manifest"

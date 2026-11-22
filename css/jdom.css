@@ -919,6 +919,28 @@ dialog {
     img {
         max-height: 40px;
     }
+
+    /* Inline envelope mark: inherits the surrounding text colour so it always
+       matches the header in light, dark, and themed skins. */
+    .app-logo {
+        width: 32px;
+        height: 32px;
+        max-height: 40px;
+        flex: 0 0 auto;
+        fill: currentColor;
+    }
+}
+
+/* Where the mark sits on its own (favicons, dialogs), tint it with the theme
+   accent, falling back to the Catppuccin highlight when no theme is applied. */
+.app-logo {
+    fill: var(--accent-color, var(--ctp-lavender, #b7bdf8));
+}
+
+/* ...but inside the header it must follow the header's own text colour. */
+.site-header .app-logo,
+.logo-and-title .app-logo {
+    fill: currentColor;
 }
 
 .primary-nav,

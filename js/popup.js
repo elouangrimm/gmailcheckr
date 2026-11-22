@@ -1768,6 +1768,38 @@ function initOpenEmailEventListeners() {
 	initOpenEmailEventListenersLoaded = true;
 }
 
+// Skins & Themes preview iframe: CSS :hover must still work so themes can be
+// judged properly, but a click must never actually run the popup's actions
+// (archiving a real email from inside a preview would be a nasty surprise).
+// Blocking is done at capture phase on window, before any handler runs.
+function initPreviewMode() {
+    addCSS("previewMode", `
+        html, body {
+            overflow: hidden !important;
+            user-select: none !important;
+        }
+        /* neutralise navigation-opening affordances without disabling :hover */
+        a, button, j-button, j-icon-item, input, select, textarea, label {
+            cursor: default !important;
+        }
+    `);
+
+    const swallow = event => {
+        // let hover/scroll/pointer visuals through; stop anything that commits
+        if (event.type == "click" || event.type == "mousedown" || event.type == "mouseup"
+            || event.type == "submit" || event.type == "keydown") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+    };
+
+    ["click", "mousedown", "mouseup", "submit", "keydown", "dblclick", "contextmenu"]
+        .forEach(type => window.addEventListener(type, swallow, true));
+
+    // a preview should never open a tab or navigate
+    window.open = () => null;
+}
+
 async function maxHeightOfPopup() {
 	if (fromToolbar) {
 		await zoomPromise;
@@ -6824,16 +6856,7 @@ async function init() {
     }
 
     if (isPreview) {
-        // Skins & Themes preview: a picture of the popup, not a live app.
-        // Screenshot mode is injected after load so skins still render.
-        addCSS("previewMode", `
-            html, body {
-                overflow: hidden !important;
-                pointer-events: none !important;
-                user-select: none !important;
-            }
-            * { cursor: default !important; }
-        `);
+        initPreviewMode();
     }
 
 	$body.classList.add(await storage.get("accountAddingMethod"));

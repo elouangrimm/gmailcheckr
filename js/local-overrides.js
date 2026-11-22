@@ -65,6 +65,192 @@
         });
     };
 
+
+    // ---- High-DPI toolbar icons for the "material" set ---------------------
+    //
+    // ButtonIcon.setIcon() only requests a retina variant for the "default"
+    // icon set, passing a single 19px path for everything else. The material
+    // set ships a 38px file too, so serve that on 2x displays. This wraps
+    // chrome.action.setIcon rather than editing the class in place.
+
+    function patchActionIcon() {
+        if (!chrome?.action?.setIcon || chrome.action.setIcon._localWired) {
+            return false;
+        }
+        chrome.action.setIcon._localWired = true;
+
+        const upstream = chrome.action.setIcon.bind(chrome.action);
+
+        chrome.action.setIcon = function (details) {
+            try {
+                const path = details?.path;
+                if (path && typeof path === "object" && path["19"] && !path["38"]
+                    && /browserButtons\/material\//.test(path["19"])) {
+
+                    const retina = path["19"].replace(/(\.png)$/, "_retina$1");
+                    if (retina != path["19"]) {
+                        details = Object.assign({}, details, {
+                            path: {"19": path["19"], "38": retina}
+                        });
+                    }
+                }
+            } catch (error) {
+                // never let icon sizing break the update cycle
+            }
+            return upstream(details);
+        };
+
+        return true;
+    }
+
+    if (!patchActionIcon()) {
+        const t = setInterval(() => {
+            if (patchActionIcon()) {
+                clearInterval(t);
+            }
+        }, 50);
+        setTimeout(() => clearInterval(t), 5000);
+    }
+
+
+    // ---- Toolbar icon: apply icon_set changes without a restart -----------
+    //
+    // ButtonIcon.setIcon() early-returns when the incoming params match the
+    // cached lastSetIconParams. But `icon_set` is NOT part of those params, so
+    // changing the toolbar style produces an identical params object and the
+    // call is skipped. That cache is also persisted to storage, so a style
+    // switch appears to do nothing until the service worker is restarted.
+    //
+    // Wrap the instance method and stamp the current icon_set into the params,
+    // so a style change always looks like a change.
+
+    function patchButtonIcon() {
+        const icon = globalThis.buttonIcon;
+        if (!icon || typeof icon.setIcon != "function" || icon.setIcon._localSetWired) {
+            return false;
+        }
+
+        const upstream = icon.setIcon;
+        icon.setIcon = async function (params) {
+            try {
+                const iconSet = await storage.get("icon_set");
+                if (iconSet && params) {
+                    params = Object.assign({}, params, {_iconSet: iconSet});
+                } else if (iconSet) {
+                    params = {_iconSet: iconSet, force: true};
+                }
+            } catch (error) {
+                // storage not ready; fall through and let the original decide
+            }
+            return upstream.call(this, params);
+        };
+        icon.setIcon._localSetWired = true;
+
+        return true;
+    }
+
+    // buttonIcon is created during initMisc(), which runs after this file.
+    if (!patchButtonIcon()) {
+        const t = setInterval(() => {
+            if (patchButtonIcon()) {
+                clearInterval(t);
+            }
+        }, 50);
+        setTimeout(() => clearInterval(t), 10000);
+    }
+
+
+    // ---- Default the toolbar icon set to "material" ----------------------
+    //
+    // DEFAULT_SETTINGS is a plain object literal in checkerPlusForGmail.js. It is
+    // only consulted for keys that are absent from storage, so adjusting it here
+    // sets the default for fresh installs without touching a saved choice.
+    function applyDefaultIconSet() {
+        const defaults = globalThis.DEFAULT_SETTINGS;
+        if (!defaults || defaults._localIconDefault) {
+            return false;
+        }
+        defaults._localIconDefault = true;
+
+        if (!defaults.icon_set || defaults.icon_set === "default") {
+            defaults.icon_set = "material";
+        }
+        return true;
+    }
+
+    if (!applyDefaultIconSet()) {
+        const t = setInterval(() => {
+            if (applyDefaultIconSet()) {
+                clearInterval(t);
+            }
+        }, 25);
+        setTimeout(() => clearInterval(t), 5000);
+    }
+
+
+    // ---- Honour the user's badge colour even with zero unread ------------
+    //
+    // updateBadge() hardcodes a grey-blue badge background on the "no unread"
+    // branch:
+    //     chrome.action.setBadgeBackgroundColor({ color: [110, 140, 180, 255] });
+    // so a colour picked in settings silently reverts whenever the inbox hits
+    // zero, and only reapplies once mail arrives. Stamp the stored colour over
+    // that call so what you choose is what you see, always.
+    function patchBadgeColour() {
+        if (!chrome?.action?.setBadgeBackgroundColor || chrome.action.setBadgeBackgroundColor._localWired) {
+            return false;
+        }
+        chrome.action.setBadgeBackgroundColor._localWired = true;
+
+        const upstream = chrome.action.setBadgeBackgroundColor.bind(chrome.action);
+
+        chrome.action.setBadgeBackgroundColor = function (details) {
+            // the hardcoded fallback is exactly this tuple
+            const isHardcodedFallback = Array.isArray(details?.color)
+                && details.color.length === 4
+                && details.color[0] === 110
+                && details.color[1] === 140
+                && details.color[2] === 180;
+
+            if (isHardcodedFallback) {
+                // Prefer the value the user picked; fall back to the sensible
+                // default so we never leave the badge unpainted.
+                const chosen = globalThis.__localBadgeColour || "#d32f2f";
+                details = Object.assign({}, details, {color: chosen});
+            } else if (typeof details?.color === "string") {
+                // cache whatever the extension decided is authoritative
+                globalThis.__localBadgeColour = details.color;
+            }
+
+            return upstream(details);
+        };
+
+        // Seed the cache from storage so the very first zero-unread update uses
+        // the saved colour rather than waiting for a real one to arrive.
+        try {
+            if (globalThis.storage?.get) {
+                storage.get("unreadCountBackgroundColor").then(color => {
+                    if (color) {
+                        globalThis.__localBadgeColour = color;
+                    }
+                }).catch(() => {});
+            }
+        } catch (error) {
+            // storage not ready yet; the cache fills on first real colour
+        }
+
+        return true;
+    }
+
+    if (!patchBadgeColour()) {
+        const t = setInterval(() => {
+            if (patchBadgeColour()) {
+                clearInterval(t);
+            }
+        }, 50);
+        setTimeout(() => clearInterval(t), 5000);
+    }
+
     if (globalThis.Controller) {
         patchController();
     } else {
