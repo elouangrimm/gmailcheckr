@@ -190,9 +190,24 @@
                 body: form.toString()
             });
 
-            // getAuthTokenFromServer() calls dStr() on the body, shifting every
-            // character by -1, then JSON.parse()s it. Google returns plain JSON,
-            // so re-shift it by +1 here to survive that round trip untouched.
+            // Deliver the body in the shape the caller expects.
+            //
+            // getAuthTokenFromServer() does:
+            //     const rawResponse = await oauthFetch(...)   // -> fetchJSON
+            //     const response = dStr(rawResponse);          // shifts each char -1
+            //     return JSON.parse(response);
+            //
+            // So fetchJSON must hand back a *string*, and it must already be
+            // shifted +1 so dStr restores Google's JSON exactly.
+            //
+            // The trap: fetchJSON only returns a string when the response is NOT
+            // application/json. If we pass Google's content-type through, it
+            // calls response.json() instead, which fails on a shifted body, and
+            // substitutes its "Could not fetch json" placeholder — which dStr
+            // then turns into the "Bntkc..." garbage seen at runtime.
+            //
+            // Returning text/plain makes fetchJSON use response.text(), giving
+            // the string dStr needs.
             try {
                 const text = await response.clone().text();
                 const shifted = text
@@ -203,10 +218,11 @@
                 return new Response(shifted, {
                     status: response.status,
                     statusText: response.statusText,
-                    headers: response.headers
+                    // deliberate: NOT application/json, see the comment above
+                    headers: {"content-type": "text/plain"}
                 });
             } catch (error) {
-                console.warn("[local] could not re-shift token response", error);
+                console.warn("[local] could not reshape token response", error);
                 return response;
             }
         };

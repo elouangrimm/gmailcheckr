@@ -137,10 +137,27 @@ Two further traps in that same code path:
 2. **Obfuscated refresh token.** The refresh token is sent as a field called
    `ert`, character-shifted by `+1`, not as `refresh_token`.
 
-`js/oauth-native.js` now intercepts `fetchWrapper()` — the single funnel every
+`js/oauth-native.js` intercepts `fetchWrapper()` — the single funnel every
 request passes through — and redirects just the token endpoint to Google. It
 undoes the `ert` shift on the way out and re-applies the response shift on the
-way back, so the upstream parser keeps working unchanged.
+way back.
+
+One subtlety worth recording, because getting it wrong produced a very confusing
+runtime error. The return shape has to match what `fetchJSON` expects:
+
+| Response content-type | `fetchJSON` returns | Works with `dStr`? |
+| :--- | :--- | :--- |
+| `application/json` | a parsed object | **no** — `dStr` needs a string |
+| `text/plain` | a string | yes |
+
+`getAuthTokenFromServer()` calls `dStr(rawResponse)` then `JSON.parse`, so it
+needs a **string**. Passing Google's `application/json` header through made
+`fetchJSON` try to parse the shifted body, fail, and substitute its placeholder
+`"Could not fetch json might be a text response"`. `dStr` then shifted that by
+−1, which is why the UI showed `Unexpected token 'B', "Bntkc\u001fmns..."` —
+`Bntkc` is just `Could` shifted by one character.
+
+The redirect therefore returns `text/plain` with a `+1` shifted body.
 
 ## Troubleshooting
 
